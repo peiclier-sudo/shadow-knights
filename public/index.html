@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SHADOW KNIGHTS - 3D SHADOW EDITION</title>
+    <title>Shadow Knights - SIMPLE VERSION</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         * { 
-            margin: 0; 
-            padding: 0; 
+            margin: 0 !important; 
+            padding: 0 !important; 
             box-sizing: border-box;
+            overflow: hidden;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
@@ -25,19 +26,25 @@
             background: #000;
         }
         #game-container { 
-            width: 100%;
-            height: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-        canvas {
-            display: block;
             width: 100% !important;
             height: 100% !important;
-            object-fit: contain;
-            image-rendering: crisp-edges;
-            image-rendering: pixelated;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+        }
+        canvas {
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
         }
         @media (max-width: 900px) and (orientation: portrait) {
             body::before {
@@ -52,25 +59,20 @@
                 text-shadow: 0 0 20px #00d4ff;
                 z-index: 9999;
             }
+            canvas { display: none !important; }
         }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     <script>
-        // Configuration with MAXIMUM QUALITY settings
         const config = {
             type: Phaser.WEBGL,
+            width: window.innerWidth,
+            height: window.innerHeight,
             parent: 'game-container',
             backgroundColor: '#0a0a14',
-            physics: { 
-                default: 'arcade', 
-                arcade: { 
-                    gravity: { y: 0 },
-                    fps: 120,
-                    timeScale: 1
-                }
-            },
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 }}},
             scene: { create, update },
             scale: { 
                 mode: Phaser.Scale.RESIZE,
@@ -79,29 +81,23 @@
                 height: '100%'
             },
             render: {
-                antialias: false,
-                pixelArt: true,
-                roundPixels: true,
+                pixelArt: false,
+                antialias: true,  // ON pour smooth shapes
+                roundPixels: false,
                 powerPreference: 'high-performance',
-                transparent: false,
-                clearBeforeRender: true,
-                premultipliedAlpha: false,
-                preserveDrawingBuffer: false,
-                failIfMajorPerformanceCaveat: false
+                transparent: false
             },
             fps: {
-                target: 120,
-                forceSetTimeOut: false,
-                deltaHistory: 10,
-                panicMax: 120
+                target: 60,
+                forceSetTimeOut: false
             }
         };
 
-        // BOSS DATA with enhanced colors
+        // BOSS DATA
         const BOSSES = {
-            1: { name: 'SENTINEL', hp: 400, color: 0xff0051, glowColor: 0xff3366, secondaryColor: 0x990033 },
-            2: { name: 'GUNNER', hp: 500, color: 0xff6600, glowColor: 0xff8833, secondaryColor: 0xcc4400 },
-            3: { name: 'DASHER', hp: 600, color: 0xcc00ff, glowColor: 0xdd33ff, secondaryColor: 0x9900cc }
+            1: { name: 'SENTINEL', hp: 400, color: 0xff0051 },
+            2: { name: 'GUNNER', hp: 500, color: 0xff6600 },
+            3: { name: 'DASHER', hp: 600, color: 0xcc00ff }
         };
         
         let currentBossId = parseInt(localStorage.getItem('currentBoss')) || 1;
@@ -113,26 +109,6 @@
         let playerHealthBar, bossHealthBar, staminaBar, playerHealthText, bossHealthText, staminaText;
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let bossNextAttackTime = 0;
-        
-        // Dash variables
-        let isDashing = false;
-        let dashDirection = { x: 0, y: 0 };
-        let dashTimer = 0;
-        const DASH_DURATION = 200; // ms
-        const DASH_SPEED = 1000;
-        const DASH_COOLDOWN = 1000; // ms
-        const DASH_STAMINA_COST = 40;
-        let lastDashTime = 0;
-        let isInvulnerable = false;
-        
-        // Charge attack variables
-        let isCharging = false;
-        let chargeStartTime = 0;
-        const CHARGE_TIME = 1500; // ms for full charge
-        const MAX_CHARGE_DAMAGE = 50;
-        let chargeIndicator = null;
-        let chargeLevel = 0;
-        let isChargingAttack = false;
         
         // Mobile controls
         let moveJoy = { active: false, deltaX: 0, deltaY: 0 };
@@ -147,53 +123,53 @@
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
-        // Dash button for mobile
-        let dashButton = null;
-        
-        // Stamina warning text
-        let staminaWarning = null;
-        
-        // Track active effects for cleanup
-        let activeTrails = [];
-        let activeParticles = [];
-        let activeChargingParticles = [];
-        let activeTimers = [];
-
-        // 3D shadow effects
-        let playerShadow = null;
-        let bossShadow = null;
+        // Hide mobile browser UI
+        if (isMobile) {
+            // Fullscreen on mobile
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    window.scrollTo(0, 1);
+                }, 100);
+            });
+            
+            // Prevent pull-to-refresh
+            document.body.addEventListener('touchmove', (e) => {
+                if (e.target === document.body) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Hide address bar on scroll
+            let lastScrollTop = 0;
+            window.addEventListener('scroll', () => {
+                const st = window.pageYOffset || document.documentElement.scrollTop;
+                if (st > lastScrollTop) {
+                    window.scrollTo(0, 1);
+                }
+                lastScrollTop = st <= 0 ? 0 : st;
+            }, false);
+        }
 
         function create() {
-            const width = this.cameras.main.width;
-            const height = this.cameras.main.height;
+            // Grille NEON animée
+            let bossData = BOSSES[currentBossId];
+            const g = this.add.graphics();
+            g.lineStyle(1, bossData.color, 0.15);
+            for (let i = 0; i < 1000; i += 50) g.lineBetween(i, 0, i, 700);
+            for (let i = 0; i < 700; i += 50) g.lineBetween(0, i, 1000, i);
             
-            // Clear any existing arrays
-            activeTrails = [];
-            activeParticles = [];
-            activeChargingParticles = [];
-            activeTimers = [];
-            
-            // REMOVED: Grid completely deleted
-            
-            // ENHANCED: Cinematic background with gradient (keeping this for depth)
-            const gradient = this.add.graphics();
-            gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
-            gradient.fillRect(0, 0, width, height);
-            
-            // Floating particles (ambient)
-            for (let i = 0; i < 80; i++) {
-                const x = Phaser.Math.Between(0, width);
-                const y = Phaser.Math.Between(0, height);
-                const size = Phaser.Math.Between(1, 4);
-                const colors = [0x00d4ff, 0xffffff];
-                const color = Phaser.Math.RND.pick(colors);
-                
-                const particle = this.add.circle(x, y, size, color, 0.2);
+            // Particles ambiantes
+            for (let i = 0; i < 50; i++) {
+                const x = Phaser.Math.Between(0, 1000);
+                const y = Phaser.Math.Between(0, 700);
+                const size = Phaser.Math.Between(1, 3);
+                const color = Phaser.Math.RND.pick([0x00d4ff, bossData.color]);
+                const particle = this.add.circle(x, y, size, color, 0.5);
                 
                 this.tweens.add({
                     targets: particle,
-                    y: y + Phaser.Math.Between(-40, 40),
-                    alpha: 0.05,
+                    y: y + Phaser.Math.Between(-30, 30),
+                    alpha: 0.2,
                     duration: Phaser.Math.Between(2000, 4000),
                     yoyo: true,
                     repeat: -1,
@@ -201,160 +177,18 @@
                 });
             }
 
-            // Player with 3D shadow effect
-            const playerX = width * 0.15;
-            const playerY = height * 0.5;
-            
-            // Create shadow first (for 3D effect)
-            playerShadow = this.add.ellipse(playerX + 8, playerY + 8, 40, 20, 0x000000, 0.5);
-            playerShadow.setDepth(0);
-            
-            // Player container
-            player = this.add.container(playerX, playerY);
-            player.setDepth(1);
-            
-            const core = this.add.circle(0, 0, 18, 0x00d4ff);
-            core.setStrokeStyle(2, 0xffffff);
-            
-            const innerGlow = this.add.circle(0, 0, 22, 0x00d4ff, 0.3);
-            const outerGlow = this.add.circle(0, 0, 28, 0x00d4ff, 0.15);
-            
-            const ring1 = this.add.circle(0, 0, 24, 0x00d4ff, 0);
-            ring1.setStrokeStyle(1.5, 0x88ddff, 0.6);
-            
-            const ring2 = this.add.circle(0, 0, 30, 0x00d4ff, 0);
-            ring2.setStrokeStyle(1, 0x88ddff, 0.3);
-            
-            // 3D effect: add highlight
-            const highlight = this.add.circle(-5, -5, 6, 0xffffff, 0.3);
-            
-            player.add([outerGlow, innerGlow, core, ring1, ring2, highlight]);
-            
-            player.core = core;
-            player.ring1 = ring1;
-            player.ring2 = ring2;
-            player.highlight = highlight;
-            
+            // Joueur avec GLOW
+            player = this.add.circle(150, 350, 20, 0x00d4ff);
             this.physics.add.existing(player);
-            player.body.setCircle(18);
             player.body.setCollideWorldBounds(true);
             
-            // Player animations
-            this.tweens.add({
-                targets: ring1,
-                scale: 1.2,
-                alpha: 0.2,
-                duration: 1000,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
+            // Double glow effect
+            player.glow1 = this.add.circle(150, 350, 40, 0x00d4ff, 0.4);
+            player.glow2 = this.add.circle(150, 350, 60, 0x00d4ff, 0.2);
             
             this.tweens.add({
-                targets: ring2,
-                scale: 1.4,
-                alpha: 0.1,
-                duration: 1500,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-            
-            this.tweens.add({
-                targets: core,
-                scale: 1.05,
-                duration: 800,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-
-            // Boss with 3D shadow effect
-            bossData = BOSSES[currentBossId];
-            const bossX = width * 0.85;
-            const bossY = height * 0.5;
-            
-            // Boss shadow
-            bossShadow = this.add.ellipse(bossX + 12, bossY + 15, 90, 40, 0x000000, 0.6);
-            bossShadow.setDepth(0);
-            
-            // Boss container
-            boss = this.add.container(bossX, bossY);
-            boss.setDepth(1);
-            
-            if (currentBossId === 1) {
-                const body = this.add.rectangle(0, 0, 70, 100, bossData.color);
-                body.setStrokeStyle(3, bossData.glowColor);
-                
-                const head = this.add.circle(0, -60, 25, bossData.color);
-                head.setStrokeStyle(2, bossData.glowColor);
-                
-                const visor = this.add.rectangle(0, -65, 20, 5, bossData.glowColor);
-                
-                const shoulderL = this.add.circle(-35, -30, 15, bossData.secondaryColor);
-                const shoulderR = this.add.circle(35, -30, 15, bossData.secondaryColor);
-                
-                // 3D highlights
-                const highlight1 = this.add.circle(-10, -40, 8, 0xffffff, 0.2);
-                const highlight2 = this.add.circle(10, -40, 8, 0xffffff, 0.2);
-                
-                boss.add([body, head, visor, shoulderL, shoulderR, highlight1, highlight2]);
-                
-            } else if (currentBossId === 2) {
-                const body = this.add.rectangle(0, 0, 60, 90, bossData.color);
-                body.setStrokeStyle(3, bossData.glowColor);
-                
-                const head = this.add.rectangle(0, -50, 40, 30, bossData.color);
-                head.setStrokeStyle(2, bossData.glowColor);
-                
-                const gunL = this.add.rectangle(-35, -10, 20, 10, bossData.secondaryColor);
-                const gunR = this.add.rectangle(35, -10, 20, 10, bossData.secondaryColor);
-                
-                const barrelL = this.add.rectangle(-45, -10, 15, 5, bossData.glowColor);
-                const barrelR = this.add.rectangle(45, -10, 15, 5, bossData.glowColor);
-                
-                // 3D highlights
-                const highlight = this.add.circle(0, -20, 10, 0xffffff, 0.2);
-                
-                boss.add([body, head, gunL, gunR, barrelL, barrelR, highlight]);
-                
-            } else if (currentBossId === 3) {
-                const body = this.add.ellipse(0, 0, 70, 100, bossData.color);
-                body.setStrokeStyle(3, bossData.glowColor);
-                
-                const head = this.add.circle(0, -60, 25, bossData.color);
-                head.setStrokeStyle(2, bossData.glowColor);
-                
-                const bladeL = this.add.triangle(-35, -20, -45, -30, -45, -10, bossData.glowColor);
-                const bladeR = this.add.triangle(35, -20, 45, -30, 45, -10, bossData.glowColor);
-                
-                const visor = this.add.rectangle(0, -65, 30, 5, 0xff0000);
-                
-                // 3D highlights
-                const highlight = this.add.circle(0, -20, 12, 0xffffff, 0.2);
-                
-                boss.add([body, head, bladeL, bladeR, visor, highlight]);
-            }
-            
-            this.physics.add.existing(boss);
-            boss.body.setSize(70, 130);
-            boss.body.setCollideWorldBounds(true);
-            boss.body.immovable = true;
-            
-            // Boss glow effects (behind shadow)
-            const bossGlow1 = this.add.circle(bossX, bossY, 90, bossData.glowColor, 0.2);
-            const bossGlow2 = this.add.circle(bossX, bossY, 120, bossData.glowColor, 0.1);
-            const bossGlow3 = this.add.circle(bossX, bossY, 150, bossData.color, 0.05);
-            
-            bossGlow1.setDepth(0);
-            bossGlow2.setDepth(0);
-            bossGlow3.setDepth(0);
-            
-            boss.glowEffects = [bossGlow1, bossGlow2, bossGlow3];
-            
-            this.tweens.add({
-                targets: bossGlow1,
-                scale: 1.1,
+                targets: player.glow1,
+                scale: 1.3,
                 alpha: 0.15,
                 duration: 1200,
                 yoyo: true,
@@ -363,19 +197,62 @@
             });
             
             this.tweens.add({
-                targets: bossGlow2,
+                targets: player.glow2,
+                scale: 1.5,
+                alpha: 0.05,
+                duration: 1800,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // Boss - Différent selon ID avec GLOW
+            bossData = BOSSES[currentBossId];
+            boss = this.add.container(850, 350);
+            
+            if (currentBossId === 1) {
+                // Sentinel: Rectangle + circle
+                boss.add([
+                    this.add.rectangle(0, 0, 70, 100, bossData.color),
+                    this.add.circle(0, -60, 30, bossData.color)
+                ]);
+            } else if (currentBossId === 2) {
+                // Gunner: Star/Hexagon
+                boss.add([
+                    this.add.star(0, 0, 6, 20, 40, bossData.color),
+                    this.add.circle(0, 0, 12, 0xffffff)
+                ]);
+            } else if (currentBossId === 3) {
+                // Dasher: Triangle
+                const tri = this.add.triangle(0, 0, 0, -40, -35, 35, 35, 35, bossData.color);
+                boss.add(tri);
+            }
+            
+            this.physics.add.existing(boss);
+            boss.body.setSize(70, 130);
+            boss.body.setCollideWorldBounds(true);
+            boss.body.immovable = true;
+            
+            // Boss glow pulsant
+            boss.glow1 = this.add.circle(850, 350, 90, bossData.color, 0.3);
+            boss.glow2 = this.add.circle(850, 350, 120, bossData.color, 0.15);
+            boss.glow1.setDepth(-1);
+            boss.glow2.setDepth(-2);
+            
+            this.tweens.add({
+                targets: boss.glow1,
                 scale: 1.2,
-                alpha: 0.08,
-                duration: 1600,
+                alpha: 0.1,
+                duration: 1500,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
             
             this.tweens.add({
-                targets: bossGlow3,
-                scale: 1.15,
-                alpha: 0.03,
+                targets: boss.glow2,
+                scale: 1.4,
+                alpha: 0.05,
                 duration: 2000,
                 yoyo: true,
                 repeat: -1,
@@ -383,209 +260,37 @@
             });
 
             // UI
-            const titleText = this.add.text(width * 0.5, height * 0.05, bossData.name, { 
-                fontSize: Math.min(32, height * 0.045) + 'px', 
-                fill: '#' + bossData.color.toString(16).padStart(6, '0'), 
-                fontStyle: 'bold',
-                stroke: '#fff',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 6,
-                    fill: true
-                }
-            }).setOrigin(0.5);
+            this.add.text(500, 30, bossData.name, { fontSize: '28px', fill: '#' + bossData.color.toString(16).padStart(6, '0'), fontStyle: 'bold' }).setOrigin(0.5);
             
-            // Player health with shadow
-            this.add.text(width * 0.02, height * 0.02, 'VOUS', { 
-                fontSize: Math.min(18, height * 0.025) + 'px', 
-                fill: '#00d4ff',
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 4,
-                    fill: true
-                }
-            });
+            this.add.text(20, 20, 'VOUS', { fontSize: '18px', fill: '#00d4ff', fontStyle: 'bold' });
+            playerHealthBar = this.add.rectangle(20, 55, 350, 25, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
+            playerHealthText = this.add.rectangle(20, 55, 350, 25, 0x00ff88).setOrigin(0, 0.5);
             
-            playerHealthBar = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x1a1a2e)
-                .setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
-            playerHealthText = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x00ff88)
-                .setOrigin(0, 0.5);
-            
-            // Stamina with shadow
-            this.add.text(width * 0.02, height * 0.09, 'STAMINA', { 
-                fontSize: Math.min(14, height * 0.02) + 'px', 
-                fill: '#ffaa00',
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 1,
-                    offsetY: 1,
-                    color: '#000',
-                    blur: 2,
-                    fill: true
-                }
-            });
-            staminaBar = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0x1a1a2e)
-                .setOrigin(0, 0.5).setStrokeStyle(1, 0x333355);
-            staminaText = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0xffaa00)
-                .setOrigin(0, 0.5);
+            this.add.text(20, 82, 'STAMINA', { fontSize: '14px', fill: '#ffaa00' });
+            staminaBar = this.add.rectangle(20, 105, 250, 16, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
+            staminaText = this.add.rectangle(20, 105, 250, 16, 0xffaa00).setOrigin(0, 0.5);
 
-            // Stamina warning with 3D effect
-            staminaWarning = this.add.text(width * 0.5, height * 0.2, '⚠️ INSUFFICIENT STAMINA ⚠️', {
-                fontSize: Math.min(20, height * 0.03) + 'px',
-                fill: '#ff0000',
-                stroke: '#000',
-                strokeThickness: 4,
-                backgroundColor: '#00000099',
-                padding: { x: 20, y: 10 },
-                shadow: {
-                    offsetX: 3,
-                    offsetY: 3,
-                    color: '#000',
-                    blur: 8,
-                    fill: true
-                }
-            }).setOrigin(0.5).setVisible(false);
+            this.add.text(650, 70, 'BOSS', { fontSize: '14px', fill: '#' + bossData.color.toString(16).padStart(6, '0') });
+            bossHealthBar = this.add.rectangle(650, 95, 330, 28, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
+            bossHealthText = this.add.rectangle(650, 95, 330, 28, bossData.color).setOrigin(0, 0.5);
 
-            // Boss health with shadow
-            this.add.text(width * 0.68, height * 0.07, 'BOSS', { 
-                fontSize: Math.min(14, height * 0.02) + 'px', 
-                fill: '#' + bossData.color.toString(16).padStart(6, '0'),
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 1,
-                    offsetY: 1,
-                    color: '#000',
-                    blur: 2,
-                    fill: true
-                }
-            });
-            bossHealthBar = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, 0x1a1a2e)
-                .setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
-            bossHealthText = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, bossData.color)
-                .setOrigin(0, 0.5);
+            if (isMobile) createMobileControls(this);
+            else createDesktopControls(this);
 
-            // Charge indicator (no shadow needed - it's an effect)
-            chargeIndicator = this.add.graphics();
-            chargeIndicator.setDepth(1000);
-
-            if (isMobile) {
-                createMobileControls(this);
-                createMobileDashButton(this);
-            } else {
-                createDesktopControls(this);
-                this.input.keyboard.on('keydown-SPACE', () => {
-                    performDash(this);
-                });
-            }
-
-            // Instructions with 3D shadow
-            const instructions = isMobile ? '⬅️ MOVE  |  ➡️ SHOOT  |  ⚡ DASH (40)' 
-                : 'LEFT CLICK: MOVE  |  RIGHT CLICK: AIM/SHOOT  |  SPACE: DASH (40)  |  HOLD RIGHT: CHARGE';
-            const instrText = this.add.text(width * 0.5, height * 0.95, instructions, { 
-                fontSize: Math.min(13, height * 0.018) + 'px', 
-                fill: '#fff', 
-                backgroundColor: '#00000099', 
-                padding: { x: 15, y: 8 },
-                stroke: '#000',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 4,
-                    fill: true
-                }
-            }).setOrigin(0.5);
-        }
-
-        // Mobile dash button with 3D effect
-        function createMobileDashButton(scene) {
-            const width = scene.cameras.main.width;
-            const height = scene.cameras.main.height;
-            
-            dashButton = scene.add.container(width - 100, 100);
-            
-            // Shadow
-            const shadow = scene.add.circle(3, 3, 45, 0x000000, 0.5);
-            
-            const glow = scene.add.circle(0, 0, 45, 0x00d4ff, 0.2);
-            const bg = scene.add.circle(0, 0, 40, 0x00d4ff, 0.3);
-            bg.setStrokeStyle(3, 0x88ddff);
-            
-            const icon = scene.add.text(0, -5, '⚡', { 
-                fontSize: '36px', 
-                fill: '#ffffff',
-                fontStyle: 'bold',
-                stroke: '#00d4ff',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 4,
-                    fill: true
-                }
-            }).setOrigin(0.5);
-            
-            const costText = scene.add.text(0, 25, '40', { 
-                fontSize: '14px', 
-                fill: '#ffaa00',
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 1,
-                    offsetY: 1,
-                    color: '#000',
-                    blur: 2,
-                    fill: true
-                }
-            }).setOrigin(0.5);
-            
-            const cooldownOverlay = scene.add.circle(0, 0, 40, 0x000000, 0);
-            cooldownOverlay.setStrokeStyle(2, 0xff0000);
-            
-            dashButton.add([shadow, glow, bg, icon, costText, cooldownOverlay]);
-            dashButton.setSize(80, 80);
-            dashButton.setInteractive({ useHandCursor: true });
-            
-            dashButton.on('pointerdown', () => {
-                performDash(scene);
-            });
-            
-            dashButton.cooldownOverlay = cooldownOverlay;
-            dashButton.bg = bg;
-            dashButton.icon = icon;
-            
-            scene.tweens.add({
-                targets: glow,
-                scale: 1.2,
-                alpha: 0.1,
-                duration: 1000,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
+            const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer' 
+                : 'Clic Gauche: Aller vers souris | Clic Droit: Viser & Tirer';
+            this.add.text(500, 680, instructions, { fontSize: '13px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
         }
 
         function createDesktopControls(scene) {
+            // Indicateur de visée
             aimIndicator = scene.add.graphics();
             aimIndicator.setDepth(500);
             
+            // Désactiver menu contextuel
             scene.input.mouse.disableContextMenu();
             
+            // CLIC GAUCHE = MOUVEMENT vers la souris
             scene.input.on('pointerdown', (pointer) => {
                 if (pointer.leftButtonDown()) {
                     leftMouseDown = true;
@@ -599,31 +304,21 @@
                     aimStartY = player.y;
                     mouseX = pointer.x;
                     mouseY = pointer.y;
-                    
-                    if (!isDashing && playerStamina >= 30) {
-                        startCharge(scene);
-                    }
                 }
             });
             
             scene.input.on('pointermove', (pointer) => {
                 mouseX = pointer.x;
                 mouseY = pointer.y;
-                
-                if (isChargingAttack) {
-                    chargeLevel = Math.min(1, (Date.now() - chargeStartTime) / CHARGE_TIME);
-                }
             });
             
             scene.input.on('pointerup', (pointer) => {
-                if (pointer.button === 0) {
+                if (pointer.button === 0) { // Left button
                     leftMouseDown = false;
                 }
                 
-                if (pointer.button === 2) {
-                    if (isChargingAttack) {
-                        releaseCharge(scene);
-                    } else if (rightMouseDown && canAttack && playerStamina >= 20) {
+                if (pointer.button === 2) { // Right button
+                    if (rightMouseDown && canAttack && playerStamina >= 20) {
                         const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
                         shootProjectile(scene, angle);
                     }
@@ -632,253 +327,36 @@
             });
         }
 
-        // Start charging
-        function startCharge(scene) {
-            if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) {
-                return;
-            }
-            
-            isChargingAttack = true;
-            chargeStartTime = Date.now();
-            chargeLevel = 0;
-            
-            // Clean up old charging particles
-            activeChargingParticles.forEach(p => {
-                if (p && p.scene) p.destroy();
-            });
-            activeChargingParticles = [];
-            
-            // Charging particles
-            for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                const particle = scene.add.circle(
-                    player.x + Math.cos(angle) * 30,
-                    player.y + Math.sin(angle) * 30,
-                    3,
-                    0xffaa00,
-                    0.8
-                );
-                activeChargingParticles.push(particle);
-                
-                const tween = scene.tweens.add({
-                    targets: particle,
-                    alpha: 0,
-                    scale: 2,
-                    x: player.x + Math.cos(angle) * 50,
-                    y: player.y + Math.sin(angle) * 50,
-                    duration: 500,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
-                activeTimers.push(tween);
-            }
-            
-            chargeIndicator.clear();
-        }
-
-        // Release charged attack
-        function releaseCharge(scene) {
-            if (!isChargingAttack) return;
-            
-            isChargingAttack = false;
-            
-            // Clean up charging particles
-            activeChargingParticles.forEach(p => {
-                if (p && p.scene) {
-                    scene.tweens.killTweensOf(p);
-                    p.destroy();
-                }
-            });
-            activeChargingParticles = [];
-            
-            if (chargeLevel < 0.3) {
-                const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
-                shootProjectile(scene, angle);
-                return;
-            }
-            
-            const damage = 18 + Math.floor(chargeLevel * MAX_CHARGE_DAMAGE);
-            const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
-            
-            playerStamina -= 30;
-            
-            // Epic charge release effect
-            for (let i = 0; i < 20; i++) {
-                const particleAngle = (i / 20) * Math.PI * 2;
-                const particle = scene.add.circle(player.x, player.y, 5, 0xffaa00, 1);
-                
-                scene.tweens.add({
-                    targets: particle,
-                    x: player.x + Math.cos(particleAngle) * 100,
-                    y: player.y + Math.sin(particleAngle) * 100,
-                    alpha: 0,
-                    scale: 0.5,
-                    duration: 400,
-                    ease: 'Power2',
-                    onComplete: () => particle.destroy()
-                });
-            }
-            
-            for (let i = -1; i <= 1; i++) {
-                const spreadAngle = angle + (i * 0.2);
-                shootChargedProjectile(scene, spreadAngle, damage, chargeLevel);
-            }
-            
-            scene.cameras.main.flash(150, 255, 255, 255, false);
-            scene.cameras.main.shake(80 * chargeLevel, 0.004 * chargeLevel);
-            
-            chargeLevel = 0;
-            chargeIndicator.clear();
-        }
-
-        // Charged projectile with 3D effect
-        function shootChargedProjectile(scene, angle, damage, chargeLevel) {
-            const speed = 900 + (chargeLevel * 400);
-            const size = 10 + (chargeLevel * 18);
-            const startX = player.x + Math.cos(angle) * 30;
-            const startY = player.y + Math.sin(angle) * 30;
-            
-            const flash = scene.add.circle(startX, startY, 30 * chargeLevel + 25, 0xffffff, 1);
-            scene.tweens.add({
-                targets: flash,
-                scale: 4,
-                alpha: 0,
-                duration: 200,
-                onComplete: () => flash.destroy()
-            });
-            
-            const projContainer = scene.add.container(startX, startY);
-            
-            // Projectile with 3D effect (shadow and highlight)
-            const shadow = scene.add.ellipse(3, 3, size * 1.5, size, 0x000000, 0.3);
-            
-            const core = scene.add.circle(0, 0, size * 0.7, 0xffffff);
-            const glow = scene.add.circle(0, 0, size, 0x66ffff, 0.8);
-            const outerGlow = scene.add.circle(0, 0, size * 1.5, 0x66ffff, 0.3);
-            
-            // Highlight for 3D effect
-            const highlight = scene.add.circle(-3, -3, size * 0.3, 0xffffff, 0.4);
-            
-            projContainer.add([shadow, outerGlow, glow, core, highlight]);
-            projContainer.setDepth(150);
-            
-            projContainer.vx = Math.cos(angle) * speed;
-            projContainer.vy = Math.sin(angle) * speed;
-            projContainer.damage = damage;
-            
-            projectiles.push(projContainer);
-            
-            // Trail with cleanup
-            let trailCount = 0;
-            const trailInterval = setInterval(() => {
-                if (!projContainer.scene || trailCount > 30) {
-                    clearInterval(trailInterval);
-                    return;
-                }
-                
-                const trail = scene.add.circle(projContainer.x, projContainer.y, size * 0.5, 0x66ffff, 0.5);
-                trail.setDepth(148);
-                activeTrails.push(trail);
-                
-                scene.tweens.add({
-                    targets: trail,
-                    alpha: 0,
-                    scale: 0.3,
-                    duration: 300,
-                    ease: 'Power2',
-                    onComplete: () => {
-                        const index = activeTrails.indexOf(trail);
-                        if (index > -1) activeTrails.splice(index, 1);
-                        trail.destroy();
-                    }
-                });
-                
-                trailCount++;
-            }, 30);
-            
-            scene.time.delayedCall(400, () => canAttack = true);
-        }
-
         function createMobileControls(scene) {
-            const width = scene.cameras.main.width;
-            const height = scene.cameras.main.height;
-            
-            const leftZone = scene.add.rectangle(width * 0.25, height * 0.5, width * 0.5, height, 0x0066ff, 0.05);
-            const rightZone = scene.add.rectangle(width * 0.75, height * 0.5, width * 0.5, height, 0xff6666, 0.05);
-            
-            scene.add.text(width * 0.25, height * 0.1, '⬅️ MOVE', { 
-                fontSize: Math.min(20, height * 0.025) + 'px', 
-                fill: '#88ddff',
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 4,
-                    fill: true
-                }
-            }).setOrigin(0.5);
-            
-            scene.add.text(width * 0.75, height * 0.1, '➡️ SHOOT', { 
-                fontSize: Math.min(20, height * 0.025) + 'px', 
-                fill: '#ff8888',
-                fontStyle: 'bold',
-                stroke: '#000',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 2,
-                    offsetY: 2,
-                    color: '#000',
-                    blur: 4,
-                    fill: true
-                }
-            }).setOrigin(0.5);
+            // Zones
+            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.1);
+            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff6666, 0.1);
+            scene.add.text(250, 50, '⬅️ BOUGER', { fontSize: '18px', fill: '#00d4ff', fontStyle: 'bold' }).setOrigin(0.5);
+            scene.add.text(750, 50, 'TIRER ➡️', { fontSize: '18px', fill: '#ff6666', fontStyle: 'bold' }).setOrigin(0.5);
             
             let leftTouch = null, rightTouch = null;
             
             scene.input.addPointer(3);
             
             scene.input.on('pointerdown', (pointer) => {
-                if (pointer.x < width * 0.5 && !leftTouch) {
+                if (pointer.x < 500 && !leftTouch) {
                     leftTouch = {
                         id: pointer.id,
                         startX: pointer.x,
                         startY: pointer.y,
-                        base: scene.add.circle(pointer.x, pointer.y, 55, 0x0066ff, 0.4).setDepth(300),
-                        thumb: scene.add.circle(pointer.x, pointer.y, 28, 0x88ddff, 1).setDepth(301),
-                        glow: scene.add.circle(pointer.x, pointer.y, 70, 0x0066ff, 0.1).setDepth(299)
+                        base: scene.add.circle(pointer.x, pointer.y, 55, 0x0033aa, 0.7).setDepth(300),
+                        thumb: scene.add.circle(pointer.x, pointer.y, 28, 0x00d4ff, 1).setDepth(301)
                     };
-                    
-                    scene.tweens.add({
-                        targets: leftTouch.base,
-                        scale: 1.1,
-                        alpha: 0.3,
-                        duration: 500,
-                        yoyo: true,
-                        repeat: -1
-                    });
                 }
                 
-                if (pointer.x >= width * 0.5 && !rightTouch) {
+                if (pointer.x >= 500 && !rightTouch) {
                     rightTouch = {
                         id: pointer.id,
                         startX: pointer.x,
                         startY: pointer.y,
-                        base: scene.add.circle(pointer.x, pointer.y, 55, 0xaa3300, 0.4).setDepth(300),
-                        thumb: scene.add.circle(pointer.x, pointer.y, 28, 0xff8888, 1).setDepth(301),
-                        glow: scene.add.circle(pointer.x, pointer.y, 70, 0xaa3300, 0.1).setDepth(299)
+                        base: scene.add.circle(pointer.x, pointer.y, 55, 0xaa3300, 0.7).setDepth(300),
+                        thumb: scene.add.circle(pointer.x, pointer.y, 28, 0xff6666, 1).setDepth(301)
                     };
-                    
-                    scene.tweens.add({
-                        targets: rightTouch.base,
-                        scale: 1.1,
-                        alpha: 0.3,
-                        duration: 500,
-                        yoyo: true,
-                        repeat: -1
-                    });
                 }
             });
             
@@ -904,9 +382,6 @@
                         moveJoy.deltaY = Math.sin(angle);
                     }
                     moveJoy.active = true;
-                    
-                    leftTouch.glow.x = leftTouch.thumb.x;
-                    leftTouch.glow.y = leftTouch.thumb.y;
                 }
                 
                 if (rightTouch && pointer.id === rightTouch.id) {
@@ -926,9 +401,6 @@
                     
                     aimJoy.angle = Math.atan2(dy, dx);
                     aimJoy.active = dist > 15;
-                    
-                    rightTouch.glow.x = rightTouch.thumb.x;
-                    rightTouch.glow.y = rightTouch.thumb.y;
                 }
             });
             
@@ -936,7 +408,6 @@
                 if (leftTouch && pointer.id === leftTouch.id) {
                     leftTouch.base.destroy();
                     leftTouch.thumb.destroy();
-                    leftTouch.glow.destroy();
                     leftTouch = null;
                     moveJoy.active = false;
                     moveJoy.deltaX = 0;
@@ -949,173 +420,10 @@
                     }
                     rightTouch.base.destroy();
                     rightTouch.thumb.destroy();
-                    rightTouch.glow.destroy();
                     rightTouch = null;
                     aimJoy.active = false;
                 }
             });
-        }
-
-        // Dash function
-        function performDash(scene) {
-            const now = Date.now();
-            
-            if (now - lastDashTime < DASH_COOLDOWN) {
-                if (dashButton) {
-                    scene.tweens.add({
-                        targets: dashButton.bg,
-                        alpha: 0.1,
-                        duration: 100,
-                        yoyo: true
-                    });
-                }
-                return;
-            }
-            
-            if (playerStamina < DASH_STAMINA_COST) {
-                showStaminaWarning(scene);
-                
-                scene.tweens.add({
-                    targets: staminaBar,
-                    fillColor: 0xff0000,
-                    duration: 100,
-                    yoyo: true,
-                    onComplete: () => staminaBar.fillColor = 0x1a1a2e
-                });
-                return;
-            }
-            
-            let dx = 0, dy = 0;
-            
-            if (isMobile && moveJoy.active) {
-                dx = moveJoy.deltaX;
-                dy = moveJoy.deltaY;
-            } else {
-                const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-                dx = Math.cos(angle);
-                dy = Math.sin(angle);
-            }
-            
-            if (dx === 0 && dy === 0) {
-                dx = 1;
-            }
-            
-            const length = Math.sqrt(dx*dx + dy*dy);
-            dx /= length;
-            dy /= length;
-            
-            isDashing = true;
-            isInvulnerable = true;
-            lastDashTime = now;
-            playerStamina -= DASH_STAMINA_COST;
-            
-            dashDirection.x = dx;
-            dashDirection.y = dy;
-            dashTimer = 0;
-            
-            player.core.setScale(0.8);
-            player.ring1.setScale(1.5);
-            player.ring2.setScale(1.8);
-            
-            createDashTrail(scene);
-            
-            updateStaminaBar();
-            
-            if (dashButton) {
-                dashButton.cooldownOverlay.fillColor = 0xff0000;
-                dashButton.cooldownOverlay.fillAlpha = 0.5;
-                
-                scene.time.delayedCall(DASH_COOLDOWN, () => {
-                    dashButton.cooldownOverlay.fillAlpha = 0;
-                });
-            }
-        }
-
-        // Show stamina warning
-        function showStaminaWarning(scene) {
-            if (staminaWarning) {
-                staminaWarning.setVisible(true);
-                staminaWarning.setAlpha(1);
-                
-                scene.tweens.add({
-                    targets: staminaWarning,
-                    alpha: 0,
-                    duration: 1000,
-                    ease: 'Power2',
-                    onComplete: () => staminaWarning.setVisible(false)
-                });
-            }
-        }
-
-        // Enhanced dash trail
-        function createDashTrail(scene) {
-            // Clean up old trails
-            activeTrails.forEach(t => {
-                if (t && t.scene) {
-                    scene.tweens.killTweensOf(t);
-                    t.destroy();
-                }
-            });
-            activeTrails = [];
-            
-            let trailCount = 0;
-            const trailInterval = setInterval(() => {
-                if (!isDashing || trailCount > 15) {
-                    clearInterval(trailInterval);
-                    return;
-                }
-                
-                const afterimage = scene.add.container(player.x, player.y);
-                
-                const core = scene.add.circle(0, 0, 18, 0x00d4ff, 0.5);
-                const ring = scene.add.circle(0, 0, 24, 0x00d4ff, 0.3);
-                
-                afterimage.add([ring, core]);
-                afterimage.setDepth(40);
-                activeTrails.push(afterimage);
-                
-                scene.tweens.add({
-                    targets: afterimage,
-                    alpha: 0,
-                    scale: 0.8,
-                    duration: 200,
-                    ease: 'Power2',
-                    onComplete: () => {
-                        const index = activeTrails.indexOf(afterimage);
-                        if (index > -1) activeTrails.splice(index, 1);
-                        afterimage.destroy();
-                    }
-                });
-                
-                for (let i = 0; i < 3; i++) {
-                    const particle = scene.add.circle(
-                        player.x + (Math.random() - 0.5) * 20,
-                        player.y + (Math.random() - 0.5) * 20,
-                        3 + Math.random() * 4,
-                        0x88ddff,
-                        0.7
-                    );
-                    activeTrails.push(particle);
-                    
-                    scene.tweens.add({
-                        targets: particle,
-                        alpha: 0,
-                        scale: 0.3,
-                        x: particle.x + (Math.random() - 0.5) * 40,
-                        y: particle.y + (Math.random() - 0.5) * 40,
-                        duration: 300,
-                        onComplete: () => {
-                            const index = activeTrails.indexOf(particle);
-                            if (index > -1) activeTrails.splice(index, 1);
-                            particle.destroy();
-                        }
-                    });
-                }
-                
-                trailCount++;
-            }, 40);
-            
-            activeTimers.push({ interval: trailInterval });
         }
 
         function update(time, delta) {
@@ -1124,134 +432,59 @@
                 return;
             }
 
-            const width = this.cameras.main.width;
-            const height = this.cameras.main.height;
-            const now = Date.now();
-
-            // RESTORED: Original speed values (dynamic)
-            if (isDashing) {
-                dashTimer += delta;
+            // Mouvement PLUS RAPIDE
+            const speed = 360; // +20% speed boost (was 300)
+            let vx = 0, vy = 0;
+            
+            // MOBILE: Joystick
+            if (isMobile && moveJoy.active) {
+                vx = moveJoy.deltaX * speed;
+                vy = moveJoy.deltaY * speed;
+            }
+            
+            // DESKTOP: Point-and-click avec clic gauche
+            if (!isMobile && leftMouseDown) {
+                const dx = mouseX - player.x;
+                const dy = mouseY - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                player.body.setVelocity(
-                    dashDirection.x * DASH_SPEED,
-                    dashDirection.y * DASH_SPEED
-                );
-                
-                if (dashTimer >= DASH_DURATION) {
-                    isDashing = false;
-                    isInvulnerable = false;
+                if (dist > 10) { // Deadzone
+                    const angle = Math.atan2(dy, dx);
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
                     
-                    player.core.setScale(1);
-                    player.ring1.setScale(1);
-                    player.ring2.setScale(1);
-                    
-                    for (let i = 0; i < 8; i++) {
-                        const angle = (i / 8) * Math.PI * 2;
-                        const particle = this.add.circle(player.x, player.y, 3, 0x00d4ff, 0.6);
-                        
-                        this.tweens.add({
-                            targets: particle,
-                            x: player.x + Math.cos(angle) * 30,
-                            y: player.y + Math.sin(angle) * 30,
-                            alpha: 0,
-                            scale: 0.5,
-                            duration: 200,
-                            onComplete: () => particle.destroy()
-                        });
+                    // Ralentir quand proche de la cible
+                    if (dist < 50) {
+                        vx *= (dist / 50);
+                        vy *= (dist / 50);
                     }
                 }
-            } else {
-                // RESTORED: Original speed (360)
-                const speed = 360;
-                let vx = 0, vy = 0;
-                
-                if (isMobile && moveJoy.active) {
-                    vx = moveJoy.deltaX * speed;
-                    vy = moveJoy.deltaY * speed;
-                }
-                
-                if (!isMobile && leftMouseDown && !isChargingAttack) {
-                    const dx = mouseX - player.x;
-                    const dy = mouseY - player.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist > 10) {
-                        const angle = Math.atan2(dy, dx);
-                        vx = Math.cos(angle) * speed;
-                        vy = Math.sin(angle) * speed;
-                        
-                        if (dist < 50) {
-                            vx *= (dist / 50);
-                            vy *= (dist / 50);
-                        }
-                    }
-                }
-                
-                player.body.setVelocity(vx, vy);
             }
             
-            // Update shadows to follow with offset (3D effect)
-            if (playerShadow && player) {
-                playerShadow.x = player.x + 8;
-                playerShadow.y = player.y + 8;
+            player.body.setVelocity(vx, vy);
+            
+            // Sync player glows
+            if (player.glow1) {
+                player.glow1.x = player.x;
+                player.glow1.y = player.y;
+            }
+            if (player.glow2) {
+                player.glow2.x = player.x;
+                player.glow2.y = player.y;
             }
             
-            if (bossShadow && boss) {
-                bossShadow.x = boss.x + 12;
-                bossShadow.y = boss.y + 15;
+            // Sync boss glows
+            if (boss.glow1) {
+                boss.glow1.x = boss.x;
+                boss.glow1.y = boss.y;
+            }
+            if (boss.glow2) {
+                boss.glow2.x = boss.x;
+                boss.glow2.y = boss.y;
             }
             
-            // Keep player in bounds
-            player.x = Phaser.Math.Clamp(player.x, 30, width - 30);
-            player.y = Phaser.Math.Clamp(player.y, 30, height - 30);
-            
-            // Update boss glow effects
-            if (boss.glowEffects) {
-                boss.glowEffects.forEach(glow => {
-                    if (glow) {
-                        glow.x = boss.x;
-                        glow.y = boss.y;
-                    }
-                });
-            }
-            
-            // Keep boss in bounds
-            if (boss) {
-                boss.x = Phaser.Math.Clamp(boss.x, 100, width - 100);
-                boss.y = Phaser.Math.Clamp(boss.y, 100, height - 100);
-            }
-            
-            // Update charge indicator
-            if (isChargingAttack) {
-                chargeLevel = Math.min(1, (now - chargeStartTime) / CHARGE_TIME);
-                
-                chargeIndicator.clear();
-                
-                const radius = 35 + (chargeLevel * 35);
-                
-                chargeIndicator.lineStyle(4, 0xffaa00, 0.8);
-                chargeIndicator.strokeCircle(player.x, player.y, radius);
-                
-                chargeIndicator.lineStyle(2, 0xffdd44, 0.4);
-                chargeIndicator.strokeCircle(player.x, player.y, radius - 3);
-                
-                for (let i = 0; i < 5; i++) {
-                    const alpha = 0.1 - (i * 0.02);
-                    chargeIndicator.fillStyle(0xffaa00, alpha);
-                    chargeIndicator.slice(
-                        player.x, player.y,
-                        radius - 5 - i,
-                        0, Math.PI * 2 * chargeLevel,
-                        false
-                    );
-                    chargeIndicator.fillPath();
-                }
-            } else {
-                chargeIndicator.clear();
-            }
-            
-            // Aim indicator
-            if (!isMobile && aimIndicator && !isChargingAttack) {
+            // Indicateur de visée (desktop clic droit)
+            if (!isMobile && aimIndicator) {
                 aimIndicator.clear();
                 
                 if (rightMouseDown) {
@@ -1260,38 +493,44 @@
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist > 15) {
-                        aimIndicator.lineStyle(4, 0xff6666, 0.5);
-                        aimIndicator.lineBetween(aimStartX, aimStartY, mouseX, mouseY);
+                        // Ligne de visée
+                        aimIndicator.lineStyle(3, 0xff6666, 0.8);
+                        for (let i = 0; i < dist; i += 15) {
+                            const x1 = aimStartX + (dx / dist) * i;
+                            const y1 = aimStartY + (dy / dist) * i;
+                            const x2 = aimStartX + (dx / dist) * (i + 8);
+                            const y2 = aimStartY + (dy / dist) * (i + 8);
+                            aimIndicator.lineBetween(x1, y1, x2, y2);
+                        }
                         
+                        // Cercle cible
                         aimIndicator.lineStyle(2, 0xff3333, 1);
-                        aimIndicator.lineBetween(aimStartX, aimStartY, mouseX, mouseY);
-                        
-                        aimIndicator.lineStyle(3, 0xff3333, 1);
-                        aimIndicator.strokeCircle(mouseX, mouseY, 12);
-                        
-                        aimIndicator.lineStyle(1, 0xff8888, 0.8);
-                        aimIndicator.strokeCircle(mouseX, mouseY, 8);
+                        aimIndicator.strokeCircle(mouseX, mouseY, 10);
                     }
                 }
             }
 
-            // Update projectiles
+            // Update projectiles MANUELLEMENT
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const proj = projectiles[i];
                 
+                // Bouger le projectile
                 proj.x += proj.vx * (delta / 1000);
                 proj.y += proj.vy * (delta / 1000);
                 
+                // Collision avec boss
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, boss.x, boss.y);
-                if (dist < 70) {
-                    const damage = proj.damage || 18;
-                    hitBoss(this, damage);
+                if (dist < 60) {
+                    hitBoss(this, 18);
+                    if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
                     continue;
                 }
                 
-                if (proj.x < -50 || proj.x > width + 50 || proj.y < -50 || proj.y > height + 50) {
+                // Hors écran
+                if (proj.x < -50 || proj.x > 1050 || proj.y < -50 || proj.y > 750) {
+                    if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
                 }
@@ -1304,36 +543,31 @@
                 bProj.x += bProj.vx * (delta / 1000);
                 bProj.y += bProj.vy * (delta / 1000);
                 
-                if (bProj.glow) {
-                    bProj.glow.x = bProj.x;
-                    bProj.glow.y = bProj.y;
-                }
-                
+                // Collision avec joueur
                 const distToPlayer = Phaser.Math.Distance.Between(bProj.x, bProj.y, player.x, player.y);
-                if (distToPlayer < 25 && !isInvulnerable) {
+                if (distToPlayer < 25) {
                     hitPlayer(this, 10);
-                    if (bProj.glow) bProj.glow.destroy();
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
                     continue;
                 }
                 
-                if (bProj.x < -50 || bProj.x > width + 50 || bProj.y < -50 || bProj.y > height + 50) {
-                    if (bProj.glow) bProj.glow.destroy();
+                // Hors écran
+                if (bProj.x < -50 || bProj.x > 1050 || bProj.y < -50 || bProj.y > 750) {
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
                 }
             }
 
-            // RESTORED: Original stamina regen (0.18)
+            // Regen stamina
             if (playerStamina < 100) {
-                playerStamina = Math.min(100, playerStamina + 0.18);
+                playerStamina = Math.min(100, playerStamina + 0.4);
                 updateStaminaBar();
             }
 
-            // RESTORED: Original boss attack speed (1600-2800)
+            // Boss AI - PLUS RAPIDE
             if (time > bossNextAttackTime) {
-                bossNextAttackTime = time + Phaser.Math.Between(1600, 2800);
+                bossNextAttackTime = time + Phaser.Math.Between(1600, 2800); // +20% faster attacks
                 bossAttack(this);
             }
 
@@ -1341,71 +575,62 @@
         }
 
         function shootProjectile(scene, angle) {
-            if (isDashing || isChargingAttack) return;
-            
             canAttack = false;
-            playerStamina -= 20;
+            playerStamina -= 7;  // Changed from 20 - better flow!
             
-            // RESTORED: Original speed (900)
-            const speed = 900;
+            const speed = 750; // était 650 - PLUS RAPIDE
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
             
-            const flash = scene.add.circle(startX, startY, 25, 0xffffff, 1);
+            // Muzzle flash
+            const flash = scene.add.circle(startX, startY, 20, 0xffffff, 0.9);
             scene.tweens.add({
                 targets: flash,
-                scale: 2.5,
+                scale: 2,
                 alpha: 0,
                 duration: 150,
                 onComplete: () => flash.destroy()
             });
             
-            const proj = scene.add.container(startX, startY);
-            
-            // Projectile with 3D effect
-            const shadow = scene.add.ellipse(3, 3, 18, 9, 0x000000, 0.3);
-            
-            const core = scene.add.circle(0, 0, 8, 0xffffff);
-            const glow = scene.add.circle(0, 0, 12, 0x66ffff, 0.8);
-            const outerGlow = scene.add.circle(0, 0, 18, 0x66ffff, 0.3);
-            
-            // Highlight
-            const highlight = scene.add.circle(-2, -2, 3, 0xffffff, 0.4);
-            
-            proj.add([shadow, outerGlow, glow, core, highlight]);
+            // Projectile avec glow
+            const proj = scene.add.circle(startX, startY, 10, 0x66ffff);
             proj.setDepth(150);
-            
             proj.vx = Math.cos(angle) * speed;
             proj.vy = Math.sin(angle) * speed;
             
+            // Glow autour du projectile
+            const projGlow = scene.add.circle(startX, startY, 18, 0x66ffff, 0.6);
+            projGlow.setDepth(149);
+            proj.glow = projGlow;
+            
             projectiles.push(proj);
             
-            // Trail with cleanup
-            let trailCount = 0;
-            const trailInterval = setInterval(() => {
-                if (!proj.scene || trailCount > 20) {
-                    clearInterval(trailInterval);
-                    return;
-                }
-                
-                const trail = scene.add.circle(proj.x, proj.y, 8, 0x66ffff, 0.5);
-                trail.setDepth(148);
-                activeTrails.push(trail);
-                
-                scene.tweens.add({
-                    targets: trail,
-                    alpha: 0,
-                    scale: 0.5,
-                    duration: 200,
-                    onComplete: () => {
-                        const index = activeTrails.indexOf(trail);
-                        if (index > -1) activeTrails.splice(index, 1);
-                        trail.destroy();
+            // Trail amélioré
+            scene.time.addEvent({
+                delay: 30,
+                repeat: 60,
+                callback: () => {
+                    if (!proj.scene) return;
+                    
+                    // Update glow position
+                    if (proj.glow && proj.glow.scene) {
+                        proj.glow.x = proj.x;
+                        proj.glow.y = proj.y;
                     }
-                });
-                
-                trailCount++;
-            }, 40);
+                    
+                    // Trail particles
+                    const trail = scene.add.circle(proj.x, proj.y, 7, 0x66ffff, 0.7);
+                    trail.setDepth(148);
+                    scene.tweens.add({
+                        targets: trail,
+                        alpha: 0,
+                        scale: 0.2,
+                        duration: 400,
+                        ease: 'Power2',
+                        onComplete: () => trail.destroy()
+                    });
+                }
+            });
             
             scene.time.delayedCall(400, () => canAttack = true);
         }
@@ -1417,47 +642,30 @@
         }
 
         function boss1Attack(scene) {
-            const warning = scene.add.rectangle(boss.x - 100, boss.y, 180, 150, 0xff0051, 0.3);
-            warning.setStrokeStyle(4, 0xff3366);
+            // Sentinel: Slash horizontal
+            const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
+            warning.setStrokeStyle(3, 0xff0051);
             
             scene.tweens.add({
                 targets: warning,
-                alpha: 0.6,
-                duration: 600,
+                alpha: 0.5,
+                duration: 800,
                 yoyo: true,
                 onComplete: () => {
                     warning.destroy();
                     
-                    const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 180, 150, 0xff6666, 0.8);
-                    
-                    for (let i = 0; i < 10; i++) {
-                        const slash = scene.add.rectangle(
-                            boss.x - 100 + (Math.random() - 0.5) * 150,
-                            boss.y + (Math.random() - 0.5) * 120,
-                            20,
-                            5,
-                            0xff8888,
-                            0.6
-                        );
-                        
-                        scene.tweens.add({
-                            targets: slash,
-                            alpha: 0,
-                            scaleX: 3,
-                            duration: 200,
-                            onComplete: () => slash.destroy()
-                        });
-                    }
+                    const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff6666, 0.7);
+                    scene.physics.add.existing(slashZone);
                     
                     const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
-                    if (dist < 120 && !isInvulnerable) {
+                    if (dist < 120 && !isDodging) {
                         hitPlayer(scene, 15);
                     }
                     
                     scene.tweens.add({
                         targets: slashZone,
                         alpha: 0,
-                        duration: 150,
+                        duration: 200,
                         onComplete: () => slashZone.destroy()
                     });
                 }
@@ -1465,47 +673,35 @@
         }
 
         function boss2Attack(scene) {
-            const warning = scene.add.circle(boss.x, boss.y, 45, 0xff6600, 0.3);
-            warning.setStrokeStyle(4, 0xff8833);
+            // Gunner: 5 projectiles en éventail
+            const warning = scene.add.circle(boss.x, boss.y, 35, 0xff6600, 0.3);
+            warning.setStrokeStyle(4, 0xff6600);
             
             scene.tweens.add({
                 targets: warning,
-                radius: 65,
+                radius: 55,
                 alpha: 0,
-                duration: 600,
+                duration: 700,
                 onComplete: () => {
                     warning.destroy();
                     
+                    // Tirer 5 projectiles vers le joueur
                     const angleToPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
-                    const spread = Math.PI / 3;
-                    
-                    const flash = scene.add.circle(boss.x, boss.y, 30, 0xff6600, 0.8);
-                    scene.tweens.add({
-                        targets: flash,
-                        scale: 2,
-                        alpha: 0,
-                        duration: 150,
-                        onComplete: () => flash.destroy()
-                    });
+                    const spread = Math.PI / 4;
                     
                     for (let i = -2; i <= 2; i++) {
                         const angle = angleToPlayer + (i * spread / 4);
-                        const bossProj = scene.add.circle(boss.x, boss.y, 10, 0xff6600);
+                        const bossProj = scene.add.circle(boss.x, boss.y, 8, 0xff6600);
                         bossProj.setDepth(150);
-                        // RESTORED: Original speed (350)
-                        bossProj.vx = Math.cos(angle) * 350;
-                        bossProj.vy = Math.sin(angle) * 350;
+                        bossProj.vx = Math.cos(angle) * 360;  // +20% faster (was 300)
+                        bossProj.vy = Math.sin(angle) * 360;
                         bossProj.isBossProj = true;
-                        
-                        const glow = scene.add.circle(boss.x, boss.y, 16, 0xff6600, 0.4);
-                        glow.setDepth(149);
-                        bossProj.glow = glow;
                         
                         bossProjectiles.push(bossProj);
                         
-                        scene.time.delayedCall(2500, () => {
+                        // Auto destroy après 3s
+                        scene.time.delayedCall(3000, () => {
                             if (bossProj.scene) {
-                                if (bossProj.glow) bossProj.glow.destroy();
                                 const idx = bossProjectiles.indexOf(bossProj);
                                 if (idx > -1) bossProjectiles.splice(idx, 1);
                                 bossProj.destroy();
@@ -1517,73 +713,66 @@
         }
 
         function boss3Attack(scene) {
+            // Dasher: Dash rapide vers le joueur
             const targetX = player.x;
             const targetY = player.y;
             
-            const line = scene.add.line(0, 0, boss.x, boss.y, targetX, targetY, 0xcc00ff, 0.7);
-            line.setLineWidth(8);
-            
-            const warnings = [];
-            for (let i = 0.2; i <= 1; i += 0.2) {
-                const warnX = boss.x + (targetX - boss.x) * i;
-                const warnY = boss.y + (targetY - boss.y) * i;
-                const warn = scene.add.circle(warnX, warnY, 20, 0xcc00ff, 0.3);
-                warn.setStrokeStyle(2, 0xdd33ff);
-                warnings.push(warn);
-            }
+            // Telegraph line
+            const line = scene.add.line(0, 0, boss.x, boss.y, targetX, targetY, 0xcc00ff, 0.6);
+            line.setLineWidth(5);
             
             scene.tweens.add({
-                targets: [...warnings, line],
+                targets: line,
                 alpha: 0,
                 duration: 500,
                 onComplete: () => {
                     line.destroy();
-                    warnings.forEach(w => w.destroy());
                     
-                    const startX = boss.x;
-                    const startY = boss.y;
-                    
+                    // DASH rapide
                     scene.tweens.add({
                         targets: boss,
                         x: targetX,
                         y: targetY,
-                        // RESTORED: Original speed (120)
-                        duration: 120,
+                        duration: 120, // +20% faster (was 150)
                         ease: 'Power3',
-                        onUpdate: () => {
-                            if (Math.random() > 0.5) {
-                                const trail = scene.add.circle(boss.x, boss.y, 15, 0xcc00ff, 0.4);
-                                scene.tweens.add({
-                                    targets: trail,
-                                    alpha: 0,
-                                    scale: 0.5,
-                                    duration: 200,
-                                    onComplete: () => trail.destroy()
-                                });
-                            }
-                        },
                         onComplete: () => {
                             const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
-                            if (dist < 70 && !isInvulnerable) {
-                                hitPlayer(scene, 20);
-                                
-                                for (let i = 0; i < 12; i++) {
-                                    const angle = (i / 12) * Math.PI * 2;
-                                    const particle = scene.add.circle(boss.x, boss.y, 5, 0xcc00ff, 0.8);
-                                    
-                                    scene.tweens.add({
-                                        targets: particle,
-                                        x: boss.x + Math.cos(angle) * 50,
-                                        y: boss.y + Math.sin(angle) * 50,
-                                        alpha: 0,
-                                        duration: 300,
-                                        onComplete: () => particle.destroy()
-                                    });
-                                }
-                            }
+                            if (dist < 70) hitPlayer(scene, 20);
                             
-                            scene.cameras.main.shake(100, 0.005);
+                            // Screen shake
+                            scene.cameras.main.shake(150, 0.007);
                         }
+                    });
+                }
+            });
+        }
+
+        function bossAttackOLD(scene) {
+            // Slash simple
+            const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
+            warning.setStrokeStyle(3, 0xff0051);
+            
+            scene.tweens.add({
+                targets: warning,
+                alpha: 0.5,
+                duration: 800,
+                yoyo: true,
+                onComplete: () => {
+                    warning.destroy();
+                    
+                    const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff6666, 0.7);
+                    scene.physics.add.existing(slashZone);
+                    
+                    const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
+                    if (dist < 120 && !isDodging) {
+                        hitPlayer(scene, 15);
+                    }
+                    
+                    scene.tweens.add({
+                        targets: slashZone,
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => slashZone.destroy()
                     });
                 }
             });
@@ -1592,56 +781,30 @@
         function hitBoss(scene, damage) {
             bossHealth = Math.max(0, bossHealth - damage);
             
+            // HIT FREEZE (pause courte pour l'impact)
             scene.physics.pause();
-            scene.time.delayedCall(30, () => scene.physics.resume());
+            scene.time.delayedCall(40, () => scene.physics.resume());
             
-            const flash = scene.add.rectangle(boss.x, boss.y, 120, 160, 0xffffff, 0.9);
+            // Flash blanc
+            const flash = scene.add.rectangle(boss.x, boss.y, 100, 140, 0xffffff, 0.8);
             flash.setDepth(200);
             scene.tweens.add({
                 targets: flash,
                 alpha: 0,
-                scale: 1.2,
-                duration: 80,
+                duration: 100,
                 onComplete: () => flash.destroy()
             });
             
-            scene.tweens.add({ targets: boss, alpha: 0.2, duration: 50, yoyo: true });
+            // Boss flash
+            scene.tweens.add({ targets: boss, alpha: 0.3, duration: 60, yoyo: true });
             
-            // Damage number with 3D shadow
-            const dmgText = scene.add.text(boss.x, boss.y - 50, damage.toString(), {
-                fontSize: Math.min(28, scene.cameras.main.height * 0.035) + 'px',
-                fill: '#ffaa00',
-                stroke: '#000',
-                strokeThickness: 6,
-                fontStyle: 'bold',
-                shadow: {
-                    offsetX: 3,
-                    offsetY: 3,
-                    color: '#000',
-                    blur: 8,
-                    fill: true,
-                    stroke: false
-                }
-            }).setOrigin(0.5);
-            
-            scene.tweens.add({
-                targets: dmgText,
-                y: boss.y - 120,
-                alpha: 0,
-                scale: 1.5,
-                duration: 600,
-                ease: 'Power2',
-                onComplete: () => dmgText.destroy()
-            });
-            
+            // EXPLOSION de particles
             bossData = BOSSES[currentBossId];
-            
-            for (let i = 0; i < 30; i++) {
-                const angle = (Math.PI * 2 * i) / 30;
-                const dist = Phaser.Math.Between(30, 90);
-                const size = Phaser.Math.Between(4, 12);
-                
-                const p = scene.add.circle(boss.x, boss.y, size, bossData.glowColor);
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 * i) / 20;
+                const dist = Phaser.Math.Between(40, 80);
+                const size = Phaser.Math.Between(4, 10);
+                const p = scene.add.circle(boss.x, boss.y, size, bossData.color);
                 p.setDepth(199);
                 
                 scene.tweens.add({
@@ -1650,70 +813,73 @@
                     y: boss.y + Math.sin(angle) * dist,
                     alpha: 0,
                     scale: 0.3,
-                    duration: 500,
+                    duration: 600,
                     ease: 'Power2',
                     onComplete: () => p.destroy()
                 });
             }
             
-            const ring = scene.add.circle(boss.x, boss.y, 30, bossData.glowColor, 0);
-            ring.setStrokeStyle(5, bossData.glowColor, 0.9);
+            // Ring explosion
+            const ring = scene.add.circle(boss.x, boss.y, 30, bossData.color, 0);
+            ring.setStrokeStyle(4, bossData.color, 0.8);
             ring.setDepth(198);
             scene.tweens.add({
                 targets: ring,
-                radius: 150,
+                radius: 100,
                 alpha: 0,
-                duration: 350,
+                duration: 400,
                 ease: 'Power2',
                 onComplete: () => ring.destroy()
             });
             
-            scene.cameras.main.shake(60, 0.005);
+            // SCREEN SHAKE intense
+            scene.cameras.main.shake(120, 0.008);
             
+            // Slow-mo si mort du boss
             if (bossHealth <= 0) {
-                scene.time.timeScale = 0.2;
-                scene.time.delayedCall(300, () => {
+                scene.time.timeScale = 0.3;
+                scene.time.delayedCall(400, () => {
                     scene.time.timeScale = 1;
                 });
             }
         }
 
         function hitPlayer(scene, damage) {
-            if (isInvulnerable) return;
-            
             playerHealth = Math.max(0, playerHealth - damage);
             
-            const flash = scene.add.rectangle(player.x, player.y, 70, 70, 0xff0000, 0.7);
+            // Flash rouge
+            const flash = scene.add.rectangle(player.x, player.y, 60, 60, 0xff0000, 0.6);
             flash.setDepth(200);
             scene.tweens.add({
                 targets: flash,
                 alpha: 0,
-                scale: 1.5,
-                duration: 120,
+                duration: 150,
                 onComplete: () => flash.destroy()
             });
             
-            scene.tweens.add({ targets: player, alpha: 0.3, duration: 60, yoyo: true, repeat: 1 });
+            scene.tweens.add({ targets: player, alpha: 0.2, duration: 80, yoyo: true });
             
-            for (let i = 0; i < 12; i++) {
+            // Particles de dégâts
+            for (let i = 0; i < 8; i++) {
                 const angle = Phaser.Math.Between(0, 360) * Math.PI / 180;
-                const p = scene.add.circle(player.x, player.y, 6, 0xff3355);
+                const p = scene.add.circle(player.x, player.y, 5, 0xff3355);
                 scene.tweens.add({
                     targets: p,
-                    x: player.x + Math.cos(angle) * 50,
-                    y: player.y + Math.sin(angle) * 50,
+                    x: player.x + Math.cos(angle) * 40,
+                    y: player.y + Math.sin(angle) * 40,
                     alpha: 0,
-                    duration: 300,
+                    duration: 400,
                     onComplete: () => p.destroy()
                 });
             }
             
-            scene.cameras.main.shake(80, 0.006);
+            // Screen shake
+            scene.cameras.main.shake(150, 0.01);
         }
 
         function updateHealthBars() {
-            playerHealthText.width = (playerHealthBar.width) * (playerHealth / 100);
-            bossHealthText.width = (bossHealthBar.width) * (bossHealth / BOSSES[currentBossId].hp);
+            playerHealthText.width = 350 * (playerHealth / 100);
+            bossHealthText.width = 330 * (bossHealth / 500);
             
             if (playerHealth < 30) playerHealthText.fillColor = 0xff0000;
             else if (playerHealth < 60) playerHealthText.fillColor = 0xffaa00;
@@ -1721,186 +887,73 @@
         }
 
         function updateStaminaBar() {
-            staminaText.width = staminaBar.width * (playerStamina / 100);
-        }
-
-        // Clean up all active effects before game over
-        function cleanupAllEffects(scene) {
-            // Kill all tweens on dynamic objects
-            activeTrails.forEach(t => {
-                if (t && t.scene) {
-                    scene.tweens.killTweensOf(t);
-                    t.destroy();
-                }
-            });
-            
-            activeChargingParticles.forEach(p => {
-                if (p && p.scene) {
-                    scene.tweens.killTweensOf(p);
-                    p.destroy();
-                }
-            });
-            
-            activeTimers.forEach(t => {
-                if (t.interval) clearInterval(t.interval);
-            });
-            
-            // Clear all projectiles
-            projectiles.forEach(p => {
-                if (p && p.scene) p.destroy();
-            });
-            
-            bossProjectiles.forEach(p => {
-                if (p && p.scene) {
-                    if (p.glow) p.glow.destroy();
-                    p.destroy();
-                }
-            });
-            
-            // Reset arrays
-            activeTrails = [];
-            activeChargingParticles = [];
-            activeTimers = [];
-            projectiles = [];
-            bossProjectiles = [];
+            staminaText.width = 250 * (playerStamina / 100);
         }
 
         function handleGameOver(scene) {
-            const width = scene.cameras.main.width;
-            const height = scene.cameras.main.height;
-            
-            // Clean up all effects first
-            cleanupAllEffects(scene);
-            
             scene.physics.pause();
             const isVictory = bossHealth <= 0;
-            
-            // FIXED: No more green underline, just clean text with 3D shadow
-            const msg = isVictory ? 'VICTORY' : 'DEFEAT';
+            const msg = isVictory ? '✨ VICTOIRE ✨' : '💀 DÉFAITE 💀';
             const color = isVictory ? '#00ff88' : '#ff3355';
             
+            // Unlock next boss si victoire
             if (isVictory && currentBossId === unlockedBosses && currentBossId < 3) {
                 unlockedBosses++;
                 localStorage.setItem('unlockedBosses', unlockedBosses);
             }
             
-            // Main title with 3D shadow effect (no underline)
-            const txt = scene.add.text(width * 0.5, height * 0.4, msg, { 
-                fontSize: Math.min(72, height * 0.12) + 'px', 
+            const txt = scene.add.text(500, 250, msg, { 
+                fontSize: '64px', 
                 fill: color, 
                 fontStyle: 'bold', 
-                stroke: '#ffffff', 
-                strokeThickness: 3,
-                shadow: {
-                    offsetX: 6,
-                    offsetY: 6,
-                    color: '#000000',
-                    blur: 12,
-                    fill: true,
-                    stroke: false
-                }
+                stroke: '#000', 
+                strokeThickness: 6 
             }).setOrigin(0.5);
             
-            // Subtle pulse animation
-            scene.tweens.add({ 
-                targets: txt, 
-                scale: 1.05, 
-                duration: 800, 
-                yoyo: true, 
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
+            scene.tweens.add({ targets: txt, scale: 1.15, duration: 600, yoyo: true, repeat: -1 });
             
-            if (isVictory) {
-                const subText = scene.add.text(width * 0.5, height * 0.5, BOSSES[currentBossId].name + ' DEFEATED', {
-                    fontSize: Math.min(24, height * 0.035) + 'px',
-                    fill: '#ffffff',
-                    stroke: '#000000',
-                    strokeThickness: 3,
-                    shadow: {
-                        offsetX: 3,
-                        offsetY: 3,
-                        color: '#000000',
-                        blur: 6,
-                        fill: true
-                    }
-                }).setOrigin(0.5);
-                
-                // Subtle fade for subtext
-                scene.tweens.add({
-                    targets: subText,
-                    alpha: 0.8,
-                    duration: 1000,
-                    yoyo: true,
-                    repeat: -1
-                });
-            }
+            // Boss name
+            scene.add.text(500, 340, BOSSES[currentBossId].name + ' VAINCU!', {
+                fontSize: '20px',
+                fill: '#888'
+            }).setOrigin(0.5).setVisible(isVictory);
             
-            // Buttons with 3D shadow
-            const retryBtn = scene.add.text(width * 0.4, height * 0.6, '[ RETRY ]', { 
-                fontSize: Math.min(26, height * 0.04) + 'px', 
+            // Boutons
+            const retryBtn = scene.add.text(400, 450, '[RETRY]', { 
+                fontSize: '24px', 
                 fill: '#00d4ff', 
                 backgroundColor: '#00000099', 
-                padding: { x: 25, y: 12 },
-                stroke: '#88ddff',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 4,
-                    offsetY: 4,
-                    color: '#000000',
-                    blur: 8,
-                    fill: true
-                }
+                padding: { x: 20, y: 10 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
-            retryBtn.on('pointerover', () => retryBtn.setScale(1.1));
-            retryBtn.on('pointerout', () => retryBtn.setScale(1));
             retryBtn.on('pointerdown', () => {
                 scene.scene.restart();
                 playerHealth = 100;
                 bossHealth = BOSSES[currentBossId].hp;
                 playerStamina = 100;
+                projectiles = [];
+                bossProjectiles = [];
             });
             
-            const selectBtn = scene.add.text(width * 0.6, height * 0.6, '[ SELECT BOSS ]', { 
-                fontSize: Math.min(26, height * 0.04) + 'px', 
+            // Boss select button
+            const selectBtn = scene.add.text(600, 450, '[SELECT BOSS]', { 
+                fontSize: '24px', 
                 fill: '#ff6600', 
                 backgroundColor: '#00000099', 
-                padding: { x: 25, y: 12 },
-                stroke: '#ff8833',
-                strokeThickness: 1,
-                shadow: {
-                    offsetX: 4,
-                    offsetY: 4,
-                    color: '#000000',
-                    blur: 8,
-                    fill: true
-                }
+                padding: { x: 20, y: 10 }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
-            selectBtn.on('pointerover', () => selectBtn.setScale(1.1));
-            selectBtn.on('pointerout', () => selectBtn.setScale(1));
             selectBtn.on('pointerdown', () => showBossSelect(scene));
             
+            // Next boss button (si unlocked)
             if (isVictory && currentBossId < unlockedBosses) {
-                const nextBtn = scene.add.text(width * 0.5, height * 0.7, '→ NEXT BOSS ←', { 
-                    fontSize: Math.min(22, height * 0.035) + 'px', 
+                const nextBtn = scene.add.text(500, 520, '→ NEXT BOSS', { 
+                    fontSize: '20px', 
                     fill: '#00ff88', 
                     backgroundColor: '#00000099', 
-                    padding: { x: 20, y: 10 },
-                    stroke: '#88ffaa',
-                    strokeThickness: 1,
-                    shadow: {
-                        offsetX: 3,
-                        offsetY: 3,
-                        color: '#000000',
-                        blur: 6,
-                        fill: true
-                    }
+                    padding: { x: 15, y: 8 }
                 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
                 
-                nextBtn.on('pointerover', () => nextBtn.setScale(1.1));
-                nextBtn.on('pointerout', () => nextBtn.setScale(1));
                 nextBtn.on('pointerdown', () => {
                     currentBossId++;
                     localStorage.setItem('currentBoss', currentBossId);
@@ -1908,71 +961,45 @@
                     playerHealth = 100;
                     bossHealth = BOSSES[currentBossId].hp;
                     playerStamina = 100;
+                    projectiles = [];
+                    bossProjectiles = [];
                 });
             }
         }
 
         function showBossSelect(scene) {
-            const width = scene.cameras.main.width;
-            const height = scene.cameras.main.height;
-            
-            // Clean up before boss select
-            cleanupAllEffects(scene);
+            // Clear screen
             scene.children.removeAll();
             
-            scene.add.text(width * 0.5, height * 0.1, 'SELECT BOSS', {
-                fontSize: Math.min(54, height * 0.09) + 'px',
+            scene.add.text(500, 80, 'SELECT BOSS', {
+                fontSize: '48px',
                 fill: '#00d4ff',
-                fontStyle: 'bold',
-                stroke: '#fff',
-                strokeThickness: 2,
-                shadow: {
-                    offsetX: 5,
-                    offsetY: 5,
-                    color: '#000',
-                    blur: 10,
-                    fill: true
-                }
+                fontStyle: 'bold'
             }).setOrigin(0.5);
             
-            const startX = width * 0.2;
-            const spacing = width * 0.25;
+            // Boss cards
+            const startX = 250;
+            const spacing = 250;
             
             [1, 2, 3].forEach((bossId, index) => {
                 const bossData = BOSSES[bossId];
                 const x = startX + (index * spacing);
-                const y = height * 0.5;
+                const y = 350;
                 const unlocked = bossId <= unlockedBosses;
                 
-                // Card with shadow
-                const card = scene.add.rectangle(x, y, width * 0.18, height * 0.35, 0x1a1a2e, unlocked ? 0.9 : 0.4);
-                card.setStrokeStyle(4, bossData.color, unlocked ? 1 : 0.3);
-                
-                // Shadow for card
-                const cardShadow = scene.add.rectangle(x + 8, y + 8, width * 0.18, height * 0.35, 0x000000, 0.3);
-                cardShadow.setDepth(-1);
+                // Card
+                const card = scene.add.rectangle(x, y, 200, 250, 0x1a1a2e, unlocked ? 0.8 : 0.3);
+                card.setStrokeStyle(3, bossData.color, unlocked ? 1 : 0.3);
                 
                 if (unlocked) {
                     card.setInteractive({ useHandCursor: true });
                     
                     card.on('pointerover', () => {
-                        scene.tweens.add({ 
-                            targets: card, 
-                            scaleX: 1.08, 
-                            scaleY: 1.08, 
-                            duration: 200,
-                            ease: 'Power2'
-                        });
+                        scene.tweens.add({ targets: card, scaleX: 1.05, scaleY: 1.05, duration: 200 });
                     });
                     
                     card.on('pointerout', () => {
-                        scene.tweens.add({ 
-                            targets: card, 
-                            scaleX: 1, 
-                            scaleY: 1, 
-                            duration: 200,
-                            ease: 'Power2'
-                        });
+                        scene.tweens.add({ targets: card, scaleX: 1, scaleY: 1, duration: 200 });
                     });
                     
                     card.on('pointerdown', () => {
@@ -1982,81 +1009,36 @@
                         playerHealth = 100;
                         bossHealth = BOSSES[currentBossId].hp;
                         playerStamina = 100;
+                        projectiles = [];
+                        bossProjectiles = [];
                     });
                 }
                 
-                const preview = scene.add.circle(x, y - height * 0.08, height * 0.06, bossData.color, unlocked ? 1 : 0.3);
-                const glow = scene.add.circle(x, y - height * 0.08, height * 0.08, bossData.glowColor, unlocked ? 0.3 : 0.1);
+                // Boss preview
+                const preview = scene.add.circle(x, y - 60, 35, bossData.color, unlocked ? 1 : 0.3);
+                const glow = scene.add.circle(x, y - 60, 50, bossData.color, unlocked ? 0.3 : 0.1);
                 
-                scene.add.text(x, y + height * 0.05, bossData.name, {
-                    fontSize: Math.min(20, height * 0.028) + 'px',
+                // Name
+                scene.add.text(x, y + 30, bossData.name, {
+                    fontSize: '18px',
                     fill: unlocked ? '#fff' : '#444',
-                    fontStyle: 'bold',
-                    shadow: {
-                        offsetX: 2,
-                        offsetY: 2,
-                        color: '#000',
-                        blur: 4,
-                        fill: true
-                    }
+                    fontStyle: 'bold'
                 }).setOrigin(0.5);
                 
-                scene.add.text(x, y + height * 0.12, 'HP: ' + bossData.hp, {
-                    fontSize: Math.min(16, height * 0.022) + 'px',
-                    fill: unlocked ? '#ffaa00' : '#333',
-                    shadow: {
-                        offsetX: 1,
-                        offsetY: 1,
-                        color: '#000',
-                        blur: 2,
-                        fill: true
-                    }
+                // HP
+                scene.add.text(x, y + 60, 'HP: ' + bossData.hp, {
+                    fontSize: '14px',
+                    fill: unlocked ? '#ffaa00' : '#333'
                 }).setOrigin(0.5);
                 
+                // Lock
                 if (!unlocked) {
-                    scene.add.text(x, y, '🔒', { 
-                        fontSize: Math.min(40, height * 0.05) + 'px',
-                        stroke: '#000',
-                        strokeThickness: 2,
-                        shadow: {
-                            offsetX: 2,
-                            offsetY: 2,
-                            color: '#000',
-                            blur: 4,
-                            fill: true
-                        }
-                    }).setOrigin(0.5);
+                    scene.add.text(x, y, '🔒', { fontSize: '32px' }).setOrigin(0.5);
                 }
-            });
-            
-            // Back button with shadow
-            const backBtn = scene.add.text(width * 0.5, height * 0.85, '[ BACK TO GAME ]', { 
-                fontSize: Math.min(20, height * 0.03) + 'px', 
-                fill: '#aaa', 
-                backgroundColor: '#00000099', 
-                padding: { x: 20, y: 10 },
-                shadow: {
-                    offsetX: 3,
-                    offsetY: 3,
-                    color: '#000',
-                    blur: 6,
-                    fill: true
-                }
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-            
-            backBtn.on('pointerover', () => backBtn.setScale(1.1));
-            backBtn.on('pointerout', () => backBtn.setScale(1));
-            backBtn.on('pointerdown', () => {
-                scene.scene.restart();
-                playerHealth = 100;
-                bossHealth = BOSSES[currentBossId].hp;
-                playerStamina = 100;
             });
         }
 
-        window.addEventListener('load', () => { 
-            game = new Phaser.Game(config); 
-        });
+        window.addEventListener('load', () => { game = new Phaser.Game(config); });
     </script>
 </body>
 </html>
