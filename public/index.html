@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Knights - SIMPLE VERSION</title>
+    <title>Shadow Knights - FULLSCREEN FIX</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         * { 
-            margin: 0 !important; 
-            padding: 0 !important; 
+            margin: 0; 
+            padding: 0; 
             box-sizing: border-box;
-            overflow: hidden;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
@@ -26,25 +25,17 @@
             background: #000;
         }
         #game-container { 
-            width: 100% !important;
-            height: 100% !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            border: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
         canvas {
-            display: block !important;
+            display: block;
             width: 100% !important;
             height: 100% !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
+            object-fit: contain;
         }
         @media (max-width: 900px) and (orientation: portrait) {
             body::before {
@@ -59,17 +50,15 @@
                 text-shadow: 0 0 20px #00d4ff;
                 z-index: 9999;
             }
-            canvas { display: none !important; }
         }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     <script>
+        // Configuration with dynamic sizing
         const config = {
             type: Phaser.WEBGL,
-            width: window.innerWidth,
-            height: window.innerHeight,
             parent: 'game-container',
             backgroundColor: '#0a0a14',
             physics: { default: 'arcade', arcade: { gravity: { y: 0 }}},
@@ -81,15 +70,8 @@
                 height: '100%'
             },
             render: {
-                pixelArt: false,
-                antialias: true,  // ON pour smooth shapes
-                roundPixels: false,
-                powerPreference: 'high-performance',
-                transparent: false
-            },
-            fps: {
-                target: 60,
-                forceSetTimeOut: false
+                antialias: true,
+                powerPreference: 'high-performance'
             }
         };
 
@@ -123,45 +105,35 @@
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
-        // Hide mobile browser UI
-        if (isMobile) {
-            // Fullscreen on mobile
-            window.addEventListener('load', () => {
-                setTimeout(() => {
-                    window.scrollTo(0, 1);
-                }, 100);
-            });
-            
-            // Prevent pull-to-refresh
-            document.body.addEventListener('touchmove', (e) => {
-                if (e.target === document.body) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-            
-            // Hide address bar on scroll
-            let lastScrollTop = 0;
-            window.addEventListener('scroll', () => {
-                const st = window.pageYOffset || document.documentElement.scrollTop;
-                if (st > lastScrollTop) {
-                    window.scrollTo(0, 1);
-                }
-                lastScrollTop = st <= 0 ? 0 : st;
-            }, false);
+        // Helper function to get relative positions based on screen size
+        function getPos(x, y) {
+            return {
+                x: (x / 100) * this.cameras.main.width,
+                y: (y / 100) * this.cameras.main.height
+            };
         }
 
         function create() {
-            // Grille NEON animée
+            const width = this.cameras.main.width;
+            const height = this.cameras.main.height;
+            
+            // Grille NEON animée (responsive)
             let bossData = BOSSES[currentBossId];
             const g = this.add.graphics();
             g.lineStyle(1, bossData.color, 0.15);
-            for (let i = 0; i < 1000; i += 50) g.lineBetween(i, 0, i, 700);
-            for (let i = 0; i < 700; i += 50) g.lineBetween(0, i, 1000, i);
             
-            // Particles ambiantes
+            // Dynamic grid based on screen size
+            for (let i = 0; i < width; i += 50) {
+                g.lineBetween(i, 0, i, height);
+            }
+            for (let i = 0; i < height; i += 50) {
+                g.lineBetween(0, i, width, i);
+            }
+            
+            // Particles ambiantes (responsive)
             for (let i = 0; i < 50; i++) {
-                const x = Phaser.Math.Between(0, 1000);
-                const y = Phaser.Math.Between(0, 700);
+                const x = Phaser.Math.Between(0, width);
+                const y = Phaser.Math.Between(0, height);
                 const size = Phaser.Math.Between(1, 3);
                 const color = Phaser.Math.RND.pick([0x00d4ff, bossData.color]);
                 const particle = this.add.circle(x, y, size, color, 0.5);
@@ -177,14 +149,17 @@
                 });
             }
 
-            // Joueur avec GLOW
-            player = this.add.circle(150, 350, 20, 0x00d4ff);
+            // Joueur avec GLOW (position responsive)
+            const playerX = width * 0.15;  // 15% from left
+            const playerY = height * 0.5;  // 50% from top
+            
+            player = this.add.circle(playerX, playerY, 20, 0x00d4ff);
             this.physics.add.existing(player);
             player.body.setCollideWorldBounds(true);
             
             // Double glow effect
-            player.glow1 = this.add.circle(150, 350, 40, 0x00d4ff, 0.4);
-            player.glow2 = this.add.circle(150, 350, 60, 0x00d4ff, 0.2);
+            player.glow1 = this.add.circle(playerX, playerY, 40, 0x00d4ff, 0.4);
+            player.glow2 = this.add.circle(playerX, playerY, 60, 0x00d4ff, 0.2);
             
             this.tweens.add({
                 targets: player.glow1,
@@ -206,9 +181,12 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // Boss - Différent selon ID avec GLOW
+            // Boss (position responsive)
             bossData = BOSSES[currentBossId];
-            boss = this.add.container(850, 350);
+            const bossX = width * 0.85;  // 85% from left
+            const bossY = height * 0.5;   // 50% from top
+            
+            boss = this.add.container(bossX, bossY);
             
             if (currentBossId === 1) {
                 // Sentinel: Rectangle + circle
@@ -233,9 +211,9 @@
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
             
-            // Boss glow pulsant
-            boss.glow1 = this.add.circle(850, 350, 90, bossData.color, 0.3);
-            boss.glow2 = this.add.circle(850, 350, 120, bossData.color, 0.15);
+            // Boss glow pulsant (responsive)
+            boss.glow1 = this.add.circle(bossX, bossY, 90, bossData.color, 0.3);
+            boss.glow2 = this.add.circle(bossX, bossY, 120, bossData.color, 0.15);
             boss.glow1.setDepth(-1);
             boss.glow2.setDepth(-2);
             
@@ -259,27 +237,56 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // UI
-            this.add.text(500, 30, bossData.name, { fontSize: '28px', fill: '#' + bossData.color.toString(16).padStart(6, '0'), fontStyle: 'bold' }).setOrigin(0.5);
+            // UI (responsive)
+            this.add.text(width * 0.5, height * 0.05, bossData.name, { 
+                fontSize: Math.min(28, height * 0.04) + 'px', 
+                fill: '#' + bossData.color.toString(16).padStart(6, '0'), 
+                fontStyle: 'bold' 
+            }).setOrigin(0.5);
             
-            this.add.text(20, 20, 'VOUS', { fontSize: '18px', fill: '#00d4ff', fontStyle: 'bold' });
-            playerHealthBar = this.add.rectangle(20, 55, 350, 25, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
-            playerHealthText = this.add.rectangle(20, 55, 350, 25, 0x00ff88).setOrigin(0, 0.5);
+            // Player health (left side)
+            this.add.text(width * 0.02, height * 0.02, 'VOUS', { 
+                fontSize: Math.min(18, height * 0.025) + 'px', 
+                fill: '#00d4ff', 
+                fontStyle: 'bold' 
+            });
             
-            this.add.text(20, 82, 'STAMINA', { fontSize: '14px', fill: '#ffaa00' });
-            staminaBar = this.add.rectangle(20, 105, 250, 16, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
-            staminaText = this.add.rectangle(20, 105, 250, 16, 0xffaa00).setOrigin(0, 0.5);
+            playerHealthBar = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x1a1a2e)
+                .setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
+            playerHealthText = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x00ff88)
+                .setOrigin(0, 0.5);
+            
+            // Stamina
+            this.add.text(width * 0.02, height * 0.09, 'STAMINA', { 
+                fontSize: Math.min(14, height * 0.02) + 'px', 
+                fill: '#ffaa00' 
+            });
+            staminaBar = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0x1a1a2e)
+                .setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
+            staminaText = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0xffaa00)
+                .setOrigin(0, 0.5);
 
-            this.add.text(650, 70, 'BOSS', { fontSize: '14px', fill: '#' + bossData.color.toString(16).padStart(6, '0') });
-            bossHealthBar = this.add.rectangle(650, 95, 330, 28, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
-            bossHealthText = this.add.rectangle(650, 95, 330, 28, bossData.color).setOrigin(0, 0.5);
+            // Boss health (right side)
+            this.add.text(width * 0.68, height * 0.07, 'BOSS', { 
+                fontSize: Math.min(14, height * 0.02) + 'px', 
+                fill: '#' + bossData.color.toString(16).padStart(6, '0') 
+            });
+            bossHealthBar = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, 0x1a1a2e)
+                .setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
+            bossHealthText = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, bossData.color)
+                .setOrigin(0, 0.5);
 
             if (isMobile) createMobileControls(this);
             else createDesktopControls(this);
 
             const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer' 
                 : 'Clic Gauche: Aller vers souris | Clic Droit: Viser & Tirer';
-            this.add.text(500, 680, instructions, { fontSize: '13px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
+            this.add.text(width * 0.5, height * 0.95, instructions, { 
+                fontSize: Math.min(13, height * 0.018) + 'px', 
+                fill: '#aaa', 
+                backgroundColor: '#00000099', 
+                padding: { x: 15, y: 8 }
+            }).setOrigin(0.5);
         }
 
         function createDesktopControls(scene) {
@@ -328,18 +335,29 @@
         }
 
         function createMobileControls(scene) {
-            // Zones
-            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.1);
-            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff6666, 0.1);
-            scene.add.text(250, 50, '⬅️ BOUGER', { fontSize: '18px', fill: '#00d4ff', fontStyle: 'bold' }).setOrigin(0.5);
-            scene.add.text(750, 50, 'TIRER ➡️', { fontSize: '18px', fill: '#ff6666', fontStyle: 'bold' }).setOrigin(0.5);
+            const width = scene.cameras.main.width;
+            const height = scene.cameras.main.height;
+            
+            // Zones (responsive)
+            const leftZone = scene.add.rectangle(width * 0.25, height * 0.5, width * 0.5, height, 0x0066ff, 0.1);
+            const rightZone = scene.add.rectangle(width * 0.75, height * 0.5, width * 0.5, height, 0xff6666, 0.1);
+            scene.add.text(width * 0.25, height * 0.1, '⬅️ BOUGER', { 
+                fontSize: Math.min(18, height * 0.025) + 'px', 
+                fill: '#00d4ff', 
+                fontStyle: 'bold' 
+            }).setOrigin(0.5);
+            scene.add.text(width * 0.75, height * 0.1, 'TIRER ➡️', { 
+                fontSize: Math.min(18, height * 0.025) + 'px', 
+                fill: '#ff6666', 
+                fontStyle: 'bold' 
+            }).setOrigin(0.5);
             
             let leftTouch = null, rightTouch = null;
             
             scene.input.addPointer(3);
             
             scene.input.on('pointerdown', (pointer) => {
-                if (pointer.x < 500 && !leftTouch) {
+                if (pointer.x < width * 0.5 && !leftTouch) {
                     leftTouch = {
                         id: pointer.id,
                         startX: pointer.x,
@@ -349,7 +367,7 @@
                     };
                 }
                 
-                if (pointer.x >= 500 && !rightTouch) {
+                if (pointer.x >= width * 0.5 && !rightTouch) {
                     rightTouch = {
                         id: pointer.id,
                         startX: pointer.x,
@@ -432,8 +450,11 @@
                 return;
             }
 
+            const width = this.cameras.main.width;
+            const height = this.cameras.main.height;
+
             // Mouvement PLUS RAPIDE
-            const speed = 300; // était 240
+            const speed = 300;
             let vx = 0, vy = 0;
             
             // MOBILE: Joystick
@@ -448,12 +469,11 @@
                 const dy = mouseY - player.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 10) { // Deadzone
+                if (dist > 10) {
                     const angle = Math.atan2(dy, dx);
                     vx = Math.cos(angle) * speed;
                     vy = Math.sin(angle) * speed;
                     
-                    // Ralentir quand proche de la cible
                     if (dist < 50) {
                         vx *= (dist / 50);
                         vy *= (dist / 50);
@@ -461,7 +481,10 @@
                 }
             }
             
+            // Keep player in bounds
             player.body.setVelocity(vx, vy);
+            player.x = Phaser.Math.Clamp(player.x, 20, width - 20);
+            player.y = Phaser.Math.Clamp(player.y, 20, height - 20);
             
             // Sync player glows
             if (player.glow1) {
@@ -473,14 +496,19 @@
                 player.glow2.y = player.y;
             }
             
-            // Sync boss glows
-            if (boss.glow1) {
-                boss.glow1.x = boss.x;
-                boss.glow1.y = boss.y;
-            }
-            if (boss.glow2) {
-                boss.glow2.x = boss.x;
-                boss.glow2.y = boss.y;
+            // Keep boss in bounds
+            if (boss) {
+                boss.x = Phaser.Math.Clamp(boss.x, 100, width - 100);
+                boss.y = Phaser.Math.Clamp(boss.y, 100, height - 100);
+                
+                if (boss.glow1) {
+                    boss.glow1.x = boss.x;
+                    boss.glow1.y = boss.y;
+                }
+                if (boss.glow2) {
+                    boss.glow2.x = boss.x;
+                    boss.glow2.y = boss.y;
+                }
             }
             
             // Indicateur de visée (desktop clic droit)
@@ -493,7 +521,6 @@
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist > 15) {
-                        // Ligne de visée
                         aimIndicator.lineStyle(3, 0xff6666, 0.8);
                         for (let i = 0; i < dist; i += 15) {
                             const x1 = aimStartX + (dx / dist) * i;
@@ -503,22 +530,19 @@
                             aimIndicator.lineBetween(x1, y1, x2, y2);
                         }
                         
-                        // Cercle cible
                         aimIndicator.lineStyle(2, 0xff3333, 1);
                         aimIndicator.strokeCircle(mouseX, mouseY, 10);
                     }
                 }
             }
 
-            // Update projectiles MANUELLEMENT
+            // Update projectiles with bounds checking
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const proj = projectiles[i];
                 
-                // Bouger le projectile
                 proj.x += proj.vx * (delta / 1000);
                 proj.y += proj.vy * (delta / 1000);
                 
-                // Collision avec boss
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, boss.x, boss.y);
                 if (dist < 60) {
                     hitBoss(this, 18);
@@ -528,8 +552,7 @@
                     continue;
                 }
                 
-                // Hors écran
-                if (proj.x < -50 || proj.x > 1050 || proj.y < -50 || proj.y > 750) {
+                if (proj.x < -50 || proj.x > width + 50 || proj.y < -50 || proj.y > height + 50) {
                     if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
@@ -543,7 +566,6 @@
                 bProj.x += bProj.vx * (delta / 1000);
                 bProj.y += bProj.vy * (delta / 1000);
                 
-                // Collision avec joueur
                 const distToPlayer = Phaser.Math.Distance.Between(bProj.x, bProj.y, player.x, player.y);
                 if (distToPlayer < 25) {
                     hitPlayer(this, 10);
@@ -552,8 +574,7 @@
                     continue;
                 }
                 
-                // Hors écran
-                if (bProj.x < -50 || bProj.x > 1050 || bProj.y < -50 || bProj.y > 750) {
+                if (bProj.x < -50 || bProj.x > width + 50 || bProj.y < -50 || bProj.y > height + 50) {
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
                 }
@@ -565,9 +586,9 @@
                 updateStaminaBar();
             }
 
-            // Boss AI - PLUS RAPIDE
+            // Boss AI
             if (time > bossNextAttackTime) {
-                bossNextAttackTime = time + Phaser.Math.Between(2000, 3500); // était 2500-4000
+                bossNextAttackTime = time + Phaser.Math.Between(2000, 3500);
                 bossAttack(this);
             }
 
@@ -578,11 +599,10 @@
             canAttack = false;
             playerStamina -= 20;
             
-            const speed = 750; // était 650 - PLUS RAPIDE
+            const speed = 750;
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
             
-            // Muzzle flash
             const flash = scene.add.circle(startX, startY, 20, 0xffffff, 0.9);
             scene.tweens.add({
                 targets: flash,
@@ -592,33 +612,28 @@
                 onComplete: () => flash.destroy()
             });
             
-            // Projectile avec glow
             const proj = scene.add.circle(startX, startY, 10, 0x66ffff);
             proj.setDepth(150);
             proj.vx = Math.cos(angle) * speed;
             proj.vy = Math.sin(angle) * speed;
             
-            // Glow autour du projectile
             const projGlow = scene.add.circle(startX, startY, 18, 0x66ffff, 0.6);
             projGlow.setDepth(149);
             proj.glow = projGlow;
             
             projectiles.push(proj);
             
-            // Trail amélioré
             scene.time.addEvent({
                 delay: 30,
                 repeat: 60,
                 callback: () => {
                     if (!proj.scene) return;
                     
-                    // Update glow position
                     if (proj.glow && proj.glow.scene) {
                         proj.glow.x = proj.x;
                         proj.glow.y = proj.y;
                     }
                     
-                    // Trail particles
                     const trail = scene.add.circle(proj.x, proj.y, 7, 0x66ffff, 0.7);
                     trail.setDepth(148);
                     scene.tweens.add({
@@ -642,7 +657,6 @@
         }
 
         function boss1Attack(scene) {
-            // Sentinel: Slash horizontal
             const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
             warning.setStrokeStyle(3, 0xff0051);
             
@@ -673,7 +687,6 @@
         }
 
         function boss2Attack(scene) {
-            // Gunner: 5 projectiles en éventail
             const warning = scene.add.circle(boss.x, boss.y, 35, 0xff6600, 0.3);
             warning.setStrokeStyle(4, 0xff6600);
             
@@ -685,7 +698,6 @@
                 onComplete: () => {
                     warning.destroy();
                     
-                    // Tirer 5 projectiles vers le joueur
                     const angleToPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
                     const spread = Math.PI / 4;
                     
@@ -699,7 +711,6 @@
                         
                         bossProjectiles.push(bossProj);
                         
-                        // Auto destroy après 3s
                         scene.time.delayedCall(3000, () => {
                             if (bossProj.scene) {
                                 const idx = bossProjectiles.indexOf(bossProj);
@@ -713,11 +724,9 @@
         }
 
         function boss3Attack(scene) {
-            // Dasher: Dash rapide vers le joueur
             const targetX = player.x;
             const targetY = player.y;
             
-            // Telegraph line
             const line = scene.add.line(0, 0, boss.x, boss.y, targetX, targetY, 0xcc00ff, 0.6);
             line.setLineWidth(5);
             
@@ -728,51 +737,18 @@
                 onComplete: () => {
                     line.destroy();
                     
-                    // DASH rapide
                     scene.tweens.add({
                         targets: boss,
                         x: targetX,
                         y: targetY,
-                        duration: 150, // était 200 - PLUS RAPIDE
+                        duration: 150,
                         ease: 'Power3',
                         onComplete: () => {
                             const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
                             if (dist < 70) hitPlayer(scene, 20);
                             
-                            // Screen shake
                             scene.cameras.main.shake(150, 0.007);
                         }
-                    });
-                }
-            });
-        }
-
-        function bossAttackOLD(scene) {
-            // Slash simple
-            const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
-            warning.setStrokeStyle(3, 0xff0051);
-            
-            scene.tweens.add({
-                targets: warning,
-                alpha: 0.5,
-                duration: 800,
-                yoyo: true,
-                onComplete: () => {
-                    warning.destroy();
-                    
-                    const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff6666, 0.7);
-                    scene.physics.add.existing(slashZone);
-                    
-                    const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
-                    if (dist < 120 && !isDodging) {
-                        hitPlayer(scene, 15);
-                    }
-                    
-                    scene.tweens.add({
-                        targets: slashZone,
-                        alpha: 0,
-                        duration: 200,
-                        onComplete: () => slashZone.destroy()
                     });
                 }
             });
@@ -781,11 +757,9 @@
         function hitBoss(scene, damage) {
             bossHealth = Math.max(0, bossHealth - damage);
             
-            // HIT FREEZE (pause courte pour l'impact)
             scene.physics.pause();
             scene.time.delayedCall(40, () => scene.physics.resume());
             
-            // Flash blanc
             const flash = scene.add.rectangle(boss.x, boss.y, 100, 140, 0xffffff, 0.8);
             flash.setDepth(200);
             scene.tweens.add({
@@ -795,10 +769,8 @@
                 onComplete: () => flash.destroy()
             });
             
-            // Boss flash
             scene.tweens.add({ targets: boss, alpha: 0.3, duration: 60, yoyo: true });
             
-            // EXPLOSION de particles
             bossData = BOSSES[currentBossId];
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 * i) / 20;
@@ -819,7 +791,6 @@
                 });
             }
             
-            // Ring explosion
             const ring = scene.add.circle(boss.x, boss.y, 30, bossData.color, 0);
             ring.setStrokeStyle(4, bossData.color, 0.8);
             ring.setDepth(198);
@@ -832,10 +803,8 @@
                 onComplete: () => ring.destroy()
             });
             
-            // SCREEN SHAKE intense
             scene.cameras.main.shake(120, 0.008);
             
-            // Slow-mo si mort du boss
             if (bossHealth <= 0) {
                 scene.time.timeScale = 0.3;
                 scene.time.delayedCall(400, () => {
@@ -847,7 +816,6 @@
         function hitPlayer(scene, damage) {
             playerHealth = Math.max(0, playerHealth - damage);
             
-            // Flash rouge
             const flash = scene.add.rectangle(player.x, player.y, 60, 60, 0xff0000, 0.6);
             flash.setDepth(200);
             scene.tweens.add({
@@ -859,7 +827,6 @@
             
             scene.tweens.add({ targets: player, alpha: 0.2, duration: 80, yoyo: true });
             
-            // Particles de dégâts
             for (let i = 0; i < 8; i++) {
                 const angle = Phaser.Math.Between(0, 360) * Math.PI / 180;
                 const p = scene.add.circle(player.x, player.y, 5, 0xff3355);
@@ -873,13 +840,12 @@
                 });
             }
             
-            // Screen shake
             scene.cameras.main.shake(150, 0.01);
         }
 
         function updateHealthBars() {
-            playerHealthText.width = 350 * (playerHealth / 100);
-            bossHealthText.width = 330 * (bossHealth / 500);
+            playerHealthText.width = (playerHealthBar.width) * (playerHealth / 100);
+            bossHealthText.width = (bossHealthBar.width) * (bossHealth / BOSSES[currentBossId].hp);
             
             if (playerHealth < 30) playerHealthText.fillColor = 0xff0000;
             else if (playerHealth < 60) playerHealthText.fillColor = 0xffaa00;
@@ -887,23 +853,25 @@
         }
 
         function updateStaminaBar() {
-            staminaText.width = 250 * (playerStamina / 100);
+            staminaText.width = staminaBar.width * (playerStamina / 100);
         }
 
         function handleGameOver(scene) {
+            const width = scene.cameras.main.width;
+            const height = scene.cameras.main.height;
+            
             scene.physics.pause();
             const isVictory = bossHealth <= 0;
             const msg = isVictory ? '✨ VICTOIRE ✨' : '💀 DÉFAITE 💀';
             const color = isVictory ? '#00ff88' : '#ff3355';
             
-            // Unlock next boss si victoire
             if (isVictory && currentBossId === unlockedBosses && currentBossId < 3) {
                 unlockedBosses++;
                 localStorage.setItem('unlockedBosses', unlockedBosses);
             }
             
-            const txt = scene.add.text(500, 250, msg, { 
-                fontSize: '64px', 
+            const txt = scene.add.text(width * 0.5, height * 0.4, msg, { 
+                fontSize: Math.min(64, height * 0.1) + 'px', 
                 fill: color, 
                 fontStyle: 'bold', 
                 stroke: '#000', 
@@ -912,15 +880,13 @@
             
             scene.tweens.add({ targets: txt, scale: 1.15, duration: 600, yoyo: true, repeat: -1 });
             
-            // Boss name
-            scene.add.text(500, 340, BOSSES[currentBossId].name + ' VAINCU!', {
-                fontSize: '20px',
+            scene.add.text(width * 0.5, height * 0.5, BOSSES[currentBossId].name + ' VAINCU!', {
+                fontSize: Math.min(20, height * 0.03) + 'px',
                 fill: '#888'
             }).setOrigin(0.5).setVisible(isVictory);
             
-            // Boutons
-            const retryBtn = scene.add.text(400, 450, '[RETRY]', { 
-                fontSize: '24px', 
+            const retryBtn = scene.add.text(width * 0.4, height * 0.6, '[RETRY]', { 
+                fontSize: Math.min(24, height * 0.035) + 'px', 
                 fill: '#00d4ff', 
                 backgroundColor: '#00000099', 
                 padding: { x: 20, y: 10 }
@@ -935,9 +901,8 @@
                 bossProjectiles = [];
             });
             
-            // Boss select button
-            const selectBtn = scene.add.text(600, 450, '[SELECT BOSS]', { 
-                fontSize: '24px', 
+            const selectBtn = scene.add.text(width * 0.6, height * 0.6, '[SELECT BOSS]', { 
+                fontSize: Math.min(24, height * 0.035) + 'px', 
                 fill: '#ff6600', 
                 backgroundColor: '#00000099', 
                 padding: { x: 20, y: 10 }
@@ -945,10 +910,9 @@
             
             selectBtn.on('pointerdown', () => showBossSelect(scene));
             
-            // Next boss button (si unlocked)
             if (isVictory && currentBossId < unlockedBosses) {
-                const nextBtn = scene.add.text(500, 520, '→ NEXT BOSS', { 
-                    fontSize: '20px', 
+                const nextBtn = scene.add.text(width * 0.5, height * 0.7, '→ NEXT BOSS', { 
+                    fontSize: Math.min(20, height * 0.03) + 'px', 
                     fill: '#00ff88', 
                     backgroundColor: '#00000099', 
                     padding: { x: 15, y: 8 }
@@ -968,27 +932,27 @@
         }
 
         function showBossSelect(scene) {
-            // Clear screen
+            const width = scene.cameras.main.width;
+            const height = scene.cameras.main.height;
+            
             scene.children.removeAll();
             
-            scene.add.text(500, 80, 'SELECT BOSS', {
-                fontSize: '48px',
+            scene.add.text(width * 0.5, height * 0.1, 'SELECT BOSS', {
+                fontSize: Math.min(48, height * 0.08) + 'px',
                 fill: '#00d4ff',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
             
-            // Boss cards
-            const startX = 250;
-            const spacing = 250;
+            const startX = width * 0.2;
+            const spacing = width * 0.25;
             
             [1, 2, 3].forEach((bossId, index) => {
                 const bossData = BOSSES[bossId];
                 const x = startX + (index * spacing);
-                const y = 350;
+                const y = height * 0.5;
                 const unlocked = bossId <= unlockedBosses;
                 
-                // Card
-                const card = scene.add.rectangle(x, y, 200, 250, 0x1a1a2e, unlocked ? 0.8 : 0.3);
+                const card = scene.add.rectangle(x, y, width * 0.15, height * 0.3, 0x1a1a2e, unlocked ? 0.8 : 0.3);
                 card.setStrokeStyle(3, bossData.color, unlocked ? 1 : 0.3);
                 
                 if (unlocked) {
@@ -1014,31 +978,30 @@
                     });
                 }
                 
-                // Boss preview
-                const preview = scene.add.circle(x, y - 60, 35, bossData.color, unlocked ? 1 : 0.3);
-                const glow = scene.add.circle(x, y - 60, 50, bossData.color, unlocked ? 0.3 : 0.1);
+                const preview = scene.add.circle(x, y - height * 0.07, height * 0.05, bossData.color, unlocked ? 1 : 0.3);
+                const glow = scene.add.circle(x, y - height * 0.07, height * 0.07, bossData.color, unlocked ? 0.3 : 0.1);
                 
-                // Name
-                scene.add.text(x, y + 30, bossData.name, {
-                    fontSize: '18px',
+                scene.add.text(x, y + height * 0.05, bossData.name, {
+                    fontSize: Math.min(18, height * 0.025) + 'px',
                     fill: unlocked ? '#fff' : '#444',
                     fontStyle: 'bold'
                 }).setOrigin(0.5);
                 
-                // HP
-                scene.add.text(x, y + 60, 'HP: ' + bossData.hp, {
-                    fontSize: '14px',
+                scene.add.text(x, y + height * 0.1, 'HP: ' + bossData.hp, {
+                    fontSize: Math.min(14, height * 0.02) + 'px',
                     fill: unlocked ? '#ffaa00' : '#333'
                 }).setOrigin(0.5);
                 
-                // Lock
                 if (!unlocked) {
-                    scene.add.text(x, y, '🔒', { fontSize: '32px' }).setOrigin(0.5);
+                    scene.add.text(x, y, '🔒', { fontSize: Math.min(32, height * 0.04) + 'px' }).setOrigin(0.5);
                 }
             });
         }
 
-        window.addEventListener('load', () => { game = new Phaser.Game(config); });
+        // Initialize game
+        window.addEventListener('load', () => { 
+            game = new Phaser.Game(config); 
+        });
     </script>
 </body>
 </html>
