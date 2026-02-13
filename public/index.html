@@ -192,23 +192,26 @@
             rightZone.setDepth(0);
             scene.add.text(750, 40, 'VISER & TIRER', { fontSize: '14px', fill: '#ff6666', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 10, y: 5 }}).setOrigin(0.5).setDepth(1000);
             
-            // Joystick gauche (dynamique - apparaît où tu tap)
+            // Joystick gauche (dynamique)
             let moveJoyBase = null;
             let moveJoyThumb = null;
             let moveStartX = 0, moveStartY = 0;
             let moveActive = false;
+            let movePointerId = null;
             
-            // Joystick droit (dynamique - apparaît où tu tap)
+            // Joystick droit (dynamique)
             let aimJoyBase = null;
             let aimJoyThumb = null;
             let aimStartX = 0, aimStartY = 0;
             let aimActive = false;
+            let aimPointerId = null;
             
-            // ÉVÉNEMENTS POINTEUR
+            // MULTI-TOUCH: Gérer plusieurs pointeurs en même temps
             scene.input.on('pointerdown', (pointer) => {
                 // GAUCHE = MOUVEMENT
                 if (pointer.x < 500 && !moveActive) {
                     moveActive = true;
+                    movePointerId = pointer.id;
                     moveStartX = pointer.x;
                     moveStartY = pointer.y;
                     
@@ -222,6 +225,7 @@
                 // DROITE = VISÉE
                 if (pointer.x >= 500 && !aimActive) {
                     aimActive = true;
+                    aimPointerId = pointer.id;
                     aimStartX = pointer.x;
                     aimStartY = pointer.y;
                     
@@ -234,8 +238,8 @@
             });
             
             scene.input.on('pointermove', (pointer) => {
-                // JOYSTICK GAUCHE - Mouvement
-                if (moveActive && pointer.x < 500) {
+                // JOYSTICK GAUCHE - Mouvement (uniquement si c'est le bon pointeur)
+                if (moveActive && pointer.id === movePointerId) {
                     const dx = pointer.x - moveStartX;
                     const dy = pointer.y - moveStartY;
                     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -256,8 +260,8 @@
                     virtualJoystick.active = true;
                 }
                 
-                // JOYSTICK DROIT - Visée
-                if (aimActive && pointer.x >= 500) {
+                // JOYSTICK DROIT - Visée (uniquement si c'est le bon pointeur)
+                if (aimActive && pointer.id === aimPointerId) {
                     const dx = pointer.x - aimStartX;
                     const dy = pointer.y - aimStartY;
                     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -278,9 +282,10 @@
             });
             
             scene.input.on('pointerup', (pointer) => {
-                // RELÂCHE GAUCHE
-                if (pointer.x < 500 && moveActive) {
+                // RELÂCHE GAUCHE (vérifier que c'est le bon pointeur)
+                if (moveActive && pointer.id === movePointerId) {
                     moveActive = false;
+                    movePointerId = null;
                     virtualJoystick.active = false;
                     virtualJoystick.deltaX = 0;
                     virtualJoystick.deltaY = 0;
@@ -294,13 +299,14 @@
                     }
                 }
                 
-                // RELÂCHE DROITE = TIR
-                if (pointer.x >= 500 && aimActive) {
+                // RELÂCHE DROITE = TIR (vérifier que c'est le bon pointeur)
+                if (aimActive && pointer.id === aimPointerId) {
                     if (isAiming && canAttack && playerStamina >= 20) {
                         performRangedAttack(scene);
                     }
                     
                     aimActive = false;
+                    aimPointerId = null;
                     isAiming = false;
                     
                     // Détruire le joystick
