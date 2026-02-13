@@ -180,161 +180,165 @@
         }
 
         function createMobileControls(scene) {
-            // Variables pour tracker les touches actives
-            let activeTouches = new Map(); // Map pour stocker pointer.id -> info
+            // Debug overlay
+            const debugText = scene.add.text(500, 650, 'DEBUG: Prêt', { 
+                fontSize: '14px', 
+                fill: '#ffff00', 
+                backgroundColor: '#000000dd', 
+                padding: { x: 10, y: 5 }
+            }).setOrigin(0.5).setDepth(2000);
             
-            // Joysticks visuels
-            let moveJoy = { base: null, thumb: null, startX: 0, startY: 0, active: false };
-            let aimJoy = { base: null, thumb: null, startX: 0, startY: 0, active: false };
+            // Variables simples
+            let leftTouch = null;  // { pointerId, joy: {base, thumb} }
+            let rightTouch = null; // { pointerId, joy: {base, thumb} }
             
-            // Zones visuelles
-            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.08);
+            // Zones visuelles plus visibles
+            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.15);
             leftZone.setDepth(0);
-            scene.add.text(250, 40, 'BOUGER', { fontSize: '16px', fill: '#00d4ff', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 12, y: 6 }}).setOrigin(0.5).setDepth(1000);
+            scene.add.text(250, 60, '⬅️ BOUGER', { fontSize: '20px', fill: '#00d4ff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1000);
             
-            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff6666, 0.08);
+            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff0033, 0.15);
             rightZone.setDepth(0);
-            scene.add.text(750, 40, 'TIRER', { fontSize: '16px', fill: '#ff6666', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 12, y: 6 }}).setOrigin(0.5).setDepth(1000);
+            scene.add.text(750, 60, 'TIRER ➡️', { fontSize: '20px', fill: '#ff6666', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1000);
             
-            // Activer le multi-touch
-            scene.input.addPointer(2); // Ajouter support pour 3 pointeurs total
+            // Ligne de séparation
+            const line = scene.add.rectangle(500, 350, 4, 700, 0xffffff, 0.3);
+            line.setDepth(50);
             
-            // TOUCH START
+            // Activer multi-touch Phaser
+            scene.input.addPointer(3);
+            
+            // POINTERDOWN
             scene.input.on('pointerdown', (pointer) => {
-                const touchInfo = {
-                    id: pointer.id,
-                    startX: pointer.x,
-                    startY: pointer.y,
-                    side: pointer.x < 500 ? 'left' : 'right'
-                };
+                const side = pointer.x < 500 ? 'LEFT' : 'RIGHT';
+                debugText.setText(`DOWN: ${side} (ID:${pointer.id})`);
+                console.log('POINTERDOWN:', side, 'ID:', pointer.id, 'X:', pointer.x);
                 
-                activeTouches.set(pointer.id, touchInfo);
-                
-                // GAUCHE = Mouvement
-                if (touchInfo.side === 'left' && !moveJoy.active) {
-                    moveJoy.active = true;
-                    moveJoy.startX = pointer.x;
-                    moveJoy.startY = pointer.y;
-                    
-                    moveJoy.base = scene.add.circle(pointer.x, pointer.y, 55, 0x1a1a3e, 0.6);
-                    moveJoy.thumb = scene.add.circle(pointer.x, pointer.y, 28, 0x00d4ff, 0.95);
-                    moveJoy.base.setDepth(200);
-                    moveJoy.thumb.setDepth(201);
+                if (side === 'LEFT' && !leftTouch) {
+                    leftTouch = {
+                        pointerId: pointer.id,
+                        startX: pointer.x,
+                        startY: pointer.y,
+                        joy: {
+                            base: scene.add.circle(pointer.x, pointer.y, 60, 0x0033aa, 0.7),
+                            thumb: scene.add.circle(pointer.x, pointer.y, 30, 0x00d4ff, 1)
+                        }
+                    };
+                    leftTouch.joy.base.setDepth(300);
+                    leftTouch.joy.thumb.setDepth(301);
+                    console.log('LEFT JOY CREATED');
                 }
                 
-                // DROITE = Tir
-                if (touchInfo.side === 'right' && !aimJoy.active) {
-                    aimJoy.active = true;
-                    aimJoy.startX = pointer.x;
-                    aimJoy.startY = pointer.y;
-                    
-                    aimJoy.base = scene.add.circle(pointer.x, pointer.y, 55, 0x1a1a3e, 0.6);
-                    aimJoy.thumb = scene.add.circle(pointer.x, pointer.y, 28, 0xff6666, 0.95);
-                    aimJoy.base.setDepth(200);
-                    aimJoy.thumb.setDepth(201);
+                if (side === 'RIGHT' && !rightTouch) {
+                    rightTouch = {
+                        pointerId: pointer.id,
+                        startX: pointer.x,
+                        startY: pointer.y,
+                        joy: {
+                            base: scene.add.circle(pointer.x, pointer.y, 60, 0xaa3300, 0.7),
+                            thumb: scene.add.circle(pointer.x, pointer.y, 30, 0xff6666, 1)
+                        }
+                    };
+                    rightTouch.joy.base.setDepth(300);
+                    rightTouch.joy.thumb.setDepth(301);
+                    console.log('RIGHT JOY CREATED');
                 }
             });
             
-            // TOUCH MOVE
+            // POINTERMOVE
             scene.input.on('pointermove', (pointer) => {
                 if (!pointer.isDown) return;
                 
-                const touchInfo = activeTouches.get(pointer.id);
-                if (!touchInfo) return;
-                
-                // MOUVEMENT (joystick gauche)
-                if (touchInfo.side === 'left' && moveJoy.active) {
-                    const dx = pointer.x - moveJoy.startX;
-                    const dy = pointer.y - moveJoy.startY;
+                // MOUVEMENT GAUCHE
+                if (leftTouch && pointer.id === leftTouch.pointerId) {
+                    const dx = pointer.x - leftTouch.startX;
+                    const dy = pointer.y - leftTouch.startY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    const maxDist = 55;
+                    const maxDist = 60;
                     
                     if (dist < maxDist) {
-                        moveJoy.thumb.x = moveJoy.startX + dx;
-                        moveJoy.thumb.y = moveJoy.startY + dy;
+                        leftTouch.joy.thumb.x = leftTouch.startX + dx;
+                        leftTouch.joy.thumb.y = leftTouch.startY + dy;
                         virtualJoystick.deltaX = dx / maxDist;
                         virtualJoystick.deltaY = dy / maxDist;
                     } else {
                         const angle = Math.atan2(dy, dx);
-                        moveJoy.thumb.x = moveJoy.startX + Math.cos(angle) * maxDist;
-                        moveJoy.thumb.y = moveJoy.startY + Math.sin(angle) * maxDist;
+                        leftTouch.joy.thumb.x = leftTouch.startX + Math.cos(angle) * maxDist;
+                        leftTouch.joy.thumb.y = leftTouch.startY + Math.sin(angle) * maxDist;
                         virtualJoystick.deltaX = Math.cos(angle);
                         virtualJoystick.deltaY = Math.sin(angle);
                     }
                     virtualJoystick.active = true;
+                    debugText.setText(`MOVE LEFT (${virtualJoystick.deltaX.toFixed(2)}, ${virtualJoystick.deltaY.toFixed(2)})`);
                 }
                 
-                // VISÉE (joystick droit)
-                if (touchInfo.side === 'right' && aimJoy.active) {
-                    const dx = pointer.x - aimJoy.startX;
-                    const dy = pointer.y - aimJoy.startY;
+                // VISÉE DROITE
+                if (rightTouch && pointer.id === rightTouch.pointerId) {
+                    const dx = pointer.x - rightTouch.startX;
+                    const dy = pointer.y - rightTouch.startY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    const maxDist = 55;
+                    const maxDist = 60;
                     
                     if (dist < maxDist) {
-                        aimJoy.thumb.x = aimJoy.startX + dx;
-                        aimJoy.thumb.y = aimJoy.startY + dy;
+                        rightTouch.joy.thumb.x = rightTouch.startX + dx;
+                        rightTouch.joy.thumb.y = rightTouch.startY + dy;
                     } else {
                         const angle = Math.atan2(dy, dx);
-                        aimJoy.thumb.x = aimJoy.startX + Math.cos(angle) * maxDist;
-                        aimJoy.thumb.y = aimJoy.startY + Math.sin(angle) * maxDist;
+                        rightTouch.joy.thumb.x = rightTouch.startX + Math.cos(angle) * maxDist;
+                        rightTouch.joy.thumb.y = rightTouch.startY + Math.sin(angle) * maxDist;
                     }
                     
                     aimAngle = Math.atan2(dy, dx);
-                    isAiming = dist > 12; // Deadzone
+                    isAiming = dist > 15;
+                    debugText.setText(`AIM RIGHT (angle: ${(aimAngle * 180 / Math.PI).toFixed(0)}°)`);
                 }
             });
             
-            // TOUCH END
+            // POINTERUP
             scene.input.on('pointerup', (pointer) => {
-                const touchInfo = activeTouches.get(pointer.id);
-                if (!touchInfo) return;
+                console.log('POINTERUP ID:', pointer.id);
                 
                 // RELÂCHE GAUCHE
-                if (touchInfo.side === 'left' && moveJoy.active) {
-                    moveJoy.active = false;
+                if (leftTouch && pointer.id === leftTouch.pointerId) {
+                    leftTouch.joy.base.destroy();
+                    leftTouch.joy.thumb.destroy();
+                    leftTouch = null;
                     virtualJoystick.active = false;
                     virtualJoystick.deltaX = 0;
                     virtualJoystick.deltaY = 0;
-                    
-                    if (moveJoy.base) {
-                        moveJoy.base.destroy();
-                        moveJoy.thumb.destroy();
-                        moveJoy.base = null;
-                        moveJoy.thumb = null;
-                    }
+                    debugText.setText('LEFT UP');
+                    console.log('LEFT JOY DESTROYED');
                 }
                 
                 // RELÂCHE DROITE = TIR
-                if (touchInfo.side === 'right' && aimJoy.active) {
+                if (rightTouch && pointer.id === rightTouch.pointerId) {
                     if (isAiming && canAttack && playerStamina >= 20) {
                         performRangedAttack(scene);
+                        debugText.setText('FIRED!');
                     }
                     
-                    aimJoy.active = false;
+                    rightTouch.joy.base.destroy();
+                    rightTouch.joy.thumb.destroy();
+                    rightTouch = null;
                     isAiming = false;
-                    
-                    if (aimJoy.base) {
-                        aimJoy.base.destroy();
-                        aimJoy.thumb.destroy();
-                        aimJoy.base = null;
-                        aimJoy.thumb = null;
-                    }
+                    debugText.setText('RIGHT UP');
+                    console.log('RIGHT JOY DESTROYED');
                 }
-                
-                activeTouches.delete(pointer.id);
             });
             
-            // Initialiser virtualJoystick
+            // Init
             virtualJoystick = { active: false, deltaX: 0, deltaY: 0 };
             
             // Bouton DASH
-            dodgeButton = scene.add.circle(950, 120, 45, 0x00d4ff, 0.85).setInteractive().setStrokeStyle(5, 0x00aacc);
+            dodgeButton = scene.add.circle(950, 150, 50, 0x00d4ff, 0.9).setInteractive().setStrokeStyle(6, 0x00aacc);
             dodgeButton.setDepth(1000);
-            const dodgeText = scene.add.text(950, 120, 'DASH', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            const dodgeText = scene.add.text(950, 150, 'DASH', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             dodgeText.setDepth(1001);
             dodgeButton.on('pointerdown', () => { 
-                if (canDodge && playerStamina >= 25) performDodge(scene);
+                if (canDodge && playerStamina >= 25) {
+                    performDodge(scene);
+                    debugText.setText('DASH!');
+                }
             });
         }
 
