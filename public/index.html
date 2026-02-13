@@ -6,25 +6,66 @@
     <title>Shadow Knights - SIMPLE VERSION</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; overflow: hidden; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            overflow: hidden;
+        }
         body {
-            background: #0a0a0a;
+            background: radial-gradient(circle at center, #1a0a2e 0%, #000000 100%);
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            font-family: 'Courier New', monospace;
         }
-        #game-container { box-shadow: 0 0 50px rgba(0,212,255,0.5); }
+        #game-container { 
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 80px rgba(0,212,255,0.6), 0 0 40px rgba(255,0,80,0.4);
+            border: 2px solid rgba(0,212,255,0.2);
+        }
+        /* Hide address bar on mobile */
+        @media (max-width: 900px) {
+            body {
+                width: 100vw;
+                height: 100vh;
+                position: fixed;
+                overflow: hidden;
+            }
+            #game-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                border: none;
+                box-shadow: none;
+            }
+        }
         @media (max-width: 900px) and (orientation: portrait) {
             body::before {
-                content: "📱 Tournez en paysage";
+                content: "📱 ROTATE TO LANDSCAPE";
                 position: fixed;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                color: #fff;
-                font-size: 24px;
+                color: #00d4ff;
+                font-size: 28px;
+                font-weight: bold;
+                text-shadow: 0 0 20px #00d4ff;
                 z-index: 9999;
+                text-align: center;
             }
             #game-container { display: none; }
         }
@@ -38,10 +79,20 @@
             width: 1000,
             height: 700,
             parent: 'game-container',
-            backgroundColor: '#0f0f1e',
+            backgroundColor: '#0a0a14',
             physics: { default: 'arcade', arcade: { gravity: { y: 0 }}},
             scene: { create, update },
-            scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
+            scale: { 
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+                width: 1000,
+                height: 700
+            },
+            render: {
+                pixelArt: false,
+                antialias: true,
+                roundPixels: false
+            }
         };
 
         // BOSS DATA
@@ -74,20 +125,90 @@
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
+        // Hide mobile browser UI
+        if (isMobile) {
+            // Fullscreen on mobile
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    window.scrollTo(0, 1);
+                }, 100);
+            });
+            
+            // Prevent pull-to-refresh
+            document.body.addEventListener('touchmove', (e) => {
+                if (e.target === document.body) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Hide address bar on scroll
+            let lastScrollTop = 0;
+            window.addEventListener('scroll', () => {
+                const st = window.pageYOffset || document.documentElement.scrollTop;
+                if (st > lastScrollTop) {
+                    window.scrollTo(0, 1);
+                }
+                lastScrollTop = st <= 0 ? 0 : st;
+            }, false);
+        }
+
         function create() {
-            // Grille
+            // Grille NEON animée
+            const bossData = BOSSES[currentBossId];
             const g = this.add.graphics();
-            g.lineStyle(1, 0x1a1a2e, 0.3);
+            g.lineStyle(1, bossData.color, 0.15);
             for (let i = 0; i < 1000; i += 50) g.lineBetween(i, 0, i, 700);
             for (let i = 0; i < 700; i += 50) g.lineBetween(0, i, 1000, i);
+            
+            // Particles ambiantes
+            for (let i = 0; i < 50; i++) {
+                const x = Phaser.Math.Between(0, 1000);
+                const y = Phaser.Math.Between(0, 700);
+                const size = Phaser.Math.Between(1, 3);
+                const color = Phaser.Math.RND.pick([0x00d4ff, bossData.color]);
+                const particle = this.add.circle(x, y, size, color, 0.5);
+                
+                this.tweens.add({
+                    targets: particle,
+                    y: y + Phaser.Math.Between(-30, 30),
+                    alpha: 0.2,
+                    duration: Phaser.Math.Between(2000, 4000),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
 
-            // Joueur
-            player = this.add.circle(150, 350, 22, 0x00d4ff);
+            // Joueur avec GLOW
+            player = this.add.circle(150, 350, 20, 0x00d4ff);
             this.physics.add.existing(player);
             player.body.setCollideWorldBounds(true);
-            player.glow = this.add.circle(150, 350, 35, 0x00d4ff, 0.3);
+            
+            // Double glow effect
+            player.glow1 = this.add.circle(150, 350, 40, 0x00d4ff, 0.4);
+            player.glow2 = this.add.circle(150, 350, 60, 0x00d4ff, 0.2);
+            
+            this.tweens.add({
+                targets: player.glow1,
+                scale: 1.3,
+                alpha: 0.15,
+                duration: 1200,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            this.tweens.add({
+                targets: player.glow2,
+                scale: 1.5,
+                alpha: 0.05,
+                duration: 1800,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
 
-            // Boss - Différent selon ID
+            // Boss - Différent selon ID avec GLOW
             const bossData = BOSSES[currentBossId];
             boss = this.add.container(850, 350);
             
@@ -113,6 +234,32 @@
             boss.body.setSize(70, 130);
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
+            
+            // Boss glow pulsant
+            boss.glow1 = this.add.circle(850, 350, 90, bossData.color, 0.3);
+            boss.glow2 = this.add.circle(850, 350, 120, bossData.color, 0.15);
+            boss.glow1.setDepth(-1);
+            boss.glow2.setDepth(-2);
+            
+            this.tweens.add({
+                targets: boss.glow1,
+                scale: 1.2,
+                alpha: 0.1,
+                duration: 1500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            
+            this.tweens.add({
+                targets: boss.glow2,
+                scale: 1.4,
+                alpha: 0.05,
+                duration: 2000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
 
             // UI
             this.add.text(500, 30, bossData.name, { fontSize: '28px', fill: '#' + bossData.color.toString(16).padStart(6, '0'), fontStyle: 'bold' }).setOrigin(0.5);
@@ -317,8 +464,26 @@
             }
             
             player.body.setVelocity(vx, vy);
-            player.glow.x = player.x;
-            player.glow.y = player.y;
+            
+            // Sync player glows
+            if (player.glow1) {
+                player.glow1.x = player.x;
+                player.glow1.y = player.y;
+            }
+            if (player.glow2) {
+                player.glow2.x = player.x;
+                player.glow2.y = player.y;
+            }
+            
+            // Sync boss glows
+            if (boss.glow1) {
+                boss.glow1.x = boss.x;
+                boss.glow1.y = boss.y;
+            }
+            if (boss.glow2) {
+                boss.glow2.x = boss.x;
+                boss.glow2.y = boss.y;
+            }
             
             // Indicateur de visée (desktop clic droit)
             if (!isMobile && aimIndicator) {
@@ -359,6 +524,7 @@
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, boss.x, boss.y);
                 if (dist < 60) {
                     hitBoss(this, 18);
+                    if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
                     continue;
@@ -366,6 +532,7 @@
                 
                 // Hors écran
                 if (proj.x < -50 || proj.x > 1050 || proj.y < -50 || proj.y > 750) {
+                    if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
                 }
@@ -413,41 +580,61 @@
             canAttack = false;
             playerStamina -= 20;
             
-            const speed = 600;
-            const proj = scene.add.circle(
-                player.x + Math.cos(angle) * 30,
-                player.y + Math.sin(angle) * 30,
-                10,
-                0x66ffff
-            );
-            proj.setDepth(150);
+            const speed = 650;
+            const startX = player.x + Math.cos(angle) * 30;
+            const startY = player.y + Math.sin(angle) * 30;
             
-            // Stocker la vélocité
+            // Muzzle flash
+            const flash = scene.add.circle(startX, startY, 20, 0xffffff, 0.9);
+            scene.tweens.add({
+                targets: flash,
+                scale: 2,
+                alpha: 0,
+                duration: 150,
+                onComplete: () => flash.destroy()
+            });
+            
+            // Projectile avec glow
+            const proj = scene.add.circle(startX, startY, 10, 0x66ffff);
+            proj.setDepth(150);
             proj.vx = Math.cos(angle) * speed;
             proj.vy = Math.sin(angle) * speed;
             
+            // Glow autour du projectile
+            const projGlow = scene.add.circle(startX, startY, 18, 0x66ffff, 0.6);
+            projGlow.setDepth(149);
+            proj.glow = projGlow;
+            
             projectiles.push(proj);
             
-            console.log('🔫 SHOT:', proj.vx.toFixed(0), proj.vy.toFixed(0));
-            
-            // Trail
+            // Trail amélioré
             scene.time.addEvent({
-                delay: 50,
-                repeat: 40,
+                delay: 30,
+                repeat: 60,
                 callback: () => {
                     if (!proj.scene) return;
-                    const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.5);
+                    
+                    // Update glow position
+                    if (proj.glow && proj.glow.scene) {
+                        proj.glow.x = proj.x;
+                        proj.glow.y = proj.y;
+                    }
+                    
+                    // Trail particles
+                    const trail = scene.add.circle(proj.x, proj.y, 7, 0x66ffff, 0.7);
+                    trail.setDepth(148);
                     scene.tweens.add({
                         targets: trail,
                         alpha: 0,
-                        scale: 0.3,
+                        scale: 0.2,
                         duration: 400,
+                        ease: 'Power2',
                         onComplete: () => trail.destroy()
                     });
                 }
             });
             
-            scene.time.delayedCall(500, () => canAttack = true);
+            scene.time.delayedCall(400, () => canAttack = true);
         }
 
         function bossAttack(scene) {
@@ -595,26 +782,101 @@
 
         function hitBoss(scene, damage) {
             bossHealth = Math.max(0, bossHealth - damage);
-            scene.tweens.add({ targets: boss, alpha: 0.5, duration: 80, yoyo: true });
             
-            // Particles
-            for (let i = 0; i < 10; i++) {
-                const p = scene.add.circle(boss.x, boss.y, 5, 0xff0051);
-                const angle = (Math.PI * 2 * i) / 10;
+            // HIT FREEZE (pause courte pour l'impact)
+            scene.physics.pause();
+            scene.time.delayedCall(40, () => scene.physics.resume());
+            
+            // Flash blanc
+            const flash = scene.add.rectangle(boss.x, boss.y, 100, 140, 0xffffff, 0.8);
+            flash.setDepth(200);
+            scene.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: 100,
+                onComplete: () => flash.destroy()
+            });
+            
+            // Boss flash
+            scene.tweens.add({ targets: boss, alpha: 0.3, duration: 60, yoyo: true });
+            
+            // EXPLOSION de particles
+            const bossData = BOSSES[currentBossId];
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 * i) / 20;
+                const dist = Phaser.Math.Between(40, 80);
+                const size = Phaser.Math.Between(4, 10);
+                const p = scene.add.circle(boss.x, boss.y, size, bossData.color);
+                p.setDepth(199);
+                
                 scene.tweens.add({
                     targets: p,
-                    x: boss.x + Math.cos(angle) * 50,
-                    y: boss.y + Math.sin(angle) * 50,
+                    x: boss.x + Math.cos(angle) * dist,
+                    y: boss.y + Math.sin(angle) * dist,
                     alpha: 0,
-                    duration: 500,
+                    scale: 0.3,
+                    duration: 600,
+                    ease: 'Power2',
                     onComplete: () => p.destroy()
+                });
+            }
+            
+            // Ring explosion
+            const ring = scene.add.circle(boss.x, boss.y, 30, bossData.color, 0);
+            ring.setStrokeStyle(4, bossData.color, 0.8);
+            ring.setDepth(198);
+            scene.tweens.add({
+                targets: ring,
+                radius: 100,
+                alpha: 0,
+                duration: 400,
+                ease: 'Power2',
+                onComplete: () => ring.destroy()
+            });
+            
+            // SCREEN SHAKE intense
+            scene.cameras.main.shake(120, 0.008);
+            
+            // Slow-mo si mort du boss
+            if (bossHealth <= 0) {
+                scene.time.timeScale = 0.3;
+                scene.time.delayedCall(400, () => {
+                    scene.time.timeScale = 1;
                 });
             }
         }
 
         function hitPlayer(scene, damage) {
             playerHealth = Math.max(0, playerHealth - damage);
-            scene.tweens.add({ targets: player, alpha: 0.3, duration: 100, yoyo: true });
+            
+            // Flash rouge
+            const flash = scene.add.rectangle(player.x, player.y, 60, 60, 0xff0000, 0.6);
+            flash.setDepth(200);
+            scene.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: 150,
+                onComplete: () => flash.destroy()
+            });
+            
+            scene.tweens.add({ targets: player, alpha: 0.2, duration: 80, yoyo: true });
+            
+            // Particles de dégâts
+            for (let i = 0; i < 8; i++) {
+                const angle = Phaser.Math.Between(0, 360) * Math.PI / 180;
+                const p = scene.add.circle(player.x, player.y, 5, 0xff3355);
+                scene.tweens.add({
+                    targets: p,
+                    x: player.x + Math.cos(angle) * 40,
+                    y: player.y + Math.sin(angle) * 40,
+                    alpha: 0,
+                    duration: 400,
+                    onComplete: () => p.destroy()
+                });
+            }
+            
+            // Screen shake
+            scene.cameras.main.shake(150, 0.01);
         }
 
         function updateHealthBars() {
