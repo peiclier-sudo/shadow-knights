@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Shadow Knights - Boss Rush SMOOTH</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
@@ -13,11 +16,44 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
-        #game-container { box-shadow: 0 0 60px rgba(0,212,255,0.4); }
+        #game-container { 
+            box-shadow: 0 0 60px rgba(0,212,255,0.4);
+            max-width: 100vw;
+            max-height: 100vh;
+        }
+        /* Message de rotation pour mobile portrait */
+        #rotate-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #fff;
+            font-size: 24px;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+        }
+        @media (max-width: 900px) and (orientation: portrait) {
+            #game-container { display: none; }
+            #rotate-message { display: flex; }
+        }
     </style>
 </head>
 <body>
+    <div id="rotate-message">
+        <div style="font-size: 60px; margin-bottom: 20px;">📱 ↻</div>
+        <div>Tournez votre appareil</div>
+        <div style="font-size: 16px; margin-top: 10px; opacity: 0.7;">Mode paysage requis</div>
+    </div>
     <div id="game-container"></div>
     <script>
         const config = {
@@ -28,7 +64,12 @@
             backgroundColor: '#0f0f1e',
             physics: { default: 'arcade', arcade: { gravity: { y: 0 }}},
             scene: { create, update },
-            scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
+            scale: { 
+                mode: Phaser.Scale.FIT, 
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+                width: 1000,
+                height: 700
+            }
         };
 
         let game, player, boss, projectiles;
@@ -79,43 +120,44 @@
             keys = {
                 space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
                 shift: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
-                E: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
                 Z: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
                 Q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
                 S: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
                 D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
             };
             
-            // Clic droit pour viser (desktop)
-            this.input.on('pointerdown', (pointer) => {
-                if (!isMobile && pointer.rightButtonDown()) {
-                    isAiming = true;
-                    const dx = pointer.x - player.x;
-                    const dy = pointer.y - player.y;
-                    aimAngle = Math.atan2(dy, dx);
-                }
-            });
-            
-            this.input.on('pointermove', (pointer) => {
-                if (!isMobile && isAiming && pointer.rightButtonDown()) {
-                    const dx = pointer.x - player.x;
-                    const dy = pointer.y - player.y;
-                    aimAngle = Math.atan2(dy, dx);
-                }
-            });
-            
-            this.input.on('pointerup', (pointer) => {
-                if (!isMobile && pointer.button === 2 && isAiming) {
-                    // Tirer en relâchant le clic droit
-                    if (canAttack && playerStamina >= 20) {
-                        performRangedAttack(this);
+            // Desktop: Clic droit pour viser et tirer
+            if (!isMobile) {
+                this.input.on('pointerdown', (pointer) => {
+                    if (pointer.rightButtonDown()) {
+                        isAiming = true;
+                        const dx = pointer.x - player.x;
+                        const dy = pointer.y - player.y;
+                        aimAngle = Math.atan2(dy, dx);
                     }
-                    isAiming = false;
-                }
-            });
-            
-            // Désactiver le menu contextuel du clic droit
-            this.input.mouse.disableContextMenu();
+                });
+                
+                this.input.on('pointermove', (pointer) => {
+                    if (isAiming && pointer.rightButtonDown()) {
+                        const dx = pointer.x - player.x;
+                        const dy = pointer.y - player.y;
+                        aimAngle = Math.atan2(dy, dx);
+                    }
+                });
+                
+                this.input.on('pointerup', (pointer) => {
+                    if (pointer.button === 2 && isAiming) {
+                        // Tirer en relâchant le clic droit
+                        if (canAttack && playerStamina >= 20) {
+                            performRangedAttack(this);
+                        }
+                        isAiming = false;
+                    }
+                });
+                
+                // Désactiver le menu contextuel du clic droit
+                this.input.mouse.disableContextMenu();
+            }
 
             // UI
             this.add.text(20, 20, 'CHEVALIER', { fontSize: '20px', fill: '#00d4ff', fontStyle: 'bold' });
@@ -132,45 +174,52 @@
 
             if (isMobile) createMobileControls(this);
 
-            const instructions = isMobile ? 'Joystick gauche: Bouger | Joystick droit: Viser & Tirer | ROLL: Dash' 
-                : 'ZQSD: Bouger | CLIC DROIT: Viser & Tirer | SHIFT: Dash';
-            this.add.text(500, 680, instructions, { fontSize: '13px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
+            const instructions = isMobile ? 'Joystick gauche: Bouger | Joystick droit: Viser & Tirer' 
+                : 'ZQSD/Flèches: Bouger | CLIC DROIT: Viser & Tirer | ESPACE: Mêlée | SHIFT: Dash';
+            this.add.text(500, 680, instructions, { fontSize: '12px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
         }
 
         function createMobileControls(scene) {
-            // JOYSTICK GAUCHE - Déplacement
-            const jBase = scene.add.circle(120, 580, 65, 0x2a2a3e, 0.7);
-            const jThumb = scene.add.circle(120, 580, 32, 0x00d4ff, 0.95);
-            virtualJoystick = { base: jBase, thumb: jThumb, active: false, startX: 120, startY: 580, deltaX: 0, deltaY: 0 };
+            // JOYSTICK GAUCHE - Déplacement (adapté portrait/paysage)
+            const leftJoyX = 120;
+            const leftJoyY = 580;
+            const jBase = scene.add.circle(leftJoyX, leftJoyY, 65, 0x2a2a3e, 0.7);
+            const jThumb = scene.add.circle(leftJoyX, leftJoyY, 32, 0x00d4ff, 0.95);
+            jBase.setScrollFactor(0);
+            jThumb.setScrollFactor(0);
+            virtualJoystick = { base: jBase, thumb: jThumb, active: false, startX: leftJoyX, startY: leftJoyY, deltaX: 0, deltaY: 0 };
             
             jBase.setInteractive().on('pointerdown', () => virtualJoystick.active = true);
             scene.input.on('pointermove', pointer => {
-                // Joystick de déplacement
-                if (virtualJoystick.active && pointer.isDown && pointer.x < 500) {
-                    const dx = pointer.x - 120, dy = pointer.y - 580, dist = Math.sqrt(dx*dx + dy*dy), max = 65;
+                // Joystick de déplacement (gauche de l'écran)
+                if (virtualJoystick.active && pointer.isDown) {
+                    const dx = pointer.x - leftJoyX, dy = pointer.y - leftJoyY;
+                    const dist = Math.sqrt(dx*dx + dy*dy), max = 65;
                     if (dist < max) {
-                        jThumb.x = 120 + dx; jThumb.y = 580 + dy;
+                        jThumb.x = leftJoyX + dx; jThumb.y = leftJoyY + dy;
                         virtualJoystick.deltaX = dx/max; virtualJoystick.deltaY = dy/max;
                     } else {
                         const angle = Math.atan2(dy, dx);
-                        jThumb.x = 120 + Math.cos(angle)*max; jThumb.y = 580 + Math.sin(angle)*max;
+                        jThumb.x = leftJoyX + Math.cos(angle)*max; jThumb.y = leftJoyY + Math.sin(angle)*max;
                         virtualJoystick.deltaX = Math.cos(angle); virtualJoystick.deltaY = Math.sin(angle);
                     }
                 }
                 
-                // Joystick de visée (côté droit)
-                if (aimJoystick && aimJoystick.active && pointer.isDown && pointer.x > 500) {
-                    const dx = pointer.x - 880, dy = pointer.y - 580;
+                // Joystick de visée (droite de l'écran)
+                if (aimJoystick && aimJoystick.active && pointer.isDown) {
+                    const rightJoyX = aimJoystick.startX;
+                    const rightJoyY = aimJoystick.startY;
+                    const dx = pointer.x - rightJoyX, dy = pointer.y - rightJoyY;
                     const angle = Math.atan2(dy, dx);
                     const dist = Math.sqrt(dx*dx + dy*dy);
                     const max = 65;
                     
                     if (dist < max) {
-                        aimJoystick.thumb.x = 880 + dx;
-                        aimJoystick.thumb.y = 580 + dy;
+                        aimJoystick.thumb.x = rightJoyX + dx;
+                        aimJoystick.thumb.y = rightJoyY + dy;
                     } else {
-                        aimJoystick.thumb.x = 880 + Math.cos(angle)*max;
-                        aimJoystick.thumb.y = 580 + Math.sin(angle)*max;
+                        aimJoystick.thumb.x = rightJoyX + Math.cos(angle)*max;
+                        aimJoystick.thumb.y = rightJoyY + Math.sin(angle)*max;
                     }
                     
                     aimAngle = angle;
@@ -179,29 +228,36 @@
             });
             
             scene.input.on('pointerup', (pointer) => {
-                if (pointer.x < 500) {
+                const touchX = pointer.x;
+                
+                // Reset joystick gauche
+                if (virtualJoystick.active && touchX < 500) {
                     virtualJoystick.active = false; 
-                    jThumb.x = 120; jThumb.y = 580;
+                    jThumb.x = leftJoyX; jThumb.y = leftJoyY;
                     virtualJoystick.deltaX = 0; virtualJoystick.deltaY = 0;
                 }
                 
-                if (pointer.x > 500 && aimJoystick) {
-                    // Tirer quand on relâche le joystick de visée
+                // Tir joystick droit
+                if (aimJoystick && aimJoystick.active && touchX > 500) {
                     if (isAiming && canAttack && playerStamina >= 20) {
                         performRangedAttack(scene);
                     }
                     aimJoystick.active = false;
-                    aimJoystick.thumb.x = 880;
-                    aimJoystick.thumb.y = 580;
+                    aimJoystick.thumb.x = aimJoystick.startX;
+                    aimJoystick.thumb.y = aimJoystick.startY;
                     isAiming = false;
                 }
             });
 
-            // JOYSTICK DROIT - Visée et tir
-            const aimBase = scene.add.circle(880, 580, 65, 0x2a2a3e, 0.7);
-            const aimThumb = scene.add.circle(880, 580, 32, 0xff6b6b, 0.95);
-            scene.add.text(880, 630, 'AIM & SHOOT', { fontSize: '11px', fill: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0.5);
-            aimJoystick = { base: aimBase, thumb: aimThumb, active: false };
+            // JOYSTICK DROIT - Visée et tir (adapté)
+            const rightJoyX = 880;
+            const rightJoyY = 580;
+            const aimBase = scene.add.circle(rightJoyX, rightJoyY, 65, 0x2a2a3e, 0.7);
+            const aimThumb = scene.add.circle(rightJoyX, rightJoyY, 32, 0xff6b6b, 0.95);
+            aimBase.setScrollFactor(0);
+            aimThumb.setScrollFactor(0);
+            scene.add.text(rightJoyX, rightJoyY + 60, 'AIM', { fontSize: '12px', fill: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0);
+            aimJoystick = { base: aimBase, thumb: aimThumb, active: false, startX: rightJoyX, startY: rightJoyY };
             
             aimBase.setInteractive().on('pointerdown', () => {
                 aimJoystick.active = true;
@@ -209,7 +265,9 @@
 
             // Bouton d'esquive (en haut à droite)
             dodgeButton = scene.add.circle(920, 480, 43, 0x00d4ff, 0.85).setInteractive().setStrokeStyle(4, 0x00aacc);
-            scene.add.text(920, 480, 'ROLL', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            dodgeButton.setScrollFactor(0);
+            const dodgeText = scene.add.text(920, 480, 'ROLL', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            dodgeText.setScrollFactor(0);
             dodgeButton.on('pointerdown', () => { if (canDodge && playerStamina >= 25) performDodge(scene); });
         }
 
@@ -253,7 +311,6 @@
             }
 
             if (Phaser.Input.Keyboard.JustDown(keys.space) && canAttack && !isDodging && playerStamina >= 15) performMeleeAttack(this);
-            if (Phaser.Input.Keyboard.JustDown(keys.E) && canAttack && !isDodging && playerStamina >= 20) performRangedAttack(this);
             if (Phaser.Input.Keyboard.JustDown(keys.shift) && canDodge && playerStamina >= 25) performDodge(this);
 
             if (playerStamina < 100 && !isDodging) {
@@ -290,19 +347,34 @@
             
             const proj = scene.add.circle(startX, startY, 8, 0x66ffff);
             scene.physics.add.existing(proj);
+            proj.body.setCircle(8); // IMPORTANT: définir la hitbox circulaire
             proj.body.setVelocity(Math.cos(aimAngle) * projSpeed, Math.sin(aimAngle) * projSpeed);
             proj.damage = 18;
+            proj.setActive(true);
+            proj.setVisible(true);
             projectiles.add(proj);
 
             // Trail effect
-            for(let i = 0; i < 5; i++) {
-                scene.time.delayedCall(i * 40, () => {
-                    if (proj.active) {
+            let trailCount = 0;
+            const trailInterval = scene.time.addEvent({
+                delay: 40,
+                callback: () => {
+                    if (proj.active && trailCount < 20) {
                         const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.5);
-                        scene.tweens.add({ targets: trail, alpha: 0, scale: 0.5, duration: 300, onComplete: () => trail.destroy() });
+                        scene.tweens.add({ 
+                            targets: trail, 
+                            alpha: 0, 
+                            scale: 0.5, 
+                            duration: 300, 
+                            onComplete: () => trail.destroy() 
+                        });
+                        trailCount++;
+                    } else {
+                        trailInterval.remove();
                     }
-                });
-            }
+                },
+                loop: true
+            });
 
             scene.physics.add.overlap(proj, boss, () => { 
                 if (proj.active) {
@@ -320,11 +392,17 @@
                             onComplete: () => spark.destroy()
                         });
                     }
+                    trailInterval.remove();
                     proj.destroy();
                 }
             });
 
-            scene.time.delayedCall(2500, () => { if (proj.active) proj.destroy(); });
+            scene.time.delayedCall(2500, () => { 
+                if (proj.active) {
+                    trailInterval.remove();
+                    proj.destroy(); 
+                }
+            });
             scene.time.delayedCall(400, () => canAttack = true);
         }
 
