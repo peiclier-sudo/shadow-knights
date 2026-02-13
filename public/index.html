@@ -329,15 +329,70 @@
             // Init
             virtualJoystick = { active: false, deltaX: 0, deltaY: 0 };
             
-            // Bouton DASH
-            dodgeButton = scene.add.circle(950, 150, 50, 0x00d4ff, 0.9).setInteractive().setStrokeStyle(6, 0x00aacc);
-            dodgeButton.setDepth(1000);
-            const dodgeText = scene.add.text(950, 150, 'DASH', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            dodgeText.setDepth(1001);
-            dodgeButton.on('pointerdown', () => { 
-                if (canDodge && playerStamina >= 25) {
-                    performDodge(scene);
-                    debugText.setText('DASH!');
+            // Bouton DASH DIRECTIONNEL (drag & drop)
+            const dashBase = scene.add.circle(950, 150, 55, 0x1a2a3e, 0.8).setDepth(1000);
+            dashBase.setStrokeStyle(6, 0x00d4ff);
+            
+            const dashThumb = scene.add.circle(950, 150, 28, 0x00d4ff, 1).setDepth(1001);
+            const dashText = scene.add.text(950, 150, '⚡', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5).setDepth(1002);
+            
+            let dashActive = false;
+            let dashStartX = 950, dashStartY = 150;
+            let dashAngle = 0;
+            
+            dashBase.setInteractive();
+            
+            dashBase.on('pointerdown', (pointer) => {
+                if (pointer.x > 800) { // Seulement si on tap dans la zone dash
+                    dashActive = true;
+                    dashStartX = 950;
+                    dashStartY = 150;
+                    dashBase.setStrokeStyle(8, 0x00ffff); // Highlight
+                }
+            });
+            
+            scene.input.on('pointermove', (pointer) => {
+                if (dashActive && pointer.isDown && pointer.x > 800) {
+                    const dx = pointer.x - dashStartX;
+                    const dy = pointer.y - dashStartY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 55;
+                    
+                    if (dist < maxDist) {
+                        dashThumb.x = dashStartX + dx;
+                        dashThumb.y = dashStartY + dy;
+                    } else {
+                        const angle = Math.atan2(dy, dx);
+                        dashThumb.x = dashStartX + Math.cos(angle) * maxDist;
+                        dashThumb.y = dashStartY + Math.sin(angle) * maxDist;
+                    }
+                    
+                    dashAngle = Math.atan2(dy, dx);
+                    
+                    // Indicateur directionnel
+                    if (dist > 10) {
+                        dashText.setText('→');
+                        dashText.setRotation(dashAngle);
+                    }
+                }
+            });
+            
+            scene.input.on('pointerup', (pointer) => {
+                if (dashActive && pointer.x > 800) {
+                    dashActive = false;
+                    dashBase.setStrokeStyle(6, 0x00d4ff); // Reset
+                    
+                    // Reset visuel
+                    dashThumb.x = 950;
+                    dashThumb.y = 150;
+                    dashText.setText('⚡');
+                    dashText.setRotation(0);
+                    
+                    // DASH DIRECTIONNEL !
+                    if (canDodge && playerStamina >= 25) {
+                        performDirectionalDodge(scene, dashAngle);
+                        debugText.setText('DASH DIRECTIONNEL!');
+                    }
                 }
             });
         }
@@ -416,21 +471,31 @@
             const startX = player.x + Math.cos(aimAngle) * 30;
             const startY = player.y + Math.sin(aimAngle) * 30;
             
+            // Créer le projectile avec physics
             const proj = scene.add.circle(startX, startY, 8, 0x66ffff);
             scene.physics.add.existing(proj);
-            proj.body.setCircle(8); // IMPORTANT: définir la hitbox circulaire
-            proj.body.setVelocity(Math.cos(aimAngle) * projSpeed, Math.sin(aimAngle) * projSpeed);
+            
+            // CRITICAL: Définir le body comme circle et activer
+            proj.body.setCircle(8);
+            proj.body.enable = true;
+            proj.body.allowGravity = false;
+            
+            // Définir la vélocité
+            const vx = Math.cos(aimAngle) * projSpeed;
+            const vy = Math.sin(aimAngle) * projSpeed;
+            proj.body.setVelocity(vx, vy);
+            
             proj.damage = 18;
-            proj.setActive(true);
-            proj.setVisible(true);
             projectiles.add(proj);
+            
+            console.log('PROJECTILE FIRED:', 'vx:', vx, 'vy:', vy, 'angle:', aimAngle);
 
-            // Trail effect
+            // Trail effect avec timer
             let trailCount = 0;
             const trailInterval = scene.time.addEvent({
                 delay: 40,
                 callback: () => {
-                    if (proj.active && trailCount < 20) {
+                    if (proj.active && trailCount < 25) {
                         const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.5);
                         scene.tweens.add({ 
                             targets: trail, 
@@ -447,6 +512,7 @@
                 loop: true
             });
 
+            // Collision avec le boss
             scene.physics.add.overlap(proj, boss, () => { 
                 if (proj.active) {
                     hitBoss(scene, proj.damage); 
@@ -468,12 +534,14 @@
                 }
             });
 
+            // Auto-destroy après 2.5s
             scene.time.delayedCall(2500, () => { 
                 if (proj.active) {
                     trailInterval.remove();
                     proj.destroy(); 
                 }
             });
+            
             scene.time.delayedCall(400, () => canAttack = true);
         }
 
@@ -491,6 +559,34 @@
 
             scene.tweens.add({ targets: player, x: player.x + dashX, y: player.y + dashY, duration: 250, ease: 'Power3', onComplete: () => { isDodging = false; player.alpha = 1; }});
 
+            for (let i = 0; i < 6; i++) {
+                scene.time.delayedCall(i * 40, () => {
+                    const trail = scene.add.circle(player.x, player.y, 22, 0x00d4ff, 0.25);
+                    scene.tweens.add({ targets: trail, alpha: 0, scale: 0.5, duration: 250, onComplete: () => trail.destroy() });
+                });
+            }
+
+            scene.time.delayedCall(700, () => canDodge = true);
+        }
+
+        function performDirectionalDodge(scene, angle) {
+            isDodging = true; canDodge = false; playerStamina -= 25; dodgesPerformed++;
+            player.alpha = 0.3;
+
+            const dashDist = 150;
+            const dashX = Math.cos(angle) * dashDist;
+            const dashY = Math.sin(angle) * dashDist;
+
+            scene.tweens.add({ 
+                targets: player, 
+                x: player.x + dashX, 
+                y: player.y + dashY, 
+                duration: 250, 
+                ease: 'Power3', 
+                onComplete: () => { isDodging = false; player.alpha = 1; }
+            });
+
+            // Trail effect directionnel
             for (let i = 0; i < 6; i++) {
                 scene.time.delayedCall(i * 40, () => {
                     const trail = scene.add.circle(player.x, player.y, 22, 0x00d4ff, 0.25);
