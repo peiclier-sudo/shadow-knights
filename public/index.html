@@ -329,34 +329,42 @@
             // Init
             virtualJoystick = { active: false, deltaX: 0, deltaY: 0 };
             
-            // Bouton DASH DIRECTIONNEL (drag & drop)
-            const dashBase = scene.add.circle(950, 150, 55, 0x1a2a3e, 0.8).setDepth(1000);
-            dashBase.setStrokeStyle(6, 0x00d4ff);
+            // Bouton DASH DIRECTIONNEL (bien séparé en haut à droite)
+            const dashBase = scene.add.circle(920, 100, 50, 0x1a2a3e, 0.85).setDepth(1000);
+            dashBase.setStrokeStyle(5, 0x00d4ff);
             
-            const dashThumb = scene.add.circle(950, 150, 28, 0x00d4ff, 1).setDepth(1001);
-            const dashText = scene.add.text(950, 150, '⚡', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5).setDepth(1002);
+            const dashThumb = scene.add.circle(920, 100, 25, 0x00d4ff, 1).setDepth(1001);
+            const dashText = scene.add.text(920, 100, '⚡', { fontSize: '22px', fill: '#fff' }).setOrigin(0.5).setDepth(1002);
+            scene.add.text(920, 170, 'DASH', { fontSize: '12px', fill: '#00d4ff', backgroundColor: '#00000099', padding: { x: 8, y: 4 }}).setOrigin(0.5).setDepth(1000);
             
             let dashActive = false;
-            let dashStartX = 950, dashStartY = 150;
+            let dashTouchId = null;
+            let dashStartX = 920, dashStartY = 100;
             let dashAngle = 0;
             
             dashBase.setInteractive();
             
-            dashBase.on('pointerdown', (pointer) => {
-                if (pointer.x > 800) { // Seulement si on tap dans la zone dash
+            // DASH: Utiliser un ID de pointeur dédié
+            scene.input.on('pointerdown', (pointer) => {
+                // Zone DASH: coin supérieur droit seulement
+                const inDashZone = pointer.x > 850 && pointer.y < 200;
+                
+                if (inDashZone && !dashActive) {
                     dashActive = true;
-                    dashStartX = 950;
-                    dashStartY = 150;
-                    dashBase.setStrokeStyle(8, 0x00ffff); // Highlight
+                    dashTouchId = pointer.id;
+                    dashStartX = 920;
+                    dashStartY = 100;
+                    dashBase.setStrokeStyle(7, 0x00ffff);
+                    console.log('DASH ACTIVE, pointer:', pointer.id);
                 }
             });
             
             scene.input.on('pointermove', (pointer) => {
-                if (dashActive && pointer.isDown && pointer.x > 800) {
+                if (dashActive && pointer.id === dashTouchId && pointer.isDown) {
                     const dx = pointer.x - dashStartX;
                     const dy = pointer.y - dashStartY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    const maxDist = 55;
+                    const maxDist = 50;
                     
                     if (dist < maxDist) {
                         dashThumb.x = dashStartX + dx;
@@ -369,7 +377,6 @@
                     
                     dashAngle = Math.atan2(dy, dx);
                     
-                    // Indicateur directionnel
                     if (dist > 10) {
                         dashText.setText('→');
                         dashText.setRotation(dashAngle);
@@ -378,20 +385,22 @@
             });
             
             scene.input.on('pointerup', (pointer) => {
-                if (dashActive && pointer.x > 800) {
+                if (dashActive && pointer.id === dashTouchId) {
                     dashActive = false;
-                    dashBase.setStrokeStyle(6, 0x00d4ff); // Reset
+                    dashTouchId = null;
+                    dashBase.setStrokeStyle(5, 0x00d4ff);
                     
                     // Reset visuel
-                    dashThumb.x = 950;
-                    dashThumb.y = 150;
+                    dashThumb.x = 920;
+                    dashThumb.y = 100;
                     dashText.setText('⚡');
                     dashText.setRotation(0);
                     
-                    // DASH DIRECTIONNEL !
-                    if (canDodge && playerStamina >= 25) {
+                    // DASH DIRECTIONNEL
+                    const dist = Phaser.Math.Distance.Between(920, 100, dashThumb.x, dashThumb.y);
+                    if (canDodge && playerStamina >= 25 && dist > 10) {
                         performDirectionalDodge(scene, dashAngle);
-                        debugText.setText('DASH DIRECTIONNEL!');
+                        debugText.setText(`DASH ${(dashAngle * 180 / Math.PI).toFixed(0)}°`);
                     }
                 }
             });
@@ -451,6 +460,13 @@
 
             boss.glow.x = boss.x; boss.glow.y = boss.y;
             updateHealthBars();
+            
+            // UPDATE MANUEL DES PROJECTILES
+            projectiles.children.entries.forEach(proj => {
+                if (proj.updateMovement) {
+                    proj.updateMovement(delta);
+                }
+            });
         }
 
         function performMeleeAttack(scene) {
@@ -466,79 +482,95 @@
         function performRangedAttack(scene) {
             canAttack = false; playerStamina -= 20;
             
-            // Calculer la direction du projectile selon aimAngle
             const projSpeed = 500;
             const startX = player.x + Math.cos(aimAngle) * 30;
             const startY = player.y + Math.sin(aimAngle) * 30;
             
-            // Créer le projectile avec physics
+            // Créer projectile SANS physics d'abord
             const proj = scene.add.circle(startX, startY, 8, 0x66ffff);
-            scene.physics.add.existing(proj);
-            
-            // CRITICAL: Définir le body comme circle et activer
-            proj.body.setCircle(8);
-            proj.body.enable = true;
-            proj.body.allowGravity = false;
-            
-            // Définir la vélocité
-            const vx = Math.cos(aimAngle) * projSpeed;
-            const vy = Math.sin(aimAngle) * projSpeed;
-            proj.body.setVelocity(vx, vy);
-            
             proj.damage = 18;
+            proj.setDepth(150);
+            
+            // Stocker la vélocité manuellement
+            proj.vx = Math.cos(aimAngle) * projSpeed;
+            proj.vy = Math.sin(aimAngle) * projSpeed;
+            proj.active = true;
+            
             projectiles.add(proj);
             
-            console.log('PROJECTILE FIRED:', 'vx:', vx, 'vy:', vy, 'angle:', aimAngle);
+            console.log('🔫 PROJECTILE:', {
+                startX, startY,
+                vx: proj.vx.toFixed(2), 
+                vy: proj.vy.toFixed(2),
+                angle: (aimAngle * 180 / Math.PI).toFixed(0) + '°'
+            });
+            
+            debugText.setText(`FIRED! vx:${proj.vx.toFixed(0)} vy:${proj.vy.toFixed(0)}`);
 
-            // Trail effect avec timer
+            // Mouvement MANUEL dans update (pas physics)
+            proj.updateMovement = function(delta) {
+                if (!this.active) return;
+                this.x += this.vx * (delta / 1000);
+                this.y += this.vy * (delta / 1000);
+                
+                // Vérifier collision avec boss manuellement
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, boss.x, boss.y);
+                if (dist < 60) {
+                    hitBoss(scene, this.damage);
+                    this.active = false;
+                    this.destroy();
+                    
+                    // Impact particles
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (Math.PI * 2 * i) / 8;
+                        const spark = scene.add.circle(this.x, this.y, 5, 0x66ffff);
+                        scene.tweens.add({
+                            targets: spark,
+                            x: this.x + Math.cos(angle) * 40,
+                            y: this.y + Math.sin(angle) * 40,
+                            alpha: 0,
+                            duration: 400,
+                            onComplete: () => spark.destroy()
+                        });
+                    }
+                }
+                
+                // Détruire si hors écran
+                if (this.x < -50 || this.x > 1050 || this.y < -50 || this.y > 750) {
+                    this.active = false;
+                    this.destroy();
+                }
+            };
+
+            // Trail effect
             let trailCount = 0;
             const trailInterval = scene.time.addEvent({
-                delay: 40,
+                delay: 50,
                 callback: () => {
-                    if (proj.active && trailCount < 25) {
-                        const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.5);
+                    if (proj.active && trailCount < 30) {
+                        const trail = scene.add.circle(proj.x, proj.y, 5, 0x66ffff, 0.6);
+                        trail.setDepth(140);
                         scene.tweens.add({ 
                             targets: trail, 
                             alpha: 0, 
-                            scale: 0.5, 
-                            duration: 300, 
+                            scale: 0.3, 
+                            duration: 400, 
                             onComplete: () => trail.destroy() 
                         });
                         trailCount++;
-                    } else {
+                    } else if (!proj.active) {
                         trailInterval.remove();
                     }
                 },
                 loop: true
             });
 
-            // Collision avec le boss
-            scene.physics.add.overlap(proj, boss, () => { 
+            // Auto-destroy
+            scene.time.delayedCall(3000, () => { 
                 if (proj.active) {
-                    hitBoss(scene, proj.damage); 
-                    // Impact effect
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (Math.PI * 2 * i) / 6;
-                        const spark = scene.add.circle(proj.x, proj.y, 4, 0x66ffff);
-                        scene.tweens.add({
-                            targets: spark,
-                            x: proj.x + Math.cos(angle) * 30,
-                            y: proj.y + Math.sin(angle) * 30,
-                            alpha: 0,
-                            duration: 300,
-                            onComplete: () => spark.destroy()
-                        });
-                    }
-                    trailInterval.remove();
+                    proj.active = false;
                     proj.destroy();
-                }
-            });
-
-            // Auto-destroy après 2.5s
-            scene.time.delayedCall(2500, () => { 
-                if (proj.active) {
                     trailInterval.remove();
-                    proj.destroy(); 
                 }
             });
             
