@@ -154,7 +154,7 @@
 
         function create() {
             // Grille NEON animée
-            const bossData = BOSSES[currentBossId];
+            let bossData = BOSSES[currentBossId];
             const g = this.add.graphics();
             g.lineStyle(1, bossData.color, 0.15);
             for (let i = 0; i < 1000; i += 50) g.lineBetween(i, 0, i, 700);
