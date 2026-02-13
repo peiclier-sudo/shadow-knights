@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Knights - FULLSCREEN FIX</title>
+    <title>Shadow Knights - DASH & CHARGE</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         * { 
@@ -92,6 +92,26 @@
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let bossNextAttackTime = 0;
         
+        // NEW: Dash variables
+        let isDashing = false;
+        let dashDirection = { x: 0, y: 0 };
+        let dashTimer = 0;
+        const DASH_DURATION = 200; // ms
+        const DASH_SPEED = 800;
+        const DASH_COOLDOWN = 1000; // ms
+        const DASH_STAMINA_COST = 40; // CHANGED: from 20 to 40
+        let lastDashTime = 0;
+        let isInvulnerable = false;
+        
+        // NEW: Charge attack variables
+        let isCharging = false;
+        let chargeStartTime = 0;
+        const CHARGE_TIME = 1500; // ms for full charge
+        const MAX_CHARGE_DAMAGE = 50;
+        let chargeIndicator = null;
+        let chargeLevel = 0;
+        let isChargingAttack = false;
+        
         // Mobile controls
         let moveJoy = { active: false, deltaX: 0, deltaY: 0 };
         let aimJoy = { active: false, angle: 0 };
@@ -105,13 +125,11 @@
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
-        // Helper function to get relative positions based on screen size
-        function getPos(x, y) {
-            return {
-                x: (x / 100) * this.cameras.main.width,
-                y: (y / 100) * this.cameras.main.height
-            };
-        }
+        // NEW: Dash button for mobile
+        let dashButton = null;
+        
+        // NEW: Stamina warning text
+        let staminaWarning = null;
 
         function create() {
             const width = this.cameras.main.width;
@@ -122,7 +140,6 @@
             const g = this.add.graphics();
             g.lineStyle(1, bossData.color, 0.15);
             
-            // Dynamic grid based on screen size
             for (let i = 0; i < width; i += 50) {
                 g.lineBetween(i, 0, i, height);
             }
@@ -130,7 +147,7 @@
                 g.lineBetween(0, i, width, i);
             }
             
-            // Particles ambiantes (responsive)
+            // Particles ambiantes
             for (let i = 0; i < 50; i++) {
                 const x = Phaser.Math.Between(0, width);
                 const y = Phaser.Math.Between(0, height);
@@ -150,8 +167,8 @@
             }
 
             // Joueur avec GLOW (position responsive)
-            const playerX = width * 0.15;  // 15% from left
-            const playerY = height * 0.5;  // 50% from top
+            const playerX = width * 0.15;
+            const playerY = height * 0.5;
             
             player = this.add.circle(playerX, playerY, 20, 0x00d4ff);
             this.physics.add.existing(player);
@@ -181,27 +198,24 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // Boss (position responsive)
+            // Boss
             bossData = BOSSES[currentBossId];
-            const bossX = width * 0.85;  // 85% from left
-            const bossY = height * 0.5;   // 50% from top
+            const bossX = width * 0.85;
+            const bossY = height * 0.5;
             
             boss = this.add.container(bossX, bossY);
             
             if (currentBossId === 1) {
-                // Sentinel: Rectangle + circle
                 boss.add([
                     this.add.rectangle(0, 0, 70, 100, bossData.color),
                     this.add.circle(0, -60, 30, bossData.color)
                 ]);
             } else if (currentBossId === 2) {
-                // Gunner: Star/Hexagon
                 boss.add([
                     this.add.star(0, 0, 6, 20, 40, bossData.color),
                     this.add.circle(0, 0, 12, 0xffffff)
                 ]);
             } else if (currentBossId === 3) {
-                // Dasher: Triangle
                 const tri = this.add.triangle(0, 0, 0, -40, -35, 35, 35, 35, bossData.color);
                 boss.add(tri);
             }
@@ -211,7 +225,7 @@
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
             
-            // Boss glow pulsant (responsive)
+            // Boss glow pulsant
             boss.glow1 = this.add.circle(bossX, bossY, 90, bossData.color, 0.3);
             boss.glow2 = this.add.circle(bossX, bossY, 120, bossData.color, 0.15);
             boss.glow1.setDepth(-1);
@@ -237,14 +251,14 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // UI (responsive)
+            // UI
             this.add.text(width * 0.5, height * 0.05, bossData.name, { 
                 fontSize: Math.min(28, height * 0.04) + 'px', 
                 fill: '#' + bossData.color.toString(16).padStart(6, '0'), 
                 fontStyle: 'bold' 
             }).setOrigin(0.5);
             
-            // Player health (left side)
+            // Player health
             this.add.text(width * 0.02, height * 0.02, 'VOUS', { 
                 fontSize: Math.min(18, height * 0.025) + 'px', 
                 fill: '#00d4ff', 
@@ -266,7 +280,17 @@
             staminaText = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0xffaa00)
                 .setOrigin(0, 0.5);
 
-            // Boss health (right side)
+            // NEW: Stamina warning text (initially hidden)
+            staminaWarning = this.add.text(width * 0.5, height * 0.2, '⚠️ PAS ASSEZ DE STAMINA ⚠️', {
+                fontSize: Math.min(20, height * 0.03) + 'px',
+                fill: '#ff0000',
+                stroke: '#000',
+                strokeThickness: 4,
+                backgroundColor: '#00000099',
+                padding: { x: 20, y: 10 }
+            }).setOrigin(0.5).setVisible(false);
+
+            // Boss health
             this.add.text(width * 0.68, height * 0.07, 'BOSS', { 
                 fontSize: Math.min(14, height * 0.02) + 'px', 
                 fill: '#' + bossData.color.toString(16).padStart(6, '0') 
@@ -276,11 +300,24 @@
             bossHealthText = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, bossData.color)
                 .setOrigin(0, 0.5);
 
-            if (isMobile) createMobileControls(this);
-            else createDesktopControls(this);
+            // NEW: Charge indicator
+            chargeIndicator = this.add.graphics();
+            chargeIndicator.setDepth(1000);
 
-            const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer' 
-                : 'Clic Gauche: Aller vers souris | Clic Droit: Viser & Tirer';
+            if (isMobile) {
+                createMobileControls(this);
+                // NEW: Mobile dash button in top right
+                createMobileDashButton(this);
+            } else {
+                createDesktopControls(this);
+                // NEW: Desktop dash key (SPACE)
+                this.input.keyboard.on('keydown-SPACE', () => {
+                    performDash(this);
+                });
+            }
+
+            const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer | Dash: Bouton haut-droit (40 stamina)' 
+                : 'Clic Gauche: Aller vers souris | Clic Droit: Viser & Tirer | ESPACE: Dash (40 stamina) | Maintenir Clic Droit: Charge';
             this.add.text(width * 0.5, height * 0.95, instructions, { 
                 fontSize: Math.min(13, height * 0.018) + 'px', 
                 fill: '#aaa', 
@@ -289,15 +326,54 @@
             }).setOrigin(0.5);
         }
 
+        // NEW: Mobile dash button
+        function createMobileDashButton(scene) {
+            const width = scene.cameras.main.width;
+            const height = scene.cameras.main.height;
+            
+            // Dash button in top right
+            dashButton = scene.add.container(width - 100, 100);
+            
+            const bg = scene.add.circle(0, 0, 40, 0x00d4ff, 0.3);
+            bg.setStrokeStyle(3, 0x00d4ff);
+            
+            const icon = scene.add.text(0, 0, '⚡', { 
+                fontSize: '32px', 
+                fill: '#00d4ff',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            
+            // NEW: Stamina cost indicator
+            const costText = scene.add.text(0, 25, '40', { 
+                fontSize: '12px', 
+                fill: '#ffaa00',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            
+            const cooldownOverlay = scene.add.circle(0, 0, 40, 0x000000, 0);
+            cooldownOverlay.setStrokeStyle(2, 0xff0000);
+            
+            dashButton.add([bg, icon, costText, cooldownOverlay]);
+            dashButton.setSize(80, 80);
+            dashButton.setInteractive({ useHandCursor: true });
+            
+            dashButton.on('pointerdown', () => {
+                performDash(scene);
+            });
+            
+            // Store for cooldown animation
+            dashButton.cooldownOverlay = cooldownOverlay;
+            dashButton.bg = bg;
+            dashButton.icon = icon;
+        }
+
         function createDesktopControls(scene) {
-            // Indicateur de visée
             aimIndicator = scene.add.graphics();
             aimIndicator.setDepth(500);
             
-            // Désactiver menu contextuel
             scene.input.mouse.disableContextMenu();
             
-            // CLIC GAUCHE = MOUVEMENT vers la souris
+            // MODIFIED: Handle right click for charge
             scene.input.on('pointerdown', (pointer) => {
                 if (pointer.leftButtonDown()) {
                     leftMouseDown = true;
@@ -311,21 +387,34 @@
                     aimStartY = player.y;
                     mouseX = pointer.x;
                     mouseY = pointer.y;
+                    
+                    // NEW: Start charging
+                    if (!isDashing && playerStamina >= 30) {
+                        startCharge(scene);
+                    }
                 }
             });
             
             scene.input.on('pointermove', (pointer) => {
                 mouseX = pointer.x;
                 mouseY = pointer.y;
+                
+                // NEW: Update charge direction if charging
+                if (isChargingAttack) {
+                    chargeLevel = Math.min(1, (Date.now() - chargeStartTime) / CHARGE_TIME);
+                }
             });
             
             scene.input.on('pointerup', (pointer) => {
-                if (pointer.button === 0) { // Left button
+                if (pointer.button === 0) {
                     leftMouseDown = false;
                 }
                 
-                if (pointer.button === 2) { // Right button
-                    if (rightMouseDown && canAttack && playerStamina >= 20) {
+                if (pointer.button === 2) {
+                    // NEW: Release charged attack
+                    if (isChargingAttack) {
+                        releaseCharge(scene);
+                    } else if (rightMouseDown && canAttack && playerStamina >= 20) {
                         const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
                         shootProjectile(scene, angle);
                     }
@@ -334,11 +423,131 @@
             });
         }
 
+        // NEW: Start charging
+        function startCharge(scene) {
+            if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) {
+                // Can't charge while moving
+                return;
+            }
+            
+            isChargingAttack = true;
+            chargeStartTime = Date.now();
+            chargeLevel = 0;
+            
+            // Visual feedback - player starts glowing
+            scene.tweens.add({
+                targets: player.glow1,
+                alpha: 0.8,
+                duration: 200,
+                yoyo: true,
+                repeat: -1
+            });
+            
+            // Charging particles
+            chargeIndicator.clear();
+        }
+
+        // NEW: Release charged attack
+        function releaseCharge(scene) {
+            if (!isChargingAttack) return;
+            
+            isChargingAttack = false;
+            
+            // Stop glow animation
+            scene.tweens.killTweensOf(player.glow1);
+            player.glow1.alpha = 0.4;
+            
+            if (chargeLevel < 0.3) {
+                // Not charged enough, just a normal shot
+                const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
+                shootProjectile(scene, angle);
+                return;
+            }
+            
+            // Charged attack!
+            const damage = 18 + Math.floor(chargeLevel * MAX_CHARGE_DAMAGE);
+            const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
+            
+            // Mega projectile effect
+            playerStamina -= 30;
+            
+            // Multiple projectiles in a spread
+            for (let i = -1; i <= 1; i++) {
+                const spreadAngle = angle + (i * 0.2);
+                shootChargedProjectile(scene, spreadAngle, damage, chargeLevel);
+            }
+            
+            // Epic visual feedback
+            scene.cameras.main.flash(200, 255, 255, 255, false);
+            
+            // Screen shake based on charge level
+            scene.cameras.main.shake(200 * chargeLevel, 0.01 * chargeLevel);
+            
+            chargeLevel = 0;
+            chargeIndicator.clear();
+        }
+
+        // NEW: Charged projectile
+        function shootChargedProjectile(scene, angle, damage, chargeLevel) {
+            const speed = 750 + (chargeLevel * 300);
+            const size = 10 + (chargeLevel * 15);
+            const startX = player.x + Math.cos(angle) * 30;
+            const startY = player.y + Math.sin(angle) * 30;
+            
+            // Bigger flash for charged shot
+            const flash = scene.add.circle(startX, startY, 30 * chargeLevel + 20, 0xffffff, 0.9);
+            scene.tweens.add({
+                targets: flash,
+                scale: 3,
+                alpha: 0,
+                duration: 200,
+                onComplete: () => flash.destroy()
+            });
+            
+            const proj = scene.add.circle(startX, startY, size, 0x66ffff);
+            proj.setDepth(150);
+            proj.vx = Math.cos(angle) * speed;
+            proj.vy = Math.sin(angle) * speed;
+            proj.damage = damage; // Store damage value
+            
+            const projGlow = scene.add.circle(startX, startY, size * 2, 0x66ffff, 0.6);
+            projGlow.setDepth(149);
+            proj.glow = projGlow;
+            
+            projectiles.push(proj);
+            
+            // Enhanced trail for charged shot
+            scene.time.addEvent({
+                delay: 20,
+                repeat: 100,
+                callback: () => {
+                    if (!proj.scene) return;
+                    
+                    if (proj.glow && proj.glow.scene) {
+                        proj.glow.x = proj.x;
+                        proj.glow.y = proj.y;
+                    }
+                    
+                    const trail = scene.add.circle(proj.x, proj.y, size * 0.7, 0x66ffff, 0.7);
+                    trail.setDepth(148);
+                    scene.tweens.add({
+                        targets: trail,
+                        alpha: 0,
+                        scale: 0.5,
+                        duration: 400,
+                        ease: 'Power2',
+                        onComplete: () => trail.destroy()
+                    });
+                }
+            });
+            
+            scene.time.delayedCall(400, () => canAttack = true);
+        }
+
         function createMobileControls(scene) {
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
-            // Zones (responsive)
             const leftZone = scene.add.rectangle(width * 0.25, height * 0.5, width * 0.5, height, 0x0066ff, 0.1);
             const rightZone = scene.add.rectangle(width * 0.75, height * 0.5, width * 0.5, height, 0xff6666, 0.1);
             scene.add.text(width * 0.25, height * 0.1, '⬅️ BOUGER', { 
@@ -444,6 +653,137 @@
             });
         }
 
+        // NEW: Dash function with 40 stamina cost
+        function performDash(scene) {
+            const now = Date.now();
+            
+            // Check cooldown and stamina (UPDATED to 40)
+            if (now - lastDashTime < DASH_COOLDOWN) {
+                // Cooldown feedback
+                if (dashButton) {
+                    scene.tweens.add({
+                        targets: dashButton.bg,
+                        alpha: 0.1,
+                        duration: 100,
+                        yoyo: true
+                    });
+                }
+                return;
+            }
+            
+            if (playerStamina < DASH_STAMINA_COST) {
+                // Show stamina warning
+                showStaminaWarning(scene);
+                
+                // Flash stamina bar red
+                scene.tweens.add({
+                    targets: staminaBar,
+                    fillColor: 0xff0000,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: () => staminaBar.fillColor = 0x1a1a2e
+                });
+                return;
+            }
+            
+            // Determine dash direction
+            let dx = 0, dy = 0;
+            
+            if (isMobile && moveJoy.active) {
+                // Dash in movement direction
+                dx = moveJoy.deltaX;
+                dy = moveJoy.deltaY;
+            } else {
+                // Desktop: dash in mouse direction or facing direction
+                const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+                dx = Math.cos(angle);
+                dy = Math.sin(angle);
+            }
+            
+            // If no direction, dash forward (right)
+            if (dx === 0 && dy === 0) {
+                dx = 1;
+            }
+            
+            // Normalize
+            const length = Math.sqrt(dx*dx + dy*dy);
+            dx /= length;
+            dy /= length;
+            
+            // Start dash
+            isDashing = true;
+            isInvulnerable = true;
+            lastDashTime = now;
+            playerStamina -= DASH_STAMINA_COST; // Now using 40
+            
+            // Store dash direction
+            dashDirection.x = dx;
+            dashDirection.y = dy;
+            dashTimer = 0;
+            
+            // Visual feedback
+            player.glow1.setScale(2);
+            player.glow2.setScale(2.5);
+            
+            // Dash trail
+            createDashTrail(scene);
+            
+            // Update stamina bar immediately
+            updateStaminaBar();
+            
+            // Dash sound would go here
+            
+            // Update dash button cooldown
+            if (dashButton) {
+                dashButton.cooldownOverlay.fillColor = 0xff0000;
+                dashButton.cooldownOverlay.fillAlpha = 0.5;
+                
+                scene.time.delayedCall(DASH_COOLDOWN, () => {
+                    dashButton.cooldownOverlay.fillAlpha = 0;
+                });
+            }
+        }
+
+        // NEW: Show stamina warning
+        function showStaminaWarning(scene) {
+            if (staminaWarning) {
+                staminaWarning.setVisible(true);
+                staminaWarning.setAlpha(1);
+                
+                scene.tweens.add({
+                    targets: staminaWarning,
+                    alpha: 0,
+                    duration: 1000,
+                    ease: 'Power2',
+                    onComplete: () => staminaWarning.setVisible(false)
+                });
+            }
+        }
+
+        // NEW: Create dash trail effect
+        function createDashTrail(scene) {
+            let trailCount = 0;
+            const trailInterval = setInterval(() => {
+                if (!isDashing || trailCount > 10) {
+                    clearInterval(trailInterval);
+                    return;
+                }
+                
+                const trail = scene.add.circle(player.x, player.y, 20, 0x00d4ff, 0.5);
+                trail.setDepth(50);
+                
+                scene.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    scale: 2,
+                    duration: 300,
+                    onComplete: () => trail.destroy()
+                });
+                
+                trailCount++;
+            }, 50);
+        }
+
         function update(time, delta) {
             if (playerHealth <= 0 || bossHealth <= 0) {
                 handleGameOver(this);
@@ -452,37 +792,56 @@
 
             const width = this.cameras.main.width;
             const height = this.cameras.main.height;
+            const now = Date.now();
 
-            // Mouvement PLUS RAPIDE
-            const speed = 300;
-            let vx = 0, vy = 0;
-            
-            // MOBILE: Joystick
-            if (isMobile && moveJoy.active) {
-                vx = moveJoy.deltaX * speed;
-                vy = moveJoy.deltaY * speed;
-            }
-            
-            // DESKTOP: Point-and-click avec clic gauche
-            if (!isMobile && leftMouseDown) {
-                const dx = mouseX - player.x;
-                const dy = mouseY - player.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+            // NEW: Handle dash
+            if (isDashing) {
+                dashTimer += delta;
                 
-                if (dist > 10) {
-                    const angle = Math.atan2(dy, dx);
-                    vx = Math.cos(angle) * speed;
-                    vy = Math.sin(angle) * speed;
+                // Apply dash velocity
+                player.body.setVelocity(
+                    dashDirection.x * DASH_SPEED,
+                    dashDirection.y * DASH_SPEED
+                );
+                
+                // End dash after duration
+                if (dashTimer >= DASH_DURATION) {
+                    isDashing = false;
+                    isInvulnerable = false;
+                    player.glow1.setScale(1);
+                    player.glow2.setScale(1);
+                }
+            } else {
+                // Normal movement
+                const speed = 300;
+                let vx = 0, vy = 0;
+                
+                if (isMobile && moveJoy.active) {
+                    vx = moveJoy.deltaX * speed;
+                    vy = moveJoy.deltaY * speed;
+                }
+                
+                if (!isMobile && leftMouseDown && !isChargingAttack) {
+                    const dx = mouseX - player.x;
+                    const dy = mouseY - player.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist < 50) {
-                        vx *= (dist / 50);
-                        vy *= (dist / 50);
+                    if (dist > 10) {
+                        const angle = Math.atan2(dy, dx);
+                        vx = Math.cos(angle) * speed;
+                        vy = Math.sin(angle) * speed;
+                        
+                        if (dist < 50) {
+                            vx *= (dist / 50);
+                            vy *= (dist / 50);
+                        }
                     }
                 }
+                
+                player.body.setVelocity(vx, vy);
             }
             
             // Keep player in bounds
-            player.body.setVelocity(vx, vy);
             player.x = Phaser.Math.Clamp(player.x, 20, width - 20);
             player.y = Phaser.Math.Clamp(player.y, 20, height - 20);
             
@@ -511,8 +870,32 @@
                 }
             }
             
-            // Indicateur de visée (desktop clic droit)
-            if (!isMobile && aimIndicator) {
+            // NEW: Update charge indicator
+            if (isChargingAttack) {
+                chargeLevel = Math.min(1, (now - chargeStartTime) / CHARGE_TIME);
+                
+                chargeIndicator.clear();
+                
+                // Draw charge circle around player
+                const radius = 30 + (chargeLevel * 30);
+                chargeIndicator.lineStyle(3, 0xffaa00, 0.8);
+                chargeIndicator.strokeCircle(player.x, player.y, radius);
+                
+                // Fill based on charge
+                chargeIndicator.fillStyle(0xffaa00, 0.2);
+                chargeIndicator.slice(
+                    player.x, player.y,
+                    radius - 5,
+                    0, Math.PI * 2 * chargeLevel,
+                    false
+                );
+                chargeIndicator.fillPath();
+            } else {
+                chargeIndicator.clear();
+            }
+            
+            // Indicateur de visée
+            if (!isMobile && aimIndicator && !isChargingAttack) {
                 aimIndicator.clear();
                 
                 if (rightMouseDown) {
@@ -536,7 +919,7 @@
                 }
             }
 
-            // Update projectiles with bounds checking
+            // Update projectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const proj = projectiles[i];
                 
@@ -545,7 +928,8 @@
                 
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, boss.x, boss.y);
                 if (dist < 60) {
-                    hitBoss(this, 18);
+                    const damage = proj.damage || 18;
+                    hitBoss(this, damage);
                     if (proj.glow && proj.glow.scene) proj.glow.destroy();
                     proj.destroy();
                     projectiles.splice(i, 1);
@@ -559,7 +943,7 @@
                 }
             }
 
-            // Update boss projectiles
+            // Update boss projectiles - MODIFIED: Check invulnerability
             for (let i = bossProjectiles.length - 1; i >= 0; i--) {
                 const bProj = bossProjectiles[i];
                 
@@ -567,7 +951,7 @@
                 bProj.y += bProj.vy * (delta / 1000);
                 
                 const distToPlayer = Phaser.Math.Distance.Between(bProj.x, bProj.y, player.x, player.y);
-                if (distToPlayer < 25) {
+                if (distToPlayer < 25 && !isInvulnerable) {
                     hitPlayer(this, 10);
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
@@ -580,9 +964,9 @@
                 }
             }
 
-            // Regen stamina
+            // Regen stamina (slightly faster to compensate for higher cost)
             if (playerStamina < 100) {
-                playerStamina = Math.min(100, playerStamina + 0.4);
+                playerStamina = Math.min(100, playerStamina + 0.45); // Increased from 0.4
                 updateStaminaBar();
             }
 
@@ -596,6 +980,8 @@
         }
 
         function shootProjectile(scene, angle) {
+            if (isDashing || isChargingAttack) return; // Can't shoot while dashing or charging
+            
             canAttack = false;
             playerStamina -= 20;
             
@@ -672,7 +1058,7 @@
                     scene.physics.add.existing(slashZone);
                     
                     const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
-                    if (dist < 120 && !isDodging) {
+                    if (dist < 120 && !isInvulnerable) {
                         hitPlayer(scene, 15);
                     }
                     
@@ -745,7 +1131,9 @@
                         ease: 'Power3',
                         onComplete: () => {
                             const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
-                            if (dist < 70) hitPlayer(scene, 20);
+                            if (dist < 70 && !isInvulnerable) {
+                                hitPlayer(scene, 20);
+                            }
                             
                             scene.cameras.main.shake(150, 0.007);
                         }
@@ -770,6 +1158,24 @@
             });
             
             scene.tweens.add({ targets: boss, alpha: 0.3, duration: 60, yoyo: true });
+            
+            // Show damage number
+            const dmgText = scene.add.text(boss.x, boss.y - 50, damage.toString(), {
+                fontSize: Math.min(24, scene.cameras.main.height * 0.03) + 'px',
+                fill: '#ffaa00',
+                stroke: '#000',
+                strokeThickness: 4,
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            
+            scene.tweens.add({
+                targets: dmgText,
+                y: boss.y - 100,
+                alpha: 0,
+                duration: 800,
+                ease: 'Power2',
+                onComplete: () => dmgText.destroy()
+            });
             
             bossData = BOSSES[currentBossId];
             for (let i = 0; i < 20; i++) {
@@ -814,6 +1220,8 @@
         }
 
         function hitPlayer(scene, damage) {
+            if (isInvulnerable) return; // No damage if dashing
+            
             playerHealth = Math.max(0, playerHealth - damage);
             
             const flash = scene.add.rectangle(player.x, player.y, 60, 60, 0xff0000, 0.6);
@@ -998,7 +1406,6 @@
             });
         }
 
-        // Initialize game
         window.addEventListener('load', () => { 
             game = new Phaser.Game(config); 
         });
