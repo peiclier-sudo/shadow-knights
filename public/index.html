@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Knights - DASH & CHARGE</title>
+    <title>Shadow Knights - PROFESSIONAL BALANCE</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         * { 
@@ -92,18 +92,18 @@
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let bossNextAttackTime = 0;
         
-        // NEW: Dash variables
+        // Dash variables
         let isDashing = false;
         let dashDirection = { x: 0, y: 0 };
         let dashTimer = 0;
         const DASH_DURATION = 200; // ms
         const DASH_SPEED = 800;
         const DASH_COOLDOWN = 1000; // ms
-        const DASH_STAMINA_COST = 40; // CHANGED: from 20 to 40
+        const DASH_STAMINA_COST = 40;
         let lastDashTime = 0;
         let isInvulnerable = false;
         
-        // NEW: Charge attack variables
+        // Charge attack variables
         let isCharging = false;
         let chargeStartTime = 0;
         const CHARGE_TIME = 1500; // ms for full charge
@@ -125,10 +125,10 @@
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
-        // NEW: Dash button for mobile
+        // Dash button for mobile
         let dashButton = null;
         
-        // NEW: Stamina warning text
+        // Stamina warning text
         let staminaWarning = null;
 
         function create() {
@@ -280,7 +280,7 @@
             staminaText = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0xffaa00)
                 .setOrigin(0, 0.5);
 
-            // NEW: Stamina warning text (initially hidden)
+            // Stamina warning text (initially hidden)
             staminaWarning = this.add.text(width * 0.5, height * 0.2, '⚠️ PAS ASSEZ DE STAMINA ⚠️', {
                 fontSize: Math.min(20, height * 0.03) + 'px',
                 fill: '#ff0000',
@@ -300,17 +300,15 @@
             bossHealthText = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, bossData.color)
                 .setOrigin(0, 0.5);
 
-            // NEW: Charge indicator
+            // Charge indicator
             chargeIndicator = this.add.graphics();
             chargeIndicator.setDepth(1000);
 
             if (isMobile) {
                 createMobileControls(this);
-                // NEW: Mobile dash button in top right
                 createMobileDashButton(this);
             } else {
                 createDesktopControls(this);
-                // NEW: Desktop dash key (SPACE)
                 this.input.keyboard.on('keydown-SPACE', () => {
                     performDash(this);
                 });
@@ -326,12 +324,11 @@
             }).setOrigin(0.5);
         }
 
-        // NEW: Mobile dash button
+        // Mobile dash button
         function createMobileDashButton(scene) {
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
-            // Dash button in top right
             dashButton = scene.add.container(width - 100, 100);
             
             const bg = scene.add.circle(0, 0, 40, 0x00d4ff, 0.3);
@@ -343,7 +340,6 @@
                 fontStyle: 'bold'
             }).setOrigin(0.5);
             
-            // NEW: Stamina cost indicator
             const costText = scene.add.text(0, 25, '40', { 
                 fontSize: '12px', 
                 fill: '#ffaa00',
@@ -361,7 +357,6 @@
                 performDash(scene);
             });
             
-            // Store for cooldown animation
             dashButton.cooldownOverlay = cooldownOverlay;
             dashButton.bg = bg;
             dashButton.icon = icon;
@@ -373,7 +368,6 @@
             
             scene.input.mouse.disableContextMenu();
             
-            // MODIFIED: Handle right click for charge
             scene.input.on('pointerdown', (pointer) => {
                 if (pointer.leftButtonDown()) {
                     leftMouseDown = true;
@@ -388,7 +382,6 @@
                     mouseX = pointer.x;
                     mouseY = pointer.y;
                     
-                    // NEW: Start charging
                     if (!isDashing && playerStamina >= 30) {
                         startCharge(scene);
                     }
@@ -399,7 +392,6 @@
                 mouseX = pointer.x;
                 mouseY = pointer.y;
                 
-                // NEW: Update charge direction if charging
                 if (isChargingAttack) {
                     chargeLevel = Math.min(1, (Date.now() - chargeStartTime) / CHARGE_TIME);
                 }
@@ -411,7 +403,6 @@
                 }
                 
                 if (pointer.button === 2) {
-                    // NEW: Release charged attack
                     if (isChargingAttack) {
                         releaseCharge(scene);
                     } else if (rightMouseDown && canAttack && playerStamina >= 20) {
@@ -423,10 +414,9 @@
             });
         }
 
-        // NEW: Start charging
+        // Start charging
         function startCharge(scene) {
             if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) {
-                // Can't charge while moving
                 return;
             }
             
@@ -434,7 +424,6 @@
             chargeStartTime = Date.now();
             chargeLevel = 0;
             
-            // Visual feedback - player starts glowing
             scene.tweens.add({
                 targets: player.glow1,
                 alpha: 0.8,
@@ -443,58 +432,51 @@
                 repeat: -1
             });
             
-            // Charging particles
             chargeIndicator.clear();
         }
 
-        // NEW: Release charged attack
+        // Release charged attack
         function releaseCharge(scene) {
             if (!isChargingAttack) return;
             
             isChargingAttack = false;
             
-            // Stop glow animation
             scene.tweens.killTweensOf(player.glow1);
             player.glow1.alpha = 0.4;
             
             if (chargeLevel < 0.3) {
-                // Not charged enough, just a normal shot
                 const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
                 shootProjectile(scene, angle);
                 return;
             }
             
-            // Charged attack!
             const damage = 18 + Math.floor(chargeLevel * MAX_CHARGE_DAMAGE);
             const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
             
-            // Mega projectile effect
             playerStamina -= 30;
             
-            // Multiple projectiles in a spread
             for (let i = -1; i <= 1; i++) {
                 const spreadAngle = angle + (i * 0.2);
                 shootChargedProjectile(scene, spreadAngle, damage, chargeLevel);
             }
             
-            // Epic visual feedback
-            scene.cameras.main.flash(200, 255, 255, 255, false);
+            // Subtle flash instead of intense one
+            scene.cameras.main.flash(100, 255, 255, 255, false);
             
-            // Screen shake based on charge level
-            scene.cameras.main.shake(200 * chargeLevel, 0.01 * chargeLevel);
+            // CHANGED: Reduced shake by half
+            scene.cameras.main.shake(100 * chargeLevel, 0.005 * chargeLevel);
             
             chargeLevel = 0;
             chargeIndicator.clear();
         }
 
-        // NEW: Charged projectile
+        // Charged projectile
         function shootChargedProjectile(scene, angle, damage, chargeLevel) {
             const speed = 750 + (chargeLevel * 300);
             const size = 10 + (chargeLevel * 15);
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
             
-            // Bigger flash for charged shot
             const flash = scene.add.circle(startX, startY, 30 * chargeLevel + 20, 0xffffff, 0.9);
             scene.tweens.add({
                 targets: flash,
@@ -508,7 +490,7 @@
             proj.setDepth(150);
             proj.vx = Math.cos(angle) * speed;
             proj.vy = Math.sin(angle) * speed;
-            proj.damage = damage; // Store damage value
+            proj.damage = damage;
             
             const projGlow = scene.add.circle(startX, startY, size * 2, 0x66ffff, 0.6);
             projGlow.setDepth(149);
@@ -516,7 +498,6 @@
             
             projectiles.push(proj);
             
-            // Enhanced trail for charged shot
             scene.time.addEvent({
                 delay: 20,
                 repeat: 100,
@@ -653,13 +634,11 @@
             });
         }
 
-        // NEW: Dash function with 40 stamina cost
+        // Dash function
         function performDash(scene) {
             const now = Date.now();
             
-            // Check cooldown and stamina (UPDATED to 40)
             if (now - lastDashTime < DASH_COOLDOWN) {
-                // Cooldown feedback
                 if (dashButton) {
                     scene.tweens.add({
                         targets: dashButton.bg,
@@ -672,10 +651,8 @@
             }
             
             if (playerStamina < DASH_STAMINA_COST) {
-                // Show stamina warning
                 showStaminaWarning(scene);
                 
-                // Flash stamina bar red
                 scene.tweens.add({
                     targets: staminaBar,
                     fillColor: 0xff0000,
@@ -686,54 +663,41 @@
                 return;
             }
             
-            // Determine dash direction
             let dx = 0, dy = 0;
             
             if (isMobile && moveJoy.active) {
-                // Dash in movement direction
                 dx = moveJoy.deltaX;
                 dy = moveJoy.deltaY;
             } else {
-                // Desktop: dash in mouse direction or facing direction
                 const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
                 dx = Math.cos(angle);
                 dy = Math.sin(angle);
             }
             
-            // If no direction, dash forward (right)
             if (dx === 0 && dy === 0) {
                 dx = 1;
             }
             
-            // Normalize
             const length = Math.sqrt(dx*dx + dy*dy);
             dx /= length;
             dy /= length;
             
-            // Start dash
             isDashing = true;
             isInvulnerable = true;
             lastDashTime = now;
-            playerStamina -= DASH_STAMINA_COST; // Now using 40
+            playerStamina -= DASH_STAMINA_COST;
             
-            // Store dash direction
             dashDirection.x = dx;
             dashDirection.y = dy;
             dashTimer = 0;
             
-            // Visual feedback
             player.glow1.setScale(2);
             player.glow2.setScale(2.5);
             
-            // Dash trail
             createDashTrail(scene);
             
-            // Update stamina bar immediately
             updateStaminaBar();
             
-            // Dash sound would go here
-            
-            // Update dash button cooldown
             if (dashButton) {
                 dashButton.cooldownOverlay.fillColor = 0xff0000;
                 dashButton.cooldownOverlay.fillAlpha = 0.5;
@@ -744,7 +708,7 @@
             }
         }
 
-        // NEW: Show stamina warning
+        // Show stamina warning
         function showStaminaWarning(scene) {
             if (staminaWarning) {
                 staminaWarning.setVisible(true);
@@ -760,7 +724,7 @@
             }
         }
 
-        // NEW: Create dash trail effect
+        // Create dash trail effect
         function createDashTrail(scene) {
             let trailCount = 0;
             const trailInterval = setInterval(() => {
@@ -794,17 +758,14 @@
             const height = this.cameras.main.height;
             const now = Date.now();
 
-            // NEW: Handle dash
             if (isDashing) {
                 dashTimer += delta;
                 
-                // Apply dash velocity
                 player.body.setVelocity(
                     dashDirection.x * DASH_SPEED,
                     dashDirection.y * DASH_SPEED
                 );
                 
-                // End dash after duration
                 if (dashTimer >= DASH_DURATION) {
                     isDashing = false;
                     isInvulnerable = false;
@@ -812,7 +773,6 @@
                     player.glow2.setScale(1);
                 }
             } else {
-                // Normal movement
                 const speed = 300;
                 let vx = 0, vy = 0;
                 
@@ -870,18 +830,16 @@
                 }
             }
             
-            // NEW: Update charge indicator
+            // Update charge indicator
             if (isChargingAttack) {
                 chargeLevel = Math.min(1, (now - chargeStartTime) / CHARGE_TIME);
                 
                 chargeIndicator.clear();
                 
-                // Draw charge circle around player
                 const radius = 30 + (chargeLevel * 30);
                 chargeIndicator.lineStyle(3, 0xffaa00, 0.8);
                 chargeIndicator.strokeCircle(player.x, player.y, radius);
                 
-                // Fill based on charge
                 chargeIndicator.fillStyle(0xffaa00, 0.2);
                 chargeIndicator.slice(
                     player.x, player.y,
@@ -894,7 +852,7 @@
                 chargeIndicator.clear();
             }
             
-            // Indicateur de visée
+            // Aim indicator
             if (!isMobile && aimIndicator && !isChargingAttack) {
                 aimIndicator.clear();
                 
@@ -943,7 +901,7 @@
                 }
             }
 
-            // Update boss projectiles - MODIFIED: Check invulnerability
+            // Update boss projectiles
             for (let i = bossProjectiles.length - 1; i >= 0; i--) {
                 const bProj = bossProjectiles[i];
                 
@@ -964,9 +922,9 @@
                 }
             }
 
-            // Regen stamina (slightly faster to compensate for higher cost)
+            // CHANGED: Reduced stamina regeneration by half (from 0.45 to 0.225)
             if (playerStamina < 100) {
-                playerStamina = Math.min(100, playerStamina + 0.45); // Increased from 0.4
+                playerStamina = Math.min(100, playerStamina + 0.225);
                 updateStaminaBar();
             }
 
@@ -980,7 +938,7 @@
         }
 
         function shootProjectile(scene, angle) {
-            if (isDashing || isChargingAttack) return; // Can't shoot while dashing or charging
+            if (isDashing || isChargingAttack) return;
             
             canAttack = false;
             playerStamina -= 20;
@@ -1135,7 +1093,8 @@
                                 hitPlayer(scene, 20);
                             }
                             
-                            scene.cameras.main.shake(150, 0.007);
+                            // CHANGED: Reduced shake
+                            scene.cameras.main.shake(100, 0.005);
                         }
                     });
                 }
@@ -1209,7 +1168,8 @@
                 onComplete: () => ring.destroy()
             });
             
-            scene.cameras.main.shake(120, 0.008);
+            // CHANGED: Reduced shake
+            scene.cameras.main.shake(80, 0.006);
             
             if (bossHealth <= 0) {
                 scene.time.timeScale = 0.3;
@@ -1220,7 +1180,7 @@
         }
 
         function hitPlayer(scene, damage) {
-            if (isInvulnerable) return; // No damage if dashing
+            if (isInvulnerable) return;
             
             playerHealth = Math.max(0, playerHealth - damage);
             
@@ -1248,7 +1208,8 @@
                 });
             }
             
-            scene.cameras.main.shake(150, 0.01);
+            // CHANGED: Reduced shake
+            scene.cameras.main.shake(100, 0.007);
         }
 
         function updateHealthBars() {
