@@ -55,6 +55,13 @@
         let moveJoy = { active: false, deltaX: 0, deltaY: 0 };
         let aimJoy = { active: false, angle: 0 };
         let projectiles = [];
+        
+        // Desktop controls
+        let leftMouseDown = false;
+        let rightMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let aimStartX = 0, aimStartY = 0;
+        let aimIndicator = null;
 
         function create() {
             // Grille
@@ -94,10 +101,56 @@
             bossHealthText = this.add.rectangle(650, 60, 330, 28, 0xff0051).setOrigin(0, 0.5);
 
             if (isMobile) createMobileControls(this);
+            else createDesktopControls(this);
 
-            const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer | Shift: Dash' 
-                : 'ZQSD: Bouger | Clic droit: Tirer | SHIFT: Dash';
+            const instructions = isMobile ? 'Gauche: Bouger | Droite: Tirer' 
+                : 'Clic Gauche: Aller vers souris | Clic Droit: Viser & Tirer';
             this.add.text(500, 680, instructions, { fontSize: '13px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
+        }
+
+        function createDesktopControls(scene) {
+            // Indicateur de visée
+            aimIndicator = scene.add.graphics();
+            aimIndicator.setDepth(500);
+            
+            // Désactiver menu contextuel
+            scene.input.mouse.disableContextMenu();
+            
+            // CLIC GAUCHE = MOUVEMENT vers la souris
+            scene.input.on('pointerdown', (pointer) => {
+                if (pointer.leftButtonDown()) {
+                    leftMouseDown = true;
+                    mouseX = pointer.x;
+                    mouseY = pointer.y;
+                }
+                
+                if (pointer.rightButtonDown()) {
+                    rightMouseDown = true;
+                    aimStartX = player.x;
+                    aimStartY = player.y;
+                    mouseX = pointer.x;
+                    mouseY = pointer.y;
+                }
+            });
+            
+            scene.input.on('pointermove', (pointer) => {
+                mouseX = pointer.x;
+                mouseY = pointer.y;
+            });
+            
+            scene.input.on('pointerup', (pointer) => {
+                if (pointer.button === 0) { // Left button
+                    leftMouseDown = false;
+                }
+                
+                if (pointer.button === 2) { // Right button
+                    if (rightMouseDown && canAttack && playerStamina >= 20) {
+                        const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
+                        shootProjectile(scene, angle);
+                    }
+                    rightMouseDown = false;
+                }
+            });
         }
 
         function createMobileControls(scene) {
@@ -209,14 +262,61 @@
             const speed = 220;
             let vx = 0, vy = 0;
             
-            if (moveJoy.active) {
+            // MOBILE: Joystick
+            if (isMobile && moveJoy.active) {
                 vx = moveJoy.deltaX * speed;
                 vy = moveJoy.deltaY * speed;
+            }
+            
+            // DESKTOP: Point-and-click avec clic gauche
+            if (!isMobile && leftMouseDown) {
+                const dx = mouseX - player.x;
+                const dy = mouseY - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 10) { // Deadzone
+                    const angle = Math.atan2(dy, dx);
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                    
+                    // Ralentir quand proche de la cible
+                    if (dist < 50) {
+                        vx *= (dist / 50);
+                        vy *= (dist / 50);
+                    }
+                }
             }
             
             player.body.setVelocity(vx, vy);
             player.glow.x = player.x;
             player.glow.y = player.y;
+            
+            // Indicateur de visée (desktop clic droit)
+            if (!isMobile && aimIndicator) {
+                aimIndicator.clear();
+                
+                if (rightMouseDown) {
+                    const dx = mouseX - aimStartX;
+                    const dy = mouseY - aimStartY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 15) {
+                        // Ligne de visée
+                        aimIndicator.lineStyle(3, 0xff6666, 0.8);
+                        for (let i = 0; i < dist; i += 15) {
+                            const x1 = aimStartX + (dx / dist) * i;
+                            const y1 = aimStartY + (dy / dist) * i;
+                            const x2 = aimStartX + (dx / dist) * (i + 8);
+                            const y2 = aimStartY + (dy / dist) * (i + 8);
+                            aimIndicator.lineBetween(x1, y1, x2, y2);
+                        }
+                        
+                        // Cercle cible
+                        aimIndicator.lineStyle(2, 0xff3333, 1);
+                        aimIndicator.strokeCircle(mouseX, mouseY, 10);
+                    }
+                }
+            }
 
             // Update projectiles MANUELLEMENT
             for (let i = projectiles.length - 1; i >= 0; i--) {
