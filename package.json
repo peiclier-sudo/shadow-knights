@@ -1,0 +1,12 @@
+{
+  "name": "shadow-knights-boss-rush",
+  "version": "1.0.0",
+  "description": "Boss Rush Soulslike game in 2D",
+  "scripts": {
+    "dev": "npx serve public",
+    "build": "echo 'No build needed - static site'"
+  },
+  "keywords": ["game", "soulslike", "boss-rush", "phaser"],
+  "author": "",
+  "license": "MIT"
+}
