@@ -60,6 +60,7 @@
         let leftMouseDown = false;
         let rightMouseDown = false;
         let mouseX = 0, mouseY = 0;
+        let rightMouseX = 0, rightMouseY = 0;
         let aimStartX = 0, aimStartY = 0;
         let aimIndicator = null;
 
@@ -116,7 +117,6 @@
             // Désactiver menu contextuel
             scene.input.mouse.disableContextMenu();
             
-            // CLIC GAUCHE = MOUVEMENT vers la souris
             scene.input.on('pointerdown', (pointer) => {
                 if (pointer.leftButtonDown()) {
                     leftMouseDown = true;
@@ -126,16 +126,22 @@
                 
                 if (pointer.rightButtonDown()) {
                     rightMouseDown = true;
+                    rightMouseX = pointer.x;
+                    rightMouseY = pointer.y;
                     aimStartX = player.x;
                     aimStartY = player.y;
-                    mouseX = pointer.x;
-                    mouseY = pointer.y;
                 }
             });
             
             scene.input.on('pointermove', (pointer) => {
                 mouseX = pointer.x;
                 mouseY = pointer.y;
+                
+                // Always update right-click position in real-time
+                if (rightMouseDown) {
+                    rightMouseX = pointer.x;
+                    rightMouseY = pointer.y;
+                }
             });
             
             scene.input.on('pointerup', (pointer) => {
@@ -145,8 +151,15 @@
                 
                 if (pointer.button === 2) { // Right button
                     if (rightMouseDown && canAttack && playerStamina >= 20) {
-                        const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
-                        shootProjectile(scene, angle);
+                        const dx = rightMouseX - aimStartX;
+                        const dy = rightMouseY - aimStartY;
+                        const dragDist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Only shoot if dragged past deadzone
+                        if (dragDist > 15) {
+                            const angle = Math.atan2(dy, dx);
+                            shootProjectile(scene, angle);
+                        }
                     }
                     rightMouseDown = false;
                 }
@@ -296,8 +309,8 @@
                 aimIndicator.clear();
                 
                 if (rightMouseDown) {
-                    const dx = mouseX - aimStartX;
-                    const dy = mouseY - aimStartY;
+                    const dx = rightMouseX - aimStartX;
+                    const dy = rightMouseY - aimStartY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist > 15) {
@@ -313,7 +326,7 @@
                         
                         // Cercle cible
                         aimIndicator.lineStyle(2, 0xff3333, 1);
-                        aimIndicator.strokeCircle(mouseX, mouseY, 10);
+                        aimIndicator.strokeCircle(rightMouseX, rightMouseY, 10);
                     }
                 }
             }
