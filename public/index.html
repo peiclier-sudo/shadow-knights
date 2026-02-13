@@ -35,9 +35,10 @@
         let cursors, keys, playerHealth = 100, bossHealth = 500, playerStamina = 100;
         let isDodging = false, canDodge = true, canAttack = true;
         let playerHealthBar, bossHealthBar, staminaBar, playerHealthText, bossHealthText, staminaText;
-        let virtualJoystick, attackButton, dodgeButton, rangedButton;
+        let virtualJoystick, aimJoystick, dodgeButton;
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let bossNextAttackTime = 0, damageDealt = 0, dodgesPerformed = 0;
+        let aimAngle = 0, isAiming = false, aimIndicator;
 
         function create() {
             // Grille
@@ -52,6 +53,10 @@
             player.body.setCollideWorldBounds(true);
             player.direction = 1;
             player.glow = this.add.circle(150, 350, 35, 0x00d4ff, 0.3);
+            
+            // Indicateur de visée (ligne pointillée)
+            aimIndicator = this.add.graphics();
+            aimIndicator.setDepth(10);
 
             // Boss
             boss = this.add.container(850, 350);
@@ -80,6 +85,37 @@
                 S: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
                 D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
             };
+            
+            // Clic droit pour viser (desktop)
+            this.input.on('pointerdown', (pointer) => {
+                if (!isMobile && pointer.rightButtonDown()) {
+                    isAiming = true;
+                    const dx = pointer.x - player.x;
+                    const dy = pointer.y - player.y;
+                    aimAngle = Math.atan2(dy, dx);
+                }
+            });
+            
+            this.input.on('pointermove', (pointer) => {
+                if (!isMobile && isAiming && pointer.rightButtonDown()) {
+                    const dx = pointer.x - player.x;
+                    const dy = pointer.y - player.y;
+                    aimAngle = Math.atan2(dy, dx);
+                }
+            });
+            
+            this.input.on('pointerup', (pointer) => {
+                if (!isMobile && pointer.button === 2 && isAiming) {
+                    // Tirer en relâchant le clic droit
+                    if (canAttack && playerStamina >= 20) {
+                        performRangedAttack(this);
+                    }
+                    isAiming = false;
+                }
+            });
+            
+            // Désactiver le menu contextuel du clic droit
+            this.input.mouse.disableContextMenu();
 
             // UI
             this.add.text(20, 20, 'CHEVALIER', { fontSize: '20px', fill: '#00d4ff', fontStyle: 'bold' });
@@ -96,19 +132,21 @@
 
             if (isMobile) createMobileControls(this);
 
-            const instructions = isMobile ? 'Joystick | ATK:Mêlée | E:Distance | ROLL:Dash' 
-                : 'ZQSD: Bouger | ESPACE: Mêlée | E: Distance | SHIFT: Dash';
-            this.add.text(500, 680, instructions, { fontSize: '14px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
+            const instructions = isMobile ? 'Joystick gauche: Bouger | Joystick droit: Viser & Tirer | ROLL: Dash' 
+                : 'ZQSD: Bouger | CLIC DROIT: Viser & Tirer | SHIFT: Dash';
+            this.add.text(500, 680, instructions, { fontSize: '13px', fill: '#aaa', backgroundColor: '#00000099', padding: { x: 15, y: 8 }}).setOrigin(0.5);
         }
 
         function createMobileControls(scene) {
+            // JOYSTICK GAUCHE - Déplacement
             const jBase = scene.add.circle(120, 580, 65, 0x2a2a3e, 0.7);
             const jThumb = scene.add.circle(120, 580, 32, 0x00d4ff, 0.95);
             virtualJoystick = { base: jBase, thumb: jThumb, active: false, startX: 120, startY: 580, deltaX: 0, deltaY: 0 };
             
             jBase.setInteractive().on('pointerdown', () => virtualJoystick.active = true);
             scene.input.on('pointermove', pointer => {
-                if (virtualJoystick.active && pointer.isDown) {
+                // Joystick de déplacement
+                if (virtualJoystick.active && pointer.isDown && pointer.x < 500) {
                     const dx = pointer.x - 120, dy = pointer.y - 580, dist = Math.sqrt(dx*dx + dy*dy), max = 65;
                     if (dist < max) {
                         jThumb.x = 120 + dx; jThumb.y = 580 + dy;
@@ -119,22 +157,59 @@
                         virtualJoystick.deltaX = Math.cos(angle); virtualJoystick.deltaY = Math.sin(angle);
                     }
                 }
+                
+                // Joystick de visée (côté droit)
+                if (aimJoystick && aimJoystick.active && pointer.isDown && pointer.x > 500) {
+                    const dx = pointer.x - 880, dy = pointer.y - 580;
+                    const angle = Math.atan2(dy, dx);
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const max = 65;
+                    
+                    if (dist < max) {
+                        aimJoystick.thumb.x = 880 + dx;
+                        aimJoystick.thumb.y = 580 + dy;
+                    } else {
+                        aimJoystick.thumb.x = 880 + Math.cos(angle)*max;
+                        aimJoystick.thumb.y = 580 + Math.sin(angle)*max;
+                    }
+                    
+                    aimAngle = angle;
+                    isAiming = dist > 10; // Deadzone
+                }
             });
-            scene.input.on('pointerup', () => {
-                virtualJoystick.active = false; jThumb.x = 120; jThumb.y = 580;
-                virtualJoystick.deltaX = 0; virtualJoystick.deltaY = 0;
+            
+            scene.input.on('pointerup', (pointer) => {
+                if (pointer.x < 500) {
+                    virtualJoystick.active = false; 
+                    jThumb.x = 120; jThumb.y = 580;
+                    virtualJoystick.deltaX = 0; virtualJoystick.deltaY = 0;
+                }
+                
+                if (pointer.x > 500 && aimJoystick) {
+                    // Tirer quand on relâche le joystick de visée
+                    if (isAiming && canAttack && playerStamina >= 20) {
+                        performRangedAttack(scene);
+                    }
+                    aimJoystick.active = false;
+                    aimJoystick.thumb.x = 880;
+                    aimJoystick.thumb.y = 580;
+                    isAiming = false;
+                }
             });
 
-            attackButton = scene.add.circle(820, 590, 48, 0xff6b6b, 0.85).setInteractive().setStrokeStyle(4, 0xff3333);
-            scene.add.text(820, 590, 'ATK', { fontSize: '19px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            attackButton.on('pointerdown', () => { if (canAttack && !isDodging && playerStamina >= 15) performMeleeAttack(scene); });
+            // JOYSTICK DROIT - Visée et tir
+            const aimBase = scene.add.circle(880, 580, 65, 0x2a2a3e, 0.7);
+            const aimThumb = scene.add.circle(880, 580, 32, 0xff6b6b, 0.95);
+            scene.add.text(880, 630, 'AIM & SHOOT', { fontSize: '11px', fill: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0.5);
+            aimJoystick = { base: aimBase, thumb: aimThumb, active: false };
+            
+            aimBase.setInteractive().on('pointerdown', () => {
+                aimJoystick.active = true;
+            });
 
-            rangedButton = scene.add.circle(920, 530, 43, 0x6b88ff, 0.85).setInteractive().setStrokeStyle(4, 0x3355ff);
-            scene.add.text(920, 530, 'E', { fontSize: '17px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-            rangedButton.on('pointerdown', () => { if (canAttack && !isDodging && playerStamina >= 20) performRangedAttack(scene); });
-
-            dodgeButton = scene.add.circle(920, 640, 43, 0x00d4ff, 0.85).setInteractive().setStrokeStyle(4, 0x00aacc);
-            scene.add.text(920, 640, 'ROLL', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            // Bouton d'esquive (en haut à droite)
+            dodgeButton = scene.add.circle(920, 480, 43, 0x00d4ff, 0.85).setInteractive().setStrokeStyle(4, 0x00aacc);
+            scene.add.text(920, 480, 'ROLL', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             dodgeButton.on('pointerdown', () => { if (canDodge && playerStamina >= 25) performDodge(scene); });
         }
 
@@ -154,6 +229,28 @@
             }
             player.body.setVelocity(vx, vy);
             player.glow.x = player.x; player.glow.y = player.y;
+            
+            // Indicateur de visée
+            aimIndicator.clear();
+            if (isAiming) {
+                const aimLength = 100;
+                const targetX = player.x + Math.cos(aimAngle) * aimLength;
+                const targetY = player.y + Math.sin(aimAngle) * aimLength;
+                
+                // Ligne pointillée
+                aimIndicator.lineStyle(3, 0xff6666, 0.8);
+                for (let i = 0; i < aimLength; i += 10) {
+                    const x1 = player.x + Math.cos(aimAngle) * i;
+                    const y1 = player.y + Math.sin(aimAngle) * i;
+                    const x2 = player.x + Math.cos(aimAngle) * (i + 5);
+                    const y2 = player.y + Math.sin(aimAngle) * (i + 5);
+                    aimIndicator.lineBetween(x1, y1, x2, y2);
+                }
+                
+                // Cercle cible
+                aimIndicator.lineStyle(2, 0xff3333, 0.9);
+                aimIndicator.strokeCircle(targetX, targetY, 8);
+            }
 
             if (Phaser.Input.Keyboard.JustDown(keys.space) && canAttack && !isDodging && playerStamina >= 15) performMeleeAttack(this);
             if (Phaser.Input.Keyboard.JustDown(keys.E) && canAttack && !isDodging && playerStamina >= 20) performRangedAttack(this);
@@ -185,21 +282,49 @@
 
         function performRangedAttack(scene) {
             canAttack = false; playerStamina -= 20;
-            const proj = scene.add.circle(player.x + player.direction * 30, player.y, 8, 0x66ffff);
+            
+            // Calculer la direction du projectile selon aimAngle
+            const projSpeed = 500;
+            const startX = player.x + Math.cos(aimAngle) * 30;
+            const startY = player.y + Math.sin(aimAngle) * 30;
+            
+            const proj = scene.add.circle(startX, startY, 8, 0x66ffff);
             scene.physics.add.existing(proj);
-            proj.body.setVelocity(player.direction * 450, 0);
+            proj.body.setVelocity(Math.cos(aimAngle) * projSpeed, Math.sin(aimAngle) * projSpeed);
             proj.damage = 18;
             projectiles.add(proj);
 
-            for(let i = 0; i < 3; i++) {
-                scene.time.delayedCall(i * 30, () => {
-                    const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.4);
-                    scene.tweens.add({ targets: trail, alpha: 0, duration: 200, onComplete: () => trail.destroy() });
+            // Trail effect
+            for(let i = 0; i < 5; i++) {
+                scene.time.delayedCall(i * 40, () => {
+                    if (proj.active) {
+                        const trail = scene.add.circle(proj.x, proj.y, 6, 0x66ffff, 0.5);
+                        scene.tweens.add({ targets: trail, alpha: 0, scale: 0.5, duration: 300, onComplete: () => trail.destroy() });
+                    }
                 });
             }
 
-            scene.physics.add.overlap(proj, boss, () => { hitBoss(scene, proj.damage); proj.destroy(); });
-            scene.time.delayedCall(2000, () => { if (proj.active) proj.destroy(); });
+            scene.physics.add.overlap(proj, boss, () => { 
+                if (proj.active) {
+                    hitBoss(scene, proj.damage); 
+                    // Impact effect
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Math.PI * 2 * i) / 6;
+                        const spark = scene.add.circle(proj.x, proj.y, 4, 0x66ffff);
+                        scene.tweens.add({
+                            targets: spark,
+                            x: proj.x + Math.cos(angle) * 30,
+                            y: proj.y + Math.sin(angle) * 30,
+                            alpha: 0,
+                            duration: 300,
+                            onComplete: () => spark.destroy()
+                        });
+                    }
+                    proj.destroy();
+                }
+            });
+
+            scene.time.delayedCall(2500, () => { if (proj.active) proj.destroy(); });
             scene.time.delayedCall(400, () => canAttack = true);
         }
 
