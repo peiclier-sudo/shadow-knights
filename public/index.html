@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SHADOW KNIGHTS - ULTRA EDITION</title>
+    <title>SHADOW KNIGHTS - 3D SHADOW EDITION</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         * { 
@@ -153,11 +153,15 @@
         // Stamina warning text
         let staminaWarning = null;
         
-        // FIXED: Track active effects for cleanup
+        // Track active effects for cleanup
         let activeTrails = [];
         let activeParticles = [];
         let activeChargingParticles = [];
         let activeTimers = [];
+
+        // 3D shadow effects
+        let playerShadow = null;
+        let bossShadow = null;
 
         function create() {
             const width = this.cameras.main.width;
@@ -169,76 +173,45 @@
             activeChargingParticles = [];
             activeTimers = [];
             
-            // ENHANCED: Cinematic background with gradient
+            // REMOVED: Grid completely deleted
+            
+            // ENHANCED: Cinematic background with gradient (keeping this for depth)
             const gradient = this.add.graphics();
             gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
             gradient.fillRect(0, 0, width, height);
             
-            // ENHANCED: Animated neon grid with glow
-            let bossData = BOSSES[currentBossId];
-            const grid = this.add.graphics();
-            grid.lineStyle(2, bossData.color, 0.1);
-            
-            // Horizontal lines with glow effect
-            for (let i = 0; i < height; i += 40) {
-                grid.lineStyle(1.5, bossData.color, 0.15);
-                grid.lineBetween(0, i, width, i);
-                
-                grid.lineStyle(3, bossData.glowColor, 0.05);
-                grid.lineBetween(0, i, width, i);
-            }
-            
-            for (let i = 0; i < width; i += 40) {
-                grid.lineStyle(1.5, bossData.color, 0.15);
-                grid.lineBetween(i, 0, i, height);
-                
-                grid.lineStyle(3, bossData.glowColor, 0.05);
-                grid.lineBetween(i, 0, i, height);
-            }
-            
-            // Floating particles
+            // Floating particles (ambient)
             for (let i = 0; i < 80; i++) {
                 const x = Phaser.Math.Between(0, width);
                 const y = Phaser.Math.Between(0, height);
                 const size = Phaser.Math.Between(1, 4);
-                const colors = [0x00d4ff, bossData.color, bossData.glowColor, 0xffffff];
+                const colors = [0x00d4ff, 0xffffff];
                 const color = Phaser.Math.RND.pick(colors);
                 
-                const particle = this.add.circle(x, y, size, color, 
-                    color === 0xffffff ? 0.3 : 0.5);
+                const particle = this.add.circle(x, y, size, color, 0.2);
                 
-                if (size > 2) {
-                    const glow = this.add.circle(x, y, size * 2, color, 0.1);
-                    
-                    this.tweens.add({
-                        targets: [particle, glow],
-                        y: y + Phaser.Math.Between(-50, 50),
-                        x: x + Phaser.Math.Between(-20, 20),
-                        alpha: 0.1,
-                        duration: Phaser.Math.Between(3000, 6000),
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.easeInOut',
-                        delay: i * 50
-                    });
-                } else {
-                    this.tweens.add({
-                        targets: particle,
-                        y: y + Phaser.Math.Between(-40, 40),
-                        alpha: 0.1,
-                        duration: Phaser.Math.Between(2000, 4000),
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.easeInOut'
-                    });
-                }
+                this.tweens.add({
+                    targets: particle,
+                    y: y + Phaser.Math.Between(-40, 40),
+                    alpha: 0.05,
+                    duration: Phaser.Math.Between(2000, 4000),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
             }
 
-            // Player with sharper design
+            // Player with 3D shadow effect
             const playerX = width * 0.15;
             const playerY = height * 0.5;
             
+            // Create shadow first (for 3D effect)
+            playerShadow = this.add.ellipse(playerX + 8, playerY + 8, 40, 20, 0x000000, 0.5);
+            playerShadow.setDepth(0);
+            
+            // Player container
             player = this.add.container(playerX, playerY);
+            player.setDepth(1);
             
             const core = this.add.circle(0, 0, 18, 0x00d4ff);
             core.setStrokeStyle(2, 0xffffff);
@@ -252,11 +225,15 @@
             const ring2 = this.add.circle(0, 0, 30, 0x00d4ff, 0);
             ring2.setStrokeStyle(1, 0x88ddff, 0.3);
             
-            player.add([outerGlow, innerGlow, core, ring1, ring2]);
+            // 3D effect: add highlight
+            const highlight = this.add.circle(-5, -5, 6, 0xffffff, 0.3);
+            
+            player.add([outerGlow, innerGlow, core, ring1, ring2, highlight]);
             
             player.core = core;
             player.ring1 = ring1;
             player.ring2 = ring2;
+            player.highlight = highlight;
             
             this.physics.add.existing(player);
             player.body.setCircle(18);
@@ -292,12 +269,18 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // Boss
+            // Boss with 3D shadow effect
             bossData = BOSSES[currentBossId];
             const bossX = width * 0.85;
             const bossY = height * 0.5;
             
+            // Boss shadow
+            bossShadow = this.add.ellipse(bossX + 12, bossY + 15, 90, 40, 0x000000, 0.6);
+            bossShadow.setDepth(0);
+            
+            // Boss container
             boss = this.add.container(bossX, bossY);
+            boss.setDepth(1);
             
             if (currentBossId === 1) {
                 const body = this.add.rectangle(0, 0, 70, 100, bossData.color);
@@ -311,7 +294,11 @@
                 const shoulderL = this.add.circle(-35, -30, 15, bossData.secondaryColor);
                 const shoulderR = this.add.circle(35, -30, 15, bossData.secondaryColor);
                 
-                boss.add([body, head, visor, shoulderL, shoulderR]);
+                // 3D highlights
+                const highlight1 = this.add.circle(-10, -40, 8, 0xffffff, 0.2);
+                const highlight2 = this.add.circle(10, -40, 8, 0xffffff, 0.2);
+                
+                boss.add([body, head, visor, shoulderL, shoulderR, highlight1, highlight2]);
                 
             } else if (currentBossId === 2) {
                 const body = this.add.rectangle(0, 0, 60, 90, bossData.color);
@@ -326,7 +313,10 @@
                 const barrelL = this.add.rectangle(-45, -10, 15, 5, bossData.glowColor);
                 const barrelR = this.add.rectangle(45, -10, 15, 5, bossData.glowColor);
                 
-                boss.add([body, head, gunL, gunR, barrelL, barrelR]);
+                // 3D highlights
+                const highlight = this.add.circle(0, -20, 10, 0xffffff, 0.2);
+                
+                boss.add([body, head, gunL, gunR, barrelL, barrelR, highlight]);
                 
             } else if (currentBossId === 3) {
                 const body = this.add.ellipse(0, 0, 70, 100, bossData.color);
@@ -340,7 +330,10 @@
                 
                 const visor = this.add.rectangle(0, -65, 30, 5, 0xff0000);
                 
-                boss.add([body, head, bladeL, bladeR, visor]);
+                // 3D highlights
+                const highlight = this.add.circle(0, -20, 12, 0xffffff, 0.2);
+                
+                boss.add([body, head, bladeL, bladeR, visor, highlight]);
             }
             
             this.physics.add.existing(boss);
@@ -348,10 +341,14 @@
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
             
-            // Boss glow effects
+            // Boss glow effects (behind shadow)
             const bossGlow1 = this.add.circle(bossX, bossY, 90, bossData.glowColor, 0.2);
             const bossGlow2 = this.add.circle(bossX, bossY, 120, bossData.glowColor, 0.1);
             const bossGlow3 = this.add.circle(bossX, bossY, 150, bossData.color, 0.05);
+            
+            bossGlow1.setDepth(0);
+            bossGlow2.setDepth(0);
+            bossGlow3.setDepth(0);
             
             boss.glowEffects = [bossGlow1, bossGlow2, bossGlow3];
             
@@ -393,22 +390,28 @@
                 stroke: '#fff',
                 strokeThickness: 1,
                 shadow: {
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: '#' + bossData.glowColor.toString(16).padStart(6, '0'),
-                    blur: 10,
-                    stroke: true,
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 6,
                     fill: true
                 }
             }).setOrigin(0.5);
             
-            // Player health
+            // Player health with shadow
             this.add.text(width * 0.02, height * 0.02, 'VOUS', { 
                 fontSize: Math.min(18, height * 0.025) + 'px', 
                 fill: '#00d4ff',
                 fontStyle: 'bold',
-                stroke: '#fff',
-                strokeThickness: 1
+                stroke: '#000',
+                strokeThickness: 2,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 4,
+                    fill: true
+                }
             });
             
             playerHealthBar = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x1a1a2e)
@@ -416,39 +419,64 @@
             playerHealthText = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x00ff88)
                 .setOrigin(0, 0.5);
             
-            // Stamina
+            // Stamina with shadow
             this.add.text(width * 0.02, height * 0.09, 'STAMINA', { 
                 fontSize: Math.min(14, height * 0.02) + 'px', 
                 fill: '#ffaa00',
-                fontStyle: 'bold'
+                fontStyle: 'bold',
+                stroke: '#000',
+                strokeThickness: 1,
+                shadow: {
+                    offsetX: 1,
+                    offsetY: 1,
+                    color: '#000',
+                    blur: 2,
+                    fill: true
+                }
             });
             staminaBar = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0x1a1a2e)
                 .setOrigin(0, 0.5).setStrokeStyle(1, 0x333355);
             staminaText = this.add.rectangle(width * 0.02, height * 0.12, width * 0.2, height * 0.02, 0xffaa00)
                 .setOrigin(0, 0.5);
 
-            // Stamina warning
+            // Stamina warning with 3D effect
             staminaWarning = this.add.text(width * 0.5, height * 0.2, '⚠️ INSUFFICIENT STAMINA ⚠️', {
                 fontSize: Math.min(20, height * 0.03) + 'px',
                 fill: '#ff0000',
                 stroke: '#000',
                 strokeThickness: 4,
                 backgroundColor: '#00000099',
-                padding: { x: 20, y: 10 }
+                padding: { x: 20, y: 10 },
+                shadow: {
+                    offsetX: 3,
+                    offsetY: 3,
+                    color: '#000',
+                    blur: 8,
+                    fill: true
+                }
             }).setOrigin(0.5).setVisible(false);
 
-            // Boss health
+            // Boss health with shadow
             this.add.text(width * 0.68, height * 0.07, 'BOSS', { 
                 fontSize: Math.min(14, height * 0.02) + 'px', 
                 fill: '#' + bossData.color.toString(16).padStart(6, '0'),
-                fontStyle: 'bold'
+                fontStyle: 'bold',
+                stroke: '#000',
+                strokeThickness: 1,
+                shadow: {
+                    offsetX: 1,
+                    offsetY: 1,
+                    color: '#000',
+                    blur: 2,
+                    fill: true
+                }
             });
             bossHealthBar = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, 0x1a1a2e)
                 .setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
             bossHealthText = this.add.rectangle(width * 0.68, height * 0.1, width * 0.3, height * 0.03, bossData.color)
                 .setOrigin(0, 0.5);
 
-            // Charge indicator
+            // Charge indicator (no shadow needed - it's an effect)
             chargeIndicator = this.add.graphics();
             chargeIndicator.setDepth(1000);
 
@@ -462,7 +490,7 @@
                 });
             }
 
-            // Instructions
+            // Instructions with 3D shadow
             const instructions = isMobile ? '⬅️ MOVE  |  ➡️ SHOOT  |  ⚡ DASH (40)' 
                 : 'LEFT CLICK: MOVE  |  RIGHT CLICK: AIM/SHOOT  |  SPACE: DASH (40)  |  HOLD RIGHT: CHARGE';
             const instrText = this.add.text(width * 0.5, height * 0.95, instructions, { 
@@ -470,17 +498,27 @@
                 fill: '#fff', 
                 backgroundColor: '#00000099', 
                 padding: { x: 15, y: 8 },
-                stroke: bossData.glowColor,
-                strokeThickness: 0.5
+                stroke: '#000',
+                strokeThickness: 1,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 4,
+                    fill: true
+                }
             }).setOrigin(0.5);
         }
 
-        // Mobile dash button
+        // Mobile dash button with 3D effect
         function createMobileDashButton(scene) {
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
             dashButton = scene.add.container(width - 100, 100);
+            
+            // Shadow
+            const shadow = scene.add.circle(3, 3, 45, 0x000000, 0.5);
             
             const glow = scene.add.circle(0, 0, 45, 0x00d4ff, 0.2);
             const bg = scene.add.circle(0, 0, 40, 0x00d4ff, 0.3);
@@ -491,7 +529,14 @@
                 fill: '#ffffff',
                 fontStyle: 'bold',
                 stroke: '#00d4ff',
-                strokeThickness: 2
+                strokeThickness: 2,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 4,
+                    fill: true
+                }
             }).setOrigin(0.5);
             
             const costText = scene.add.text(0, 25, '40', { 
@@ -499,13 +544,20 @@
                 fill: '#ffaa00',
                 fontStyle: 'bold',
                 stroke: '#000',
-                strokeThickness: 2
+                strokeThickness: 2,
+                shadow: {
+                    offsetX: 1,
+                    offsetY: 1,
+                    color: '#000',
+                    blur: 2,
+                    fill: true
+                }
             }).setOrigin(0.5);
             
             const cooldownOverlay = scene.add.circle(0, 0, 40, 0x000000, 0);
             cooldownOverlay.setStrokeStyle(2, 0xff0000);
             
-            dashButton.add([glow, bg, icon, costText, cooldownOverlay]);
+            dashButton.add([shadow, glow, bg, icon, costText, cooldownOverlay]);
             dashButton.setSize(80, 80);
             dashButton.setInteractive({ useHandCursor: true });
             
@@ -590,7 +642,7 @@
             chargeStartTime = Date.now();
             chargeLevel = 0;
             
-            // FIXED: Clean up old charging particles
+            // Clean up old charging particles
             activeChargingParticles.forEach(p => {
                 if (p && p.scene) p.destroy();
             });
@@ -630,7 +682,7 @@
             
             isChargingAttack = false;
             
-            // FIXED: Clean up charging particles
+            // Clean up charging particles
             activeChargingParticles.forEach(p => {
                 if (p && p.scene) {
                     scene.tweens.killTweensOf(p);
@@ -679,7 +731,7 @@
             chargeIndicator.clear();
         }
 
-        // Charged projectile
+        // Charged projectile with 3D effect
         function shootChargedProjectile(scene, angle, damage, chargeLevel) {
             const speed = 900 + (chargeLevel * 400);
             const size = 10 + (chargeLevel * 18);
@@ -697,11 +749,17 @@
             
             const projContainer = scene.add.container(startX, startY);
             
+            // Projectile with 3D effect (shadow and highlight)
+            const shadow = scene.add.ellipse(3, 3, size * 1.5, size, 0x000000, 0.3);
+            
             const core = scene.add.circle(0, 0, size * 0.7, 0xffffff);
             const glow = scene.add.circle(0, 0, size, 0x66ffff, 0.8);
             const outerGlow = scene.add.circle(0, 0, size * 1.5, 0x66ffff, 0.3);
             
-            projContainer.add([outerGlow, glow, core]);
+            // Highlight for 3D effect
+            const highlight = scene.add.circle(-3, -3, size * 0.3, 0xffffff, 0.4);
+            
+            projContainer.add([shadow, outerGlow, glow, core, highlight]);
             projContainer.setDepth(150);
             
             projContainer.vx = Math.cos(angle) * speed;
@@ -710,7 +768,7 @@
             
             projectiles.push(projContainer);
             
-            // FIXED: Store trail interval for cleanup
+            // Trail with cleanup
             let trailCount = 0;
             const trailInterval = setInterval(() => {
                 if (!projContainer.scene || trailCount > 30) {
@@ -753,7 +811,14 @@
                 fill: '#88ddff',
                 fontStyle: 'bold',
                 stroke: '#000',
-                strokeThickness: 2
+                strokeThickness: 2,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 4,
+                    fill: true
+                }
             }).setOrigin(0.5);
             
             scene.add.text(width * 0.75, height * 0.1, '➡️ SHOOT', { 
@@ -761,7 +826,14 @@
                 fill: '#ff8888',
                 fontStyle: 'bold',
                 stroke: '#000',
-                strokeThickness: 2
+                strokeThickness: 2,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000',
+                    blur: 4,
+                    fill: true
+                }
             }).setOrigin(0.5);
             
             let leftTouch = null, rightTouch = null;
@@ -977,7 +1049,7 @@
 
         // Enhanced dash trail
         function createDashTrail(scene) {
-            // FIXED: Clean up old trails
+            // Clean up old trails
             activeTrails.forEach(t => {
                 if (t && t.scene) {
                     scene.tweens.killTweensOf(t);
@@ -1056,7 +1128,7 @@
             const height = this.cameras.main.height;
             const now = Date.now();
 
-            // Handle dash
+            // RESTORED: Original speed values (dynamic)
             if (isDashing) {
                 dashTimer += delta;
                 
@@ -1089,6 +1161,7 @@
                     }
                 }
             } else {
+                // RESTORED: Original speed (360)
                 const speed = 360;
                 let vx = 0, vy = 0;
                 
@@ -1117,9 +1190,22 @@
                 player.body.setVelocity(vx, vy);
             }
             
+            // Update shadows to follow with offset (3D effect)
+            if (playerShadow && player) {
+                playerShadow.x = player.x + 8;
+                playerShadow.y = player.y + 8;
+            }
+            
+            if (bossShadow && boss) {
+                bossShadow.x = boss.x + 12;
+                bossShadow.y = boss.y + 15;
+            }
+            
+            // Keep player in bounds
             player.x = Phaser.Math.Clamp(player.x, 30, width - 30);
             player.y = Phaser.Math.Clamp(player.y, 30, height - 30);
             
+            // Update boss glow effects
             if (boss.glowEffects) {
                 boss.glowEffects.forEach(glow => {
                     if (glow) {
@@ -1129,6 +1215,7 @@
                 });
             }
             
+            // Keep boss in bounds
             if (boss) {
                 boss.x = Phaser.Math.Clamp(boss.x, 100, width - 100);
                 boss.y = Phaser.Math.Clamp(boss.y, 100, height - 100);
@@ -1238,13 +1325,13 @@
                 }
             }
 
-            // Stamina regen
+            // RESTORED: Original stamina regen (0.18)
             if (playerStamina < 100) {
                 playerStamina = Math.min(100, playerStamina + 0.18);
                 updateStaminaBar();
             }
 
-            // Boss AI
+            // RESTORED: Original boss attack speed (1600-2800)
             if (time > bossNextAttackTime) {
                 bossNextAttackTime = time + Phaser.Math.Between(1600, 2800);
                 bossAttack(this);
@@ -1259,6 +1346,7 @@
             canAttack = false;
             playerStamina -= 20;
             
+            // RESTORED: Original speed (900)
             const speed = 900;
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
@@ -1274,11 +1362,17 @@
             
             const proj = scene.add.container(startX, startY);
             
+            // Projectile with 3D effect
+            const shadow = scene.add.ellipse(3, 3, 18, 9, 0x000000, 0.3);
+            
             const core = scene.add.circle(0, 0, 8, 0xffffff);
             const glow = scene.add.circle(0, 0, 12, 0x66ffff, 0.8);
             const outerGlow = scene.add.circle(0, 0, 18, 0x66ffff, 0.3);
             
-            proj.add([outerGlow, glow, core]);
+            // Highlight
+            const highlight = scene.add.circle(-2, -2, 3, 0xffffff, 0.4);
+            
+            proj.add([shadow, outerGlow, glow, core, highlight]);
             proj.setDepth(150);
             
             proj.vx = Math.cos(angle) * speed;
@@ -1286,7 +1380,7 @@
             
             projectiles.push(proj);
             
-            // FIXED: Store trail for cleanup
+            // Trail with cleanup
             let trailCount = 0;
             const trailInterval = setInterval(() => {
                 if (!proj.scene || trailCount > 20) {
@@ -1398,6 +1492,7 @@
                         const angle = angleToPlayer + (i * spread / 4);
                         const bossProj = scene.add.circle(boss.x, boss.y, 10, 0xff6600);
                         bossProj.setDepth(150);
+                        // RESTORED: Original speed (350)
                         bossProj.vx = Math.cos(angle) * 350;
                         bossProj.vy = Math.sin(angle) * 350;
                         bossProj.isBossProj = true;
@@ -1452,6 +1547,7 @@
                         targets: boss,
                         x: targetX,
                         y: targetY,
+                        // RESTORED: Original speed (120)
                         duration: 120,
                         ease: 'Power3',
                         onUpdate: () => {
@@ -1511,6 +1607,7 @@
             
             scene.tweens.add({ targets: boss, alpha: 0.2, duration: 50, yoyo: true });
             
+            // Damage number with 3D shadow
             const dmgText = scene.add.text(boss.x, boss.y - 50, damage.toString(), {
                 fontSize: Math.min(28, scene.cameras.main.height * 0.035) + 'px',
                 fill: '#ffaa00',
@@ -1518,11 +1615,12 @@
                 strokeThickness: 6,
                 fontStyle: 'bold',
                 shadow: {
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: '#ff0000',
+                    offsetX: 3,
+                    offsetY: 3,
+                    color: '#000',
                     blur: 8,
-                    fill: true
+                    fill: true,
+                    stroke: false
                 }
             }).setOrigin(0.5);
             
@@ -1626,7 +1724,7 @@
             staminaText.width = staminaBar.width * (playerStamina / 100);
         }
 
-        // FIXED: Clean up all active effects before game over
+        // Clean up all active effects before game over
         function cleanupAllEffects(scene) {
             // Kill all tweens on dynamic objects
             activeTrails.forEach(t => {
@@ -1671,11 +1769,13 @@
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
-            // FIXED: Clean up all effects first
+            // Clean up all effects first
             cleanupAllEffects(scene);
             
             scene.physics.pause();
             const isVictory = bossHealth <= 0;
+            
+            // FIXED: No more green underline, just clean text with 3D shadow
             const msg = isVictory ? 'VICTORY' : 'DEFEAT';
             const color = isVictory ? '#00ff88' : '#ff3355';
             
@@ -1684,7 +1784,7 @@
                 localStorage.setItem('unlockedBosses', unlockedBosses);
             }
             
-            // FIXED: Victory text with subtle glow instead of huge underline
+            // Main title with 3D shadow effect (no underline)
             const txt = scene.add.text(width * 0.5, height * 0.4, msg, { 
                 fontSize: Math.min(72, height * 0.12) + 'px', 
                 fill: color, 
@@ -1692,10 +1792,10 @@
                 stroke: '#ffffff', 
                 strokeThickness: 3,
                 shadow: {
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: color,
-                    blur: 15,
+                    offsetX: 6,
+                    offsetY: 6,
+                    color: '#000000',
+                    blur: 12,
                     fill: true,
                     stroke: false
                 }
@@ -1716,28 +1816,41 @@
                     fontSize: Math.min(24, height * 0.035) + 'px',
                     fill: '#ffffff',
                     stroke: '#000000',
-                    strokeThickness: 2,
-                    alpha: 0.9
+                    strokeThickness: 3,
+                    shadow: {
+                        offsetX: 3,
+                        offsetY: 3,
+                        color: '#000000',
+                        blur: 6,
+                        fill: true
+                    }
                 }).setOrigin(0.5);
                 
                 // Subtle fade for subtext
                 scene.tweens.add({
                     targets: subText,
-                    alpha: 0.7,
+                    alpha: 0.8,
                     duration: 1000,
                     yoyo: true,
                     repeat: -1
                 });
             }
             
-            // Buttons with enhanced style
+            // Buttons with 3D shadow
             const retryBtn = scene.add.text(width * 0.4, height * 0.6, '[ RETRY ]', { 
                 fontSize: Math.min(26, height * 0.04) + 'px', 
                 fill: '#00d4ff', 
                 backgroundColor: '#00000099', 
                 padding: { x: 25, y: 12 },
                 stroke: '#88ddff',
-                strokeThickness: 1
+                strokeThickness: 1,
+                shadow: {
+                    offsetX: 4,
+                    offsetY: 4,
+                    color: '#000000',
+                    blur: 8,
+                    fill: true
+                }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
             retryBtn.on('pointerover', () => retryBtn.setScale(1.1));
@@ -1755,7 +1868,14 @@
                 backgroundColor: '#00000099', 
                 padding: { x: 25, y: 12 },
                 stroke: '#ff8833',
-                strokeThickness: 1
+                strokeThickness: 1,
+                shadow: {
+                    offsetX: 4,
+                    offsetY: 4,
+                    color: '#000000',
+                    blur: 8,
+                    fill: true
+                }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
             selectBtn.on('pointerover', () => selectBtn.setScale(1.1));
@@ -1769,7 +1889,14 @@
                     backgroundColor: '#00000099', 
                     padding: { x: 20, y: 10 },
                     stroke: '#88ffaa',
-                    strokeThickness: 1
+                    strokeThickness: 1,
+                    shadow: {
+                        offsetX: 3,
+                        offsetY: 3,
+                        color: '#000000',
+                        blur: 6,
+                        fill: true
+                    }
                 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
                 
                 nextBtn.on('pointerover', () => nextBtn.setScale(1.1));
@@ -1800,10 +1927,10 @@
                 stroke: '#fff',
                 strokeThickness: 2,
                 shadow: {
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: '#00d4ff',
-                    blur: 15,
+                    offsetX: 5,
+                    offsetY: 5,
+                    color: '#000',
+                    blur: 10,
                     fill: true
                 }
             }).setOrigin(0.5);
@@ -1817,8 +1944,13 @@
                 const y = height * 0.5;
                 const unlocked = bossId <= unlockedBosses;
                 
+                // Card with shadow
                 const card = scene.add.rectangle(x, y, width * 0.18, height * 0.35, 0x1a1a2e, unlocked ? 0.9 : 0.4);
                 card.setStrokeStyle(4, bossData.color, unlocked ? 1 : 0.3);
+                
+                // Shadow for card
+                const cardShadow = scene.add.rectangle(x + 8, y + 8, width * 0.18, height * 0.35, 0x000000, 0.3);
+                cardShadow.setDepth(-1);
                 
                 if (unlocked) {
                     card.setInteractive({ useHandCursor: true });
@@ -1859,28 +1991,57 @@
                 scene.add.text(x, y + height * 0.05, bossData.name, {
                     fontSize: Math.min(20, height * 0.028) + 'px',
                     fill: unlocked ? '#fff' : '#444',
-                    fontStyle: 'bold'
+                    fontStyle: 'bold',
+                    shadow: {
+                        offsetX: 2,
+                        offsetY: 2,
+                        color: '#000',
+                        blur: 4,
+                        fill: true
+                    }
                 }).setOrigin(0.5);
                 
                 scene.add.text(x, y + height * 0.12, 'HP: ' + bossData.hp, {
                     fontSize: Math.min(16, height * 0.022) + 'px',
-                    fill: unlocked ? '#ffaa00' : '#333'
+                    fill: unlocked ? '#ffaa00' : '#333',
+                    shadow: {
+                        offsetX: 1,
+                        offsetY: 1,
+                        color: '#000',
+                        blur: 2,
+                        fill: true
+                    }
                 }).setOrigin(0.5);
                 
                 if (!unlocked) {
                     scene.add.text(x, y, '🔒', { 
                         fontSize: Math.min(40, height * 0.05) + 'px',
                         stroke: '#000',
-                        strokeThickness: 2
+                        strokeThickness: 2,
+                        shadow: {
+                            offsetX: 2,
+                            offsetY: 2,
+                            color: '#000',
+                            blur: 4,
+                            fill: true
+                        }
                     }).setOrigin(0.5);
                 }
             });
             
+            // Back button with shadow
             const backBtn = scene.add.text(width * 0.5, height * 0.85, '[ BACK TO GAME ]', { 
                 fontSize: Math.min(20, height * 0.03) + 'px', 
                 fill: '#aaa', 
                 backgroundColor: '#00000099', 
-                padding: { x: 20, y: 10 }
+                padding: { x: 20, y: 10 },
+                shadow: {
+                    offsetX: 3,
+                    offsetY: 3,
+                    color: '#000',
+                    blur: 6,
+                    fill: true
+                }
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
             backBtn.on('pointerover', () => backBtn.setScale(1.1));
