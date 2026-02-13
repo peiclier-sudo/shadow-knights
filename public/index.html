@@ -36,8 +36,8 @@
             width: 100% !important;
             height: 100% !important;
             object-fit: contain;
-            image-rendering: crisp-edges; /* For sharpness */
-            image-rendering: pixelated; /* Alternative for sharpness */
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
         }
         @media (max-width: 900px) and (orientation: portrait) {
             body::before {
@@ -67,7 +67,7 @@
                 default: 'arcade', 
                 arcade: { 
                     gravity: { y: 0 },
-                    fps: 120, // Higher physics FPS for smoother movement
+                    fps: 120,
                     timeScale: 1
                 }
             },
@@ -79,9 +79,9 @@
                 height: '100%'
             },
             render: {
-                antialias: false, // CHANGED: false for sharper edges
-                pixelArt: true,    // CHANGED: true for crisp pixel-perfect rendering
-                roundPixels: true, // CHANGED: prevents blurry sub-pixel rendering
+                antialias: false,
+                pixelArt: true,
+                roundPixels: true,
                 powerPreference: 'high-performance',
                 transparent: false,
                 clearBeforeRender: true,
@@ -90,7 +90,7 @@
                 failIfMajorPerformanceCaveat: false
             },
             fps: {
-                target: 120, // CHANGED: Higher FPS target
+                target: 120,
                 forceSetTimeOut: false,
                 deltaHistory: 10,
                 panicMax: 120
@@ -119,7 +119,7 @@
         let dashDirection = { x: 0, y: 0 };
         let dashTimer = 0;
         const DASH_DURATION = 200; // ms
-        const DASH_SPEED = 1000; // CHANGED: +25% faster dash
+        const DASH_SPEED = 1000;
         const DASH_COOLDOWN = 1000; // ms
         const DASH_STAMINA_COST = 40;
         let lastDashTime = 0;
@@ -153,14 +153,21 @@
         // Stamina warning text
         let staminaWarning = null;
         
-        // Visual effect containers
-        let playerTrail = [];
-        let bossTrail = [];
-        let ambientParticles = [];
+        // FIXED: Track active effects for cleanup
+        let activeTrails = [];
+        let activeParticles = [];
+        let activeChargingParticles = [];
+        let activeTimers = [];
 
         function create() {
             const width = this.cameras.main.width;
             const height = this.cameras.main.height;
+            
+            // Clear any existing arrays
+            activeTrails = [];
+            activeParticles = [];
+            activeChargingParticles = [];
+            activeTimers = [];
             
             // ENHANCED: Cinematic background with gradient
             const gradient = this.add.graphics();
@@ -174,16 +181,13 @@
             
             // Horizontal lines with glow effect
             for (let i = 0; i < height; i += 40) {
-                // Main line
                 grid.lineStyle(1.5, bossData.color, 0.15);
                 grid.lineBetween(0, i, width, i);
                 
-                // Glow line (thicker, more transparent)
                 grid.lineStyle(3, bossData.glowColor, 0.05);
                 grid.lineBetween(0, i, width, i);
             }
             
-            // Vertical lines
             for (let i = 0; i < width; i += 40) {
                 grid.lineStyle(1.5, bossData.color, 0.15);
                 grid.lineBetween(i, 0, i, height);
@@ -192,7 +196,7 @@
                 grid.lineBetween(i, 0, i, height);
             }
             
-            // ENHANCED: Floating particles with more variety
+            // Floating particles
             for (let i = 0; i < 80; i++) {
                 const x = Phaser.Math.Between(0, width);
                 const y = Phaser.Math.Between(0, height);
@@ -200,11 +204,9 @@
                 const colors = [0x00d4ff, bossData.color, bossData.glowColor, 0xffffff];
                 const color = Phaser.Math.RND.pick(colors);
                 
-                // Main particle
                 const particle = this.add.circle(x, y, size, color, 
                     color === 0xffffff ? 0.3 : 0.5);
                 
-                // Glow for larger particles
                 if (size > 2) {
                     const glow = this.add.circle(x, y, size * 2, color, 0.1);
                     
@@ -230,28 +232,20 @@
                         ease: 'Sine.easeInOut'
                     });
                 }
-                
-                ambientParticles.push(particle);
             }
 
-            // ENHANCED: Player with sharper design
+            // Player with sharper design
             const playerX = width * 0.15;
             const playerY = height * 0.5;
             
-            // Create player as a container for multiple shapes
             player = this.add.container(playerX, playerY);
             
-            // Core (solid)
             const core = this.add.circle(0, 0, 18, 0x00d4ff);
             core.setStrokeStyle(2, 0xffffff);
             
-            // Inner glow
             const innerGlow = this.add.circle(0, 0, 22, 0x00d4ff, 0.3);
-            
-            // Outer glow (pulsing)
             const outerGlow = this.add.circle(0, 0, 28, 0x00d4ff, 0.15);
             
-            // Energy rings (for style)
             const ring1 = this.add.circle(0, 0, 24, 0x00d4ff, 0);
             ring1.setStrokeStyle(1.5, 0x88ddff, 0.6);
             
@@ -260,17 +254,15 @@
             
             player.add([outerGlow, innerGlow, core, ring1, ring2]);
             
-            // Store references for animations
             player.core = core;
             player.ring1 = ring1;
             player.ring2 = ring2;
             
-            // Physics body on the container
             this.physics.add.existing(player);
             player.body.setCircle(18);
             player.body.setCollideWorldBounds(true);
             
-            // ENHANCED: Player animations
+            // Player animations
             this.tweens.add({
                 targets: ring1,
                 scale: 1.2,
@@ -300,7 +292,7 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // ENHANCED: Boss with sharper design
+            // Boss
             bossData = BOSSES[currentBossId];
             const bossX = width * 0.85;
             const bossY = height * 0.5;
@@ -308,7 +300,6 @@
             boss = this.add.container(bossX, bossY);
             
             if (currentBossId === 1) {
-                // Sentinel: Armored knight look
                 const body = this.add.rectangle(0, 0, 70, 100, bossData.color);
                 body.setStrokeStyle(3, bossData.glowColor);
                 
@@ -323,7 +314,6 @@
                 boss.add([body, head, visor, shoulderL, shoulderR]);
                 
             } else if (currentBossId === 2) {
-                // Gunner: Mechanical with guns
                 const body = this.add.rectangle(0, 0, 60, 90, bossData.color);
                 body.setStrokeStyle(3, bossData.glowColor);
                 
@@ -339,7 +329,6 @@
                 boss.add([body, head, gunL, gunR, barrelL, barrelR]);
                 
             } else if (currentBossId === 3) {
-                // Dasher: Sleek assassin
                 const body = this.add.ellipse(0, 0, 70, 100, bossData.color);
                 body.setStrokeStyle(3, bossData.glowColor);
                 
@@ -359,7 +348,7 @@
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
             
-            // ENHANCED: Boss glow effects
+            // Boss glow effects
             const bossGlow1 = this.add.circle(bossX, bossY, 90, bossData.glowColor, 0.2);
             const bossGlow2 = this.add.circle(bossX, bossY, 120, bossData.glowColor, 0.1);
             const bossGlow3 = this.add.circle(bossX, bossY, 150, bossData.color, 0.05);
@@ -396,7 +385,7 @@
                 ease: 'Sine.easeInOut'
             });
 
-            // ENHANCED: UI with sharper text and neon effects
+            // UI
             const titleText = this.add.text(width * 0.5, height * 0.05, bossData.name, { 
                 fontSize: Math.min(32, height * 0.045) + 'px', 
                 fill: '#' + bossData.color.toString(16).padStart(6, '0'), 
@@ -413,7 +402,7 @@
                 }
             }).setOrigin(0.5);
             
-            // Player health with gradient effect
+            // Player health
             this.add.text(width * 0.02, height * 0.02, 'VOUS', { 
                 fontSize: Math.min(18, height * 0.025) + 'px', 
                 fill: '#00d4ff',
@@ -427,7 +416,7 @@
             playerHealthText = this.add.rectangle(width * 0.02, height * 0.06, width * 0.3, height * 0.03, 0x00ff88)
                 .setOrigin(0, 0.5);
             
-            // Stamina with gradient effect
+            // Stamina
             this.add.text(width * 0.02, height * 0.09, 'STAMINA', { 
                 fontSize: Math.min(14, height * 0.02) + 'px', 
                 fill: '#ffaa00',
@@ -473,7 +462,7 @@
                 });
             }
 
-            // ENHANCED: Instructions with glow
+            // Instructions
             const instructions = isMobile ? '⬅️ MOVE  |  ➡️ SHOOT  |  ⚡ DASH (40)' 
                 : 'LEFT CLICK: MOVE  |  RIGHT CLICK: AIM/SHOOT  |  SPACE: DASH (40)  |  HOLD RIGHT: CHARGE';
             const instrText = this.add.text(width * 0.5, height * 0.95, instructions, { 
@@ -486,21 +475,17 @@
             }).setOrigin(0.5);
         }
 
-        // Mobile dash button (enhanced)
+        // Mobile dash button
         function createMobileDashButton(scene) {
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
             dashButton = scene.add.container(width - 100, 100);
             
-            // Outer glow
             const glow = scene.add.circle(0, 0, 45, 0x00d4ff, 0.2);
-            
-            // Background
             const bg = scene.add.circle(0, 0, 40, 0x00d4ff, 0.3);
             bg.setStrokeStyle(3, 0x88ddff);
             
-            // Icon
             const icon = scene.add.text(0, -5, '⚡', { 
                 fontSize: '36px', 
                 fill: '#ffffff',
@@ -509,7 +494,6 @@
                 strokeThickness: 2
             }).setOrigin(0.5);
             
-            // Cost
             const costText = scene.add.text(0, 25, '40', { 
                 fontSize: '14px', 
                 fill: '#ffaa00',
@@ -518,7 +502,6 @@
                 strokeThickness: 2
             }).setOrigin(0.5);
             
-            // Cooldown overlay
             const cooldownOverlay = scene.add.circle(0, 0, 40, 0x000000, 0);
             cooldownOverlay.setStrokeStyle(2, 0xff0000);
             
@@ -534,7 +517,6 @@
             dashButton.bg = bg;
             dashButton.icon = icon;
             
-            // Pulsing animation
             scene.tweens.add({
                 targets: glow,
                 scale: 1.2,
@@ -598,7 +580,7 @@
             });
         }
 
-        // Start charging (enhanced visuals)
+        // Start charging
         function startCharge(scene) {
             if (player.body.velocity.x !== 0 || player.body.velocity.y !== 0) {
                 return;
@@ -607,6 +589,12 @@
             isChargingAttack = true;
             chargeStartTime = Date.now();
             chargeLevel = 0;
+            
+            // FIXED: Clean up old charging particles
+            activeChargingParticles.forEach(p => {
+                if (p && p.scene) p.destroy();
+            });
+            activeChargingParticles = [];
             
             // Charging particles
             for (let i = 0; i < 8; i++) {
@@ -618,8 +606,9 @@
                     0xffaa00,
                     0.8
                 );
+                activeChargingParticles.push(particle);
                 
-                scene.tweens.add({
+                const tween = scene.tweens.add({
                     targets: particle,
                     alpha: 0,
                     scale: 2,
@@ -629,16 +618,26 @@
                     repeat: -1,
                     ease: 'Sine.easeInOut'
                 });
+                activeTimers.push(tween);
             }
             
             chargeIndicator.clear();
         }
 
-        // Release charged attack (enhanced)
+        // Release charged attack
         function releaseCharge(scene) {
             if (!isChargingAttack) return;
             
             isChargingAttack = false;
+            
+            // FIXED: Clean up charging particles
+            activeChargingParticles.forEach(p => {
+                if (p && p.scene) {
+                    scene.tweens.killTweensOf(p);
+                    p.destroy();
+                }
+            });
+            activeChargingParticles = [];
             
             if (chargeLevel < 0.3) {
                 const angle = Math.atan2(mouseY - aimStartY, mouseX - aimStartX);
@@ -680,14 +679,13 @@
             chargeIndicator.clear();
         }
 
-        // Charged projectile (enhanced)
+        // Charged projectile
         function shootChargedProjectile(scene, angle, damage, chargeLevel) {
-            const speed = 900 + (chargeLevel * 400); // CHANGED: +20% faster
+            const speed = 900 + (chargeLevel * 400);
             const size = 10 + (chargeLevel * 18);
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
             
-            // Epic flash
             const flash = scene.add.circle(startX, startY, 30 * chargeLevel + 25, 0xffffff, 1);
             scene.tweens.add({
                 targets: flash,
@@ -697,7 +695,6 @@
                 onComplete: () => flash.destroy()
             });
             
-            // Main projectile with core
             const projContainer = scene.add.container(startX, startY);
             
             const core = scene.add.circle(0, 0, size * 0.7, 0xffffff);
@@ -707,14 +704,13 @@
             projContainer.add([outerGlow, glow, core]);
             projContainer.setDepth(150);
             
-            // Store for movement
             projContainer.vx = Math.cos(angle) * speed;
             projContainer.vy = Math.sin(angle) * speed;
             projContainer.damage = damage;
             
             projectiles.push(projContainer);
             
-            // Enhanced trail
+            // FIXED: Store trail interval for cleanup
             let trailCount = 0;
             const trailInterval = setInterval(() => {
                 if (!projContainer.scene || trailCount > 30) {
@@ -724,6 +720,7 @@
                 
                 const trail = scene.add.circle(projContainer.x, projContainer.y, size * 0.5, 0x66ffff, 0.5);
                 trail.setDepth(148);
+                activeTrails.push(trail);
                 
                 scene.tweens.add({
                     targets: trail,
@@ -731,7 +728,11 @@
                     scale: 0.3,
                     duration: 300,
                     ease: 'Power2',
-                    onComplete: () => trail.destroy()
+                    onComplete: () => {
+                        const index = activeTrails.indexOf(trail);
+                        if (index > -1) activeTrails.splice(index, 1);
+                        trail.destroy();
+                    }
                 });
                 
                 trailCount++;
@@ -778,7 +779,6 @@
                         glow: scene.add.circle(pointer.x, pointer.y, 70, 0x0066ff, 0.1).setDepth(299)
                     };
                     
-                    // Add pulsing animation to base
                     scene.tweens.add({
                         targets: leftTouch.base,
                         scale: 1.1,
@@ -833,7 +833,6 @@
                     }
                     moveJoy.active = true;
                     
-                    // Update glow position
                     leftTouch.glow.x = leftTouch.thumb.x;
                     leftTouch.glow.y = leftTouch.thumb.y;
                 }
@@ -856,7 +855,6 @@
                     aimJoy.angle = Math.atan2(dy, dx);
                     aimJoy.active = dist > 15;
                     
-                    // Update glow position
                     rightTouch.glow.x = rightTouch.thumb.x;
                     rightTouch.glow.y = rightTouch.thumb.y;
                 }
@@ -886,7 +884,7 @@
             });
         }
 
-        // Dash function (enhanced)
+        // Dash function
         function performDash(scene) {
             const now = Date.now();
             
@@ -943,7 +941,6 @@
             dashDirection.y = dy;
             dashTimer = 0;
             
-            // Epic dash effect
             player.core.setScale(0.8);
             player.ring1.setScale(1.5);
             player.ring2.setScale(1.8);
@@ -980,6 +977,15 @@
 
         // Enhanced dash trail
         function createDashTrail(scene) {
+            // FIXED: Clean up old trails
+            activeTrails.forEach(t => {
+                if (t && t.scene) {
+                    scene.tweens.killTweensOf(t);
+                    t.destroy();
+                }
+            });
+            activeTrails = [];
+            
             let trailCount = 0;
             const trailInterval = setInterval(() => {
                 if (!isDashing || trailCount > 15) {
@@ -987,7 +993,6 @@
                     return;
                 }
                 
-                // Create afterimage
                 const afterimage = scene.add.container(player.x, player.y);
                 
                 const core = scene.add.circle(0, 0, 18, 0x00d4ff, 0.5);
@@ -995,6 +1000,7 @@
                 
                 afterimage.add([ring, core]);
                 afterimage.setDepth(40);
+                activeTrails.push(afterimage);
                 
                 scene.tweens.add({
                     targets: afterimage,
@@ -1002,10 +1008,13 @@
                     scale: 0.8,
                     duration: 200,
                     ease: 'Power2',
-                    onComplete: () => afterimage.destroy()
+                    onComplete: () => {
+                        const index = activeTrails.indexOf(afterimage);
+                        if (index > -1) activeTrails.splice(index, 1);
+                        afterimage.destroy();
+                    }
                 });
                 
-                // Particle trail
                 for (let i = 0; i < 3; i++) {
                     const particle = scene.add.circle(
                         player.x + (Math.random() - 0.5) * 20,
@@ -1014,6 +1023,7 @@
                         0x88ddff,
                         0.7
                     );
+                    activeTrails.push(particle);
                     
                     scene.tweens.add({
                         targets: particle,
@@ -1022,12 +1032,18 @@
                         x: particle.x + (Math.random() - 0.5) * 40,
                         y: particle.y + (Math.random() - 0.5) * 40,
                         duration: 300,
-                        onComplete: () => particle.destroy()
+                        onComplete: () => {
+                            const index = activeTrails.indexOf(particle);
+                            if (index > -1) activeTrails.splice(index, 1);
+                            particle.destroy();
+                        }
                     });
                 }
                 
                 trailCount++;
             }, 40);
+            
+            activeTimers.push({ interval: trailInterval });
         }
 
         function update(time, delta) {
@@ -1053,12 +1069,10 @@
                     isDashing = false;
                     isInvulnerable = false;
                     
-                    // Restore normal size
                     player.core.setScale(1);
                     player.ring1.setScale(1);
                     player.ring2.setScale(1);
                     
-                    // Small exit effect
                     for (let i = 0; i < 8; i++) {
                         const angle = (i / 8) * Math.PI * 2;
                         const particle = this.add.circle(player.x, player.y, 3, 0x00d4ff, 0.6);
@@ -1075,7 +1089,6 @@
                     }
                 }
             } else {
-                // CHANGED: +20% faster movement (300 -> 360)
                 const speed = 360;
                 let vx = 0, vy = 0;
                 
@@ -1104,11 +1117,9 @@
                 player.body.setVelocity(vx, vy);
             }
             
-            // Keep player in bounds
             player.x = Phaser.Math.Clamp(player.x, 30, width - 30);
             player.y = Phaser.Math.Clamp(player.y, 30, height - 30);
             
-            // Sync glow effects position
             if (boss.glowEffects) {
                 boss.glowEffects.forEach(glow => {
                     if (glow) {
@@ -1118,7 +1129,6 @@
                 });
             }
             
-            // Keep boss in bounds
             if (boss) {
                 boss.x = Phaser.Math.Clamp(boss.x, 100, width - 100);
                 boss.y = Phaser.Math.Clamp(boss.y, 100, height - 100);
@@ -1130,18 +1140,14 @@
                 
                 chargeIndicator.clear();
                 
-                // Draw charge circle with gradient effect
                 const radius = 35 + (chargeLevel * 35);
                 
-                // Outer ring
                 chargeIndicator.lineStyle(4, 0xffaa00, 0.8);
                 chargeIndicator.strokeCircle(player.x, player.y, radius);
                 
-                // Inner glow
                 chargeIndicator.lineStyle(2, 0xffdd44, 0.4);
                 chargeIndicator.strokeCircle(player.x, player.y, radius - 3);
                 
-                // Fill based on charge
                 for (let i = 0; i < 5; i++) {
                     const alpha = 0.1 - (i * 0.02);
                     chargeIndicator.fillStyle(0xffaa00, alpha);
@@ -1157,7 +1163,7 @@
                 chargeIndicator.clear();
             }
             
-            // Aim indicator (enhanced)
+            // Aim indicator
             if (!isMobile && aimIndicator && !isChargingAttack) {
                 aimIndicator.clear();
                 
@@ -1167,14 +1173,12 @@
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist > 15) {
-                        // Aim line with glow
                         aimIndicator.lineStyle(4, 0xff6666, 0.5);
                         aimIndicator.lineBetween(aimStartX, aimStartY, mouseX, mouseY);
                         
                         aimIndicator.lineStyle(2, 0xff3333, 1);
                         aimIndicator.lineBetween(aimStartX, aimStartY, mouseX, mouseY);
                         
-                        // Target circle
                         aimIndicator.lineStyle(3, 0xff3333, 1);
                         aimIndicator.strokeCircle(mouseX, mouseY, 12);
                         
@@ -1213,29 +1217,36 @@
                 bProj.x += bProj.vx * (delta / 1000);
                 bProj.y += bProj.vy * (delta / 1000);
                 
+                if (bProj.glow) {
+                    bProj.glow.x = bProj.x;
+                    bProj.glow.y = bProj.y;
+                }
+                
                 const distToPlayer = Phaser.Math.Distance.Between(bProj.x, bProj.y, player.x, player.y);
                 if (distToPlayer < 25 && !isInvulnerable) {
                     hitPlayer(this, 10);
+                    if (bProj.glow) bProj.glow.destroy();
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
                     continue;
                 }
                 
                 if (bProj.x < -50 || bProj.x > width + 50 || bProj.y < -50 || bProj.y > height + 50) {
+                    if (bProj.glow) bProj.glow.destroy();
                     bProj.destroy();
                     bossProjectiles.splice(i, 1);
                 }
             }
 
-            // CHANGED: New stamina regen (20% less than 0.225 = 0.18)
+            // Stamina regen
             if (playerStamina < 100) {
                 playerStamina = Math.min(100, playerStamina + 0.18);
                 updateStaminaBar();
             }
 
-            // CHANGED: Boss AI attacks 20% faster
+            // Boss AI
             if (time > bossNextAttackTime) {
-                bossNextAttackTime = time + Phaser.Math.Between(1600, 2800); // Was 2000-3500
+                bossNextAttackTime = time + Phaser.Math.Between(1600, 2800);
                 bossAttack(this);
             }
 
@@ -1248,11 +1259,10 @@
             canAttack = false;
             playerStamina -= 20;
             
-            const speed = 900; // CHANGED: +20% faster (was 750)
+            const speed = 900;
             const startX = player.x + Math.cos(angle) * 30;
             const startY = player.y + Math.sin(angle) * 30;
             
-            // Enhanced flash
             const flash = scene.add.circle(startX, startY, 25, 0xffffff, 1);
             scene.tweens.add({
                 targets: flash,
@@ -1262,7 +1272,6 @@
                 onComplete: () => flash.destroy()
             });
             
-            // Projectile container
             const proj = scene.add.container(startX, startY);
             
             const core = scene.add.circle(0, 0, 8, 0xffffff);
@@ -1277,7 +1286,7 @@
             
             projectiles.push(proj);
             
-            // Trail
+            // FIXED: Store trail for cleanup
             let trailCount = 0;
             const trailInterval = setInterval(() => {
                 if (!proj.scene || trailCount > 20) {
@@ -1287,13 +1296,18 @@
                 
                 const trail = scene.add.circle(proj.x, proj.y, 8, 0x66ffff, 0.5);
                 trail.setDepth(148);
+                activeTrails.push(trail);
                 
                 scene.tweens.add({
                     targets: trail,
                     alpha: 0,
                     scale: 0.5,
                     duration: 200,
-                    onComplete: () => trail.destroy()
+                    onComplete: () => {
+                        const index = activeTrails.indexOf(trail);
+                        if (index > -1) activeTrails.splice(index, 1);
+                        trail.destroy();
+                    }
                 });
                 
                 trailCount++;
@@ -1309,7 +1323,6 @@
         }
 
         function boss1Attack(scene) {
-            // Enhanced warning
             const warning = scene.add.rectangle(boss.x - 100, boss.y, 180, 150, 0xff0051, 0.3);
             warning.setStrokeStyle(4, 0xff3366);
             
@@ -1323,7 +1336,6 @@
                     
                     const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 180, 150, 0xff6666, 0.8);
                     
-                    // Slash effect
                     for (let i = 0; i < 10; i++) {
                         const slash = scene.add.rectangle(
                             boss.x - 100 + (Math.random() - 0.5) * 150,
@@ -1373,7 +1385,6 @@
                     const angleToPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
                     const spread = Math.PI / 3;
                     
-                    // Muzzle flash
                     const flash = scene.add.circle(boss.x, boss.y, 30, 0xff6600, 0.8);
                     scene.tweens.add({
                         targets: flash,
@@ -1387,11 +1398,10 @@
                         const angle = angleToPlayer + (i * spread / 4);
                         const bossProj = scene.add.circle(boss.x, boss.y, 10, 0xff6600);
                         bossProj.setDepth(150);
-                        bossProj.vx = Math.cos(angle) * 350; // CHANGED: +16% faster (was 300)
+                        bossProj.vx = Math.cos(angle) * 350;
                         bossProj.vy = Math.sin(angle) * 350;
                         bossProj.isBossProj = true;
                         
-                        // Add glow
                         const glow = scene.add.circle(boss.x, boss.y, 16, 0xff6600, 0.4);
                         glow.setDepth(149);
                         bossProj.glow = glow;
@@ -1415,11 +1425,9 @@
             const targetX = player.x;
             const targetY = player.y;
             
-            // Enhanced telegraph
             const line = scene.add.line(0, 0, boss.x, boss.y, targetX, targetY, 0xcc00ff, 0.7);
             line.setLineWidth(8);
             
-            // Warning circles along the path
             const warnings = [];
             for (let i = 0.2; i <= 1; i += 0.2) {
                 const warnX = boss.x + (targetX - boss.x) * i;
@@ -1437,7 +1445,6 @@
                     line.destroy();
                     warnings.forEach(w => w.destroy());
                     
-                    // Dash effect
                     const startX = boss.x;
                     const startY = boss.y;
                     
@@ -1445,10 +1452,9 @@
                         targets: boss,
                         x: targetX,
                         y: targetY,
-                        duration: 120, // CHANGED: 20% faster (was 150)
+                        duration: 120,
                         ease: 'Power3',
                         onUpdate: () => {
-                            // Trail during dash
                             if (Math.random() > 0.5) {
                                 const trail = scene.add.circle(boss.x, boss.y, 15, 0xcc00ff, 0.4);
                                 scene.tweens.add({
@@ -1465,7 +1471,6 @@
                             if (dist < 70 && !isInvulnerable) {
                                 hitPlayer(scene, 20);
                                 
-                                // Impact effect
                                 for (let i = 0; i < 12; i++) {
                                     const angle = (i / 12) * Math.PI * 2;
                                     const particle = scene.add.circle(boss.x, boss.y, 5, 0xcc00ff, 0.8);
@@ -1492,9 +1497,8 @@
             bossHealth = Math.max(0, bossHealth - damage);
             
             scene.physics.pause();
-            scene.time.delayedCall(30, () => scene.physics.resume()); // Slightly shorter freeze
+            scene.time.delayedCall(30, () => scene.physics.resume());
             
-            // Enhanced hit effect
             const flash = scene.add.rectangle(boss.x, boss.y, 120, 160, 0xffffff, 0.9);
             flash.setDepth(200);
             scene.tweens.add({
@@ -1507,7 +1511,6 @@
             
             scene.tweens.add({ targets: boss, alpha: 0.2, duration: 50, yoyo: true });
             
-            // Damage number with glow
             const dmgText = scene.add.text(boss.x, boss.y - 50, damage.toString(), {
                 fontSize: Math.min(28, scene.cameras.main.height * 0.035) + 'px',
                 fill: '#ffaa00',
@@ -1535,7 +1538,6 @@
             
             bossData = BOSSES[currentBossId];
             
-            // Enhanced particle explosion
             for (let i = 0; i < 30; i++) {
                 const angle = (Math.PI * 2 * i) / 30;
                 const dist = Phaser.Math.Between(30, 90);
@@ -1556,7 +1558,6 @@
                 });
             }
             
-            // Shockwave ring
             const ring = scene.add.circle(boss.x, boss.y, 30, bossData.glowColor, 0);
             ring.setStrokeStyle(5, bossData.glowColor, 0.9);
             ring.setDepth(198);
@@ -1625,13 +1626,57 @@
             staminaText.width = staminaBar.width * (playerStamina / 100);
         }
 
+        // FIXED: Clean up all active effects before game over
+        function cleanupAllEffects(scene) {
+            // Kill all tweens on dynamic objects
+            activeTrails.forEach(t => {
+                if (t && t.scene) {
+                    scene.tweens.killTweensOf(t);
+                    t.destroy();
+                }
+            });
+            
+            activeChargingParticles.forEach(p => {
+                if (p && p.scene) {
+                    scene.tweens.killTweensOf(p);
+                    p.destroy();
+                }
+            });
+            
+            activeTimers.forEach(t => {
+                if (t.interval) clearInterval(t.interval);
+            });
+            
+            // Clear all projectiles
+            projectiles.forEach(p => {
+                if (p && p.scene) p.destroy();
+            });
+            
+            bossProjectiles.forEach(p => {
+                if (p && p.scene) {
+                    if (p.glow) p.glow.destroy();
+                    p.destroy();
+                }
+            });
+            
+            // Reset arrays
+            activeTrails = [];
+            activeChargingParticles = [];
+            activeTimers = [];
+            projectiles = [];
+            bossProjectiles = [];
+        }
+
         function handleGameOver(scene) {
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
+            // FIXED: Clean up all effects first
+            cleanupAllEffects(scene);
+            
             scene.physics.pause();
             const isVictory = bossHealth <= 0;
-            const msg = isVictory ? '✨ VICTORY ✨' : '💀 DEFEAT 💀';
+            const msg = isVictory ? 'VICTORY' : 'DEFEAT';
             const color = isVictory ? '#00ff88' : '#ff3355';
             
             if (isVictory && currentBossId === unlockedBosses && currentBossId < 3) {
@@ -1639,38 +1684,50 @@
                 localStorage.setItem('unlockedBosses', unlockedBosses);
             }
             
-            // Epic victory/defeat text
+            // FIXED: Victory text with subtle glow instead of huge underline
             const txt = scene.add.text(width * 0.5, height * 0.4, msg, { 
                 fontSize: Math.min(72, height * 0.12) + 'px', 
                 fill: color, 
                 fontStyle: 'bold', 
-                stroke: '#fff', 
-                strokeThickness: 4,
+                stroke: '#ffffff', 
+                strokeThickness: 3,
                 shadow: {
                     offsetX: 0,
                     offsetY: 0,
                     color: color,
-                    blur: 20,
-                    fill: true
+                    blur: 15,
+                    fill: true,
+                    stroke: false
                 }
             }).setOrigin(0.5);
             
+            // Subtle pulse animation
             scene.tweens.add({ 
                 targets: txt, 
-                scale: 1.2, 
-                duration: 600, 
+                scale: 1.05, 
+                duration: 800, 
                 yoyo: true, 
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
             
             if (isVictory) {
-                scene.add.text(width * 0.5, height * 0.5, BOSSES[currentBossId].name + ' DEFEATED!', {
+                const subText = scene.add.text(width * 0.5, height * 0.5, BOSSES[currentBossId].name + ' DEFEATED', {
                     fontSize: Math.min(24, height * 0.035) + 'px',
-                    fill: '#888',
-                    stroke: '#000',
-                    strokeThickness: 2
+                    fill: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 2,
+                    alpha: 0.9
                 }).setOrigin(0.5);
+                
+                // Subtle fade for subtext
+                scene.tweens.add({
+                    targets: subText,
+                    alpha: 0.7,
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1
+                });
             }
             
             // Buttons with enhanced style
@@ -1690,8 +1747,6 @@
                 playerHealth = 100;
                 bossHealth = BOSSES[currentBossId].hp;
                 playerStamina = 100;
-                projectiles = [];
-                bossProjectiles = [];
             });
             
             const selectBtn = scene.add.text(width * 0.6, height * 0.6, '[ SELECT BOSS ]', { 
@@ -1726,8 +1781,6 @@
                     playerHealth = 100;
                     bossHealth = BOSSES[currentBossId].hp;
                     playerStamina = 100;
-                    projectiles = [];
-                    bossProjectiles = [];
                 });
             }
         }
@@ -1736,6 +1789,8 @@
             const width = scene.cameras.main.width;
             const height = scene.cameras.main.height;
             
+            // Clean up before boss select
+            cleanupAllEffects(scene);
             scene.children.removeAll();
             
             scene.add.text(width * 0.5, height * 0.1, 'SELECT BOSS', {
@@ -1762,7 +1817,6 @@
                 const y = height * 0.5;
                 const unlocked = bossId <= unlockedBosses;
                 
-                // Card with glow
                 const card = scene.add.rectangle(x, y, width * 0.18, height * 0.35, 0x1a1a2e, unlocked ? 0.9 : 0.4);
                 card.setStrokeStyle(4, bossData.color, unlocked ? 1 : 0.3);
                 
@@ -1796,12 +1850,9 @@
                         playerHealth = 100;
                         bossHealth = BOSSES[currentBossId].hp;
                         playerStamina = 100;
-                        projectiles = [];
-                        bossProjectiles = [];
                     });
                 }
                 
-                // Boss preview with glow
                 const preview = scene.add.circle(x, y - height * 0.08, height * 0.06, bossData.color, unlocked ? 1 : 0.3);
                 const glow = scene.add.circle(x, y - height * 0.08, height * 0.08, bossData.glowColor, unlocked ? 0.3 : 0.1);
                 
@@ -1825,7 +1876,6 @@
                 }
             });
             
-            // Back button
             const backBtn = scene.add.text(width * 0.5, height * 0.85, '[ BACK TO GAME ]', { 
                 fontSize: Math.min(20, height * 0.03) + 'px', 
                 fill: '#aaa', 
@@ -1840,8 +1890,6 @@
                 playerHealth = 100;
                 bossHealth = BOSSES[currentBossId].hp;
                 playerStamina = 100;
-                projectiles = [];
-                bossProjectiles = [];
             });
         }
 
