@@ -180,157 +180,161 @@
         }
 
         function createMobileControls(scene) {
-            // ZONE GAUCHE - Mouvement (toute la moitié gauche)
-            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.05);
-            leftZone.setInteractive();
+            // Variables pour tracker les touches actives
+            let activeTouches = new Map(); // Map pour stocker pointer.id -> info
+            
+            // Joysticks visuels
+            let moveJoy = { base: null, thumb: null, startX: 0, startY: 0, active: false };
+            let aimJoy = { base: null, thumb: null, startX: 0, startY: 0, active: false };
+            
+            // Zones visuelles
+            const leftZone = scene.add.rectangle(250, 350, 500, 700, 0x0066ff, 0.08);
             leftZone.setDepth(0);
-            scene.add.text(250, 40, 'DÉPLACEMENT', { fontSize: '14px', fill: '#0099ff', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 10, y: 5 }}).setOrigin(0.5).setDepth(1000);
+            scene.add.text(250, 40, 'BOUGER', { fontSize: '16px', fill: '#00d4ff', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 12, y: 6 }}).setOrigin(0.5).setDepth(1000);
             
-            // ZONE DROITE - Tir (toute la moitié droite)
-            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff6666, 0.05);
-            rightZone.setInteractive();
+            const rightZone = scene.add.rectangle(750, 350, 500, 700, 0xff6666, 0.08);
             rightZone.setDepth(0);
-            scene.add.text(750, 40, 'VISER & TIRER', { fontSize: '14px', fill: '#ff6666', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 10, y: 5 }}).setOrigin(0.5).setDepth(1000);
+            scene.add.text(750, 40, 'TIRER', { fontSize: '16px', fill: '#ff6666', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 12, y: 6 }}).setOrigin(0.5).setDepth(1000);
             
-            // Joystick gauche (dynamique)
-            let moveJoyBase = null;
-            let moveJoyThumb = null;
-            let moveStartX = 0, moveStartY = 0;
-            let moveActive = false;
-            let movePointerId = null;
+            // Activer le multi-touch
+            scene.input.addPointer(2); // Ajouter support pour 3 pointeurs total
             
-            // Joystick droit (dynamique)
-            let aimJoyBase = null;
-            let aimJoyThumb = null;
-            let aimStartX = 0, aimStartY = 0;
-            let aimActive = false;
-            let aimPointerId = null;
-            
-            // MULTI-TOUCH: Gérer plusieurs pointeurs en même temps
+            // TOUCH START
             scene.input.on('pointerdown', (pointer) => {
-                // GAUCHE = MOUVEMENT
-                if (pointer.x < 500 && !moveActive) {
-                    moveActive = true;
-                    movePointerId = pointer.id;
-                    moveStartX = pointer.x;
-                    moveStartY = pointer.y;
+                const touchInfo = {
+                    id: pointer.id,
+                    startX: pointer.x,
+                    startY: pointer.y,
+                    side: pointer.x < 500 ? 'left' : 'right'
+                };
+                
+                activeTouches.set(pointer.id, touchInfo);
+                
+                // GAUCHE = Mouvement
+                if (touchInfo.side === 'left' && !moveJoy.active) {
+                    moveJoy.active = true;
+                    moveJoy.startX = pointer.x;
+                    moveJoy.startY = pointer.y;
                     
-                    // Créer le joystick à la position du tap
-                    moveJoyBase = scene.add.circle(moveStartX, moveStartY, 50, 0x2a2a3e, 0.5);
-                    moveJoyThumb = scene.add.circle(moveStartX, moveStartY, 25, 0x00d4ff, 0.9);
-                    moveJoyBase.setDepth(100);
-                    moveJoyThumb.setDepth(101);
+                    moveJoy.base = scene.add.circle(pointer.x, pointer.y, 55, 0x1a1a3e, 0.6);
+                    moveJoy.thumb = scene.add.circle(pointer.x, pointer.y, 28, 0x00d4ff, 0.95);
+                    moveJoy.base.setDepth(200);
+                    moveJoy.thumb.setDepth(201);
                 }
                 
-                // DROITE = VISÉE
-                if (pointer.x >= 500 && !aimActive) {
-                    aimActive = true;
-                    aimPointerId = pointer.id;
-                    aimStartX = pointer.x;
-                    aimStartY = pointer.y;
+                // DROITE = Tir
+                if (touchInfo.side === 'right' && !aimJoy.active) {
+                    aimJoy.active = true;
+                    aimJoy.startX = pointer.x;
+                    aimJoy.startY = pointer.y;
                     
-                    // Créer le joystick à la position du tap
-                    aimJoyBase = scene.add.circle(aimStartX, aimStartY, 50, 0x2a2a3e, 0.5);
-                    aimJoyThumb = scene.add.circle(aimStartX, aimStartY, 25, 0xff6666, 0.9);
-                    aimJoyBase.setDepth(100);
-                    aimJoyThumb.setDepth(101);
+                    aimJoy.base = scene.add.circle(pointer.x, pointer.y, 55, 0x1a1a3e, 0.6);
+                    aimJoy.thumb = scene.add.circle(pointer.x, pointer.y, 28, 0xff6666, 0.95);
+                    aimJoy.base.setDepth(200);
+                    aimJoy.thumb.setDepth(201);
                 }
             });
             
+            // TOUCH MOVE
             scene.input.on('pointermove', (pointer) => {
-                // JOYSTICK GAUCHE - Mouvement (uniquement si c'est le bon pointeur)
-                if (moveActive && pointer.id === movePointerId) {
-                    const dx = pointer.x - moveStartX;
-                    const dy = pointer.y - moveStartY;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    const maxDist = 50;
+                if (!pointer.isDown) return;
+                
+                const touchInfo = activeTouches.get(pointer.id);
+                if (!touchInfo) return;
+                
+                // MOUVEMENT (joystick gauche)
+                if (touchInfo.side === 'left' && moveJoy.active) {
+                    const dx = pointer.x - moveJoy.startX;
+                    const dy = pointer.y - moveJoy.startY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 55;
                     
                     if (dist < maxDist) {
-                        moveJoyThumb.x = moveStartX + dx;
-                        moveJoyThumb.y = moveStartY + dy;
+                        moveJoy.thumb.x = moveJoy.startX + dx;
+                        moveJoy.thumb.y = moveJoy.startY + dy;
                         virtualJoystick.deltaX = dx / maxDist;
                         virtualJoystick.deltaY = dy / maxDist;
                     } else {
                         const angle = Math.atan2(dy, dx);
-                        moveJoyThumb.x = moveStartX + Math.cos(angle) * maxDist;
-                        moveJoyThumb.y = moveStartY + Math.sin(angle) * maxDist;
+                        moveJoy.thumb.x = moveJoy.startX + Math.cos(angle) * maxDist;
+                        moveJoy.thumb.y = moveJoy.startY + Math.sin(angle) * maxDist;
                         virtualJoystick.deltaX = Math.cos(angle);
                         virtualJoystick.deltaY = Math.sin(angle);
                     }
                     virtualJoystick.active = true;
                 }
                 
-                // JOYSTICK DROIT - Visée (uniquement si c'est le bon pointeur)
-                if (aimActive && pointer.id === aimPointerId) {
-                    const dx = pointer.x - aimStartX;
-                    const dy = pointer.y - aimStartY;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    const maxDist = 50;
+                // VISÉE (joystick droit)
+                if (touchInfo.side === 'right' && aimJoy.active) {
+                    const dx = pointer.x - aimJoy.startX;
+                    const dy = pointer.y - aimJoy.startY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 55;
                     
                     if (dist < maxDist) {
-                        aimJoyThumb.x = aimStartX + dx;
-                        aimJoyThumb.y = aimStartY + dy;
+                        aimJoy.thumb.x = aimJoy.startX + dx;
+                        aimJoy.thumb.y = aimJoy.startY + dy;
                     } else {
                         const angle = Math.atan2(dy, dx);
-                        aimJoyThumb.x = aimStartX + Math.cos(angle) * maxDist;
-                        aimJoyThumb.y = aimStartY + Math.sin(angle) * maxDist;
+                        aimJoy.thumb.x = aimJoy.startX + Math.cos(angle) * maxDist;
+                        aimJoy.thumb.y = aimJoy.startY + Math.sin(angle) * maxDist;
                     }
                     
                     aimAngle = Math.atan2(dy, dx);
-                    isAiming = dist > 10; // Deadzone
+                    isAiming = dist > 12; // Deadzone
                 }
             });
             
+            // TOUCH END
             scene.input.on('pointerup', (pointer) => {
-                // RELÂCHE GAUCHE (vérifier que c'est le bon pointeur)
-                if (moveActive && pointer.id === movePointerId) {
-                    moveActive = false;
-                    movePointerId = null;
+                const touchInfo = activeTouches.get(pointer.id);
+                if (!touchInfo) return;
+                
+                // RELÂCHE GAUCHE
+                if (touchInfo.side === 'left' && moveJoy.active) {
+                    moveJoy.active = false;
                     virtualJoystick.active = false;
                     virtualJoystick.deltaX = 0;
                     virtualJoystick.deltaY = 0;
                     
-                    // Détruire le joystick
-                    if (moveJoyBase) {
-                        moveJoyBase.destroy();
-                        moveJoyThumb.destroy();
-                        moveJoyBase = null;
-                        moveJoyThumb = null;
+                    if (moveJoy.base) {
+                        moveJoy.base.destroy();
+                        moveJoy.thumb.destroy();
+                        moveJoy.base = null;
+                        moveJoy.thumb = null;
                     }
                 }
                 
-                // RELÂCHE DROITE = TIR (vérifier que c'est le bon pointeur)
-                if (aimActive && pointer.id === aimPointerId) {
+                // RELÂCHE DROITE = TIR
+                if (touchInfo.side === 'right' && aimJoy.active) {
                     if (isAiming && canAttack && playerStamina >= 20) {
                         performRangedAttack(scene);
                     }
                     
-                    aimActive = false;
-                    aimPointerId = null;
+                    aimJoy.active = false;
                     isAiming = false;
                     
-                    // Détruire le joystick
-                    if (aimJoyBase) {
-                        aimJoyBase.destroy();
-                        aimJoyThumb.destroy();
-                        aimJoyBase = null;
-                        aimJoyThumb = null;
+                    if (aimJoy.base) {
+                        aimJoy.base.destroy();
+                        aimJoy.thumb.destroy();
+                        aimJoy.base = null;
+                        aimJoy.thumb = null;
                     }
                 }
+                
+                activeTouches.delete(pointer.id);
             });
             
             // Initialiser virtualJoystick
             virtualJoystick = { active: false, deltaX: 0, deltaY: 0 };
             
-            // Bouton DASH (coin supérieur droit)
-            dodgeButton = scene.add.circle(950, 100, 40, 0x00d4ff, 0.8).setInteractive().setStrokeStyle(4, 0x00aacc);
+            // Bouton DASH
+            dodgeButton = scene.add.circle(950, 120, 45, 0x00d4ff, 0.85).setInteractive().setStrokeStyle(5, 0x00aacc);
             dodgeButton.setDepth(1000);
-            const dodgeText = scene.add.text(950, 100, 'DASH', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+            const dodgeText = scene.add.text(950, 120, 'DASH', { fontSize: '15px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
             dodgeText.setDepth(1001);
             dodgeButton.on('pointerdown', () => { 
-                if (canDodge && playerStamina >= 25) {
-                    performDodge(scene);
-                }
+                if (canDodge && playerStamina >= 25) performDodge(scene);
             });
         }
 
