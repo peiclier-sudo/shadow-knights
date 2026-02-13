@@ -209,7 +209,7 @@
             });
 
             // Boss - Différent selon ID avec GLOW
-            const bossData = BOSSES[currentBossId];
+            bossData = BOSSES[currentBossId];
             boss = this.add.container(850, 350);
             
             if (currentBossId === 1) {
@@ -801,7 +801,7 @@
             scene.tweens.add({ targets: boss, alpha: 0.3, duration: 60, yoyo: true });
             
             // EXPLOSION de particles
-            const bossData = BOSSES[currentBossId];
+            bossData = BOSSES[currentBossId];
             for (let i = 0; i < 20; i++) {
                 const angle = (Math.PI * 2 * i) / 20;
                 const dist = Phaser.Math.Between(40, 80);
