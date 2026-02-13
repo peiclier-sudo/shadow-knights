@@ -1,13 +1,8 @@
 {
   "version": 2,
-  "public": true,
   "builds": [
     {
       "src": "public/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "js/**/*.js",
       "use": "@vercel/static"
     }
   ],
@@ -16,34 +11,19 @@
       "src": "/js/(.*)",
       "dest": "/js/$1",
       "headers": {
-        "Content-Type": "application/javascript; charset=utf-8"
+        "content-type": "application/javascript; charset=utf-8"
       }
     },
     {
       "src": "/css/(.*)",
       "dest": "/public/css/$1",
       "headers": {
-        "Content-Type": "text/css; charset=utf-8"
+        "content-type": "text/css; charset=utf-8"
       }
     },
     {
       "src": "/(.*)",
       "dest": "/public/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        }
-      ]
     }
   ]
 }
