@@ -44,8 +44,18 @@
             scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
         };
 
+        // BOSS DATA
+        const BOSSES = {
+            1: { name: 'SENTINEL', hp: 400, color: 0xff0051 },
+            2: { name: 'GUNNER', hp: 500, color: 0xff6600 },
+            3: { name: 'DASHER', hp: 600, color: 0xcc00ff }
+        };
+        
+        let currentBossId = parseInt(localStorage.getItem('currentBoss')) || 1;
+        let unlockedBosses = parseInt(localStorage.getItem('unlockedBosses')) || 1;
+
         let game, player, boss;
-        let playerHealth = 100, bossHealth = 500, playerStamina = 100;
+        let playerHealth = 100, bossHealth = BOSSES[currentBossId].hp, playerStamina = 100;
         let isDodging = false, canDodge = true, canAttack = true;
         let playerHealthBar, bossHealthBar, staminaBar, playerHealthText, bossHealthText, staminaText;
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -55,6 +65,7 @@
         let moveJoy = { active: false, deltaX: 0, deltaY: 0 };
         let aimJoy = { active: false, angle: 0 };
         let projectiles = [];
+        let bossProjectiles = [];
         
         // Desktop controls
         let leftMouseDown = false;
@@ -76,18 +87,36 @@
             player.body.setCollideWorldBounds(true);
             player.glow = this.add.circle(150, 350, 35, 0x00d4ff, 0.3);
 
-            // Boss
+            // Boss - Différent selon ID
+            const bossData = BOSSES[currentBossId];
             boss = this.add.container(850, 350);
-            boss.add([
-                this.add.rectangle(0, 0, 70, 100, 0xff0051),
-                this.add.circle(0, -60, 30, 0xff0051)
-            ]);
+            
+            if (currentBossId === 1) {
+                // Sentinel: Rectangle + circle
+                boss.add([
+                    this.add.rectangle(0, 0, 70, 100, bossData.color),
+                    this.add.circle(0, -60, 30, bossData.color)
+                ]);
+            } else if (currentBossId === 2) {
+                // Gunner: Star/Hexagon
+                boss.add([
+                    this.add.star(0, 0, 6, 20, 40, bossData.color),
+                    this.add.circle(0, 0, 12, 0xffffff)
+                ]);
+            } else if (currentBossId === 3) {
+                // Dasher: Triangle
+                const tri = this.add.triangle(0, 0, 0, -40, -35, 35, 35, 35, bossData.color);
+                boss.add(tri);
+            }
+            
             this.physics.add.existing(boss);
             boss.body.setSize(70, 130);
             boss.body.setCollideWorldBounds(true);
             boss.body.immovable = true;
 
             // UI
+            this.add.text(500, 30, bossData.name, { fontSize: '28px', fill: '#' + bossData.color.toString(16).padStart(6, '0'), fontStyle: 'bold' }).setOrigin(0.5);
+            
             this.add.text(20, 20, 'VOUS', { fontSize: '18px', fill: '#00d4ff', fontStyle: 'bold' });
             playerHealthBar = this.add.rectangle(20, 55, 350, 25, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
             playerHealthText = this.add.rectangle(20, 55, 350, 25, 0x00ff88).setOrigin(0, 0.5);
@@ -96,9 +125,9 @@
             staminaBar = this.add.rectangle(20, 105, 250, 16, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(2, 0x333355);
             staminaText = this.add.rectangle(20, 105, 250, 16, 0xffaa00).setOrigin(0, 0.5);
 
-            this.add.text(650, 20, 'BOSS', { fontSize: '20px', fill: '#ff0051', fontStyle: 'bold' });
-            bossHealthBar = this.add.rectangle(650, 60, 330, 28, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
-            bossHealthText = this.add.rectangle(650, 60, 330, 28, 0xff0051).setOrigin(0, 0.5);
+            this.add.text(650, 70, 'BOSS', { fontSize: '14px', fill: '#' + bossData.color.toString(16).padStart(6, '0') });
+            bossHealthBar = this.add.rectangle(650, 95, 330, 28, 0x1a1a2e).setOrigin(0, 0.5).setStrokeStyle(3, 0x333355);
+            bossHealthText = this.add.rectangle(650, 95, 330, 28, bossData.color).setOrigin(0, 0.5);
 
             if (isMobile) createMobileControls(this);
             else createDesktopControls(this);
@@ -342,6 +371,29 @@
                 }
             }
 
+            // Update boss projectiles
+            for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+                const bProj = bossProjectiles[i];
+                
+                bProj.x += bProj.vx * (delta / 1000);
+                bProj.y += bProj.vy * (delta / 1000);
+                
+                // Collision avec joueur
+                const distToPlayer = Phaser.Math.Distance.Between(bProj.x, bProj.y, player.x, player.y);
+                if (distToPlayer < 25) {
+                    hitPlayer(this, 10);
+                    bProj.destroy();
+                    bossProjectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Hors écran
+                if (bProj.x < -50 || bProj.x > 1050 || bProj.y < -50 || bProj.y > 750) {
+                    bProj.destroy();
+                    bossProjectiles.splice(i, 1);
+                }
+            }
+
             // Regen stamina
             if (playerStamina < 100) {
                 playerStamina = Math.min(100, playerStamina + 0.4);
@@ -399,6 +451,118 @@
         }
 
         function bossAttack(scene) {
+            if (currentBossId === 1) boss1Attack(scene);
+            else if (currentBossId === 2) boss2Attack(scene);
+            else if (currentBossId === 3) boss3Attack(scene);
+        }
+
+        function boss1Attack(scene) {
+            // Sentinel: Slash horizontal
+            const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
+            warning.setStrokeStyle(3, 0xff0051);
+            
+            scene.tweens.add({
+                targets: warning,
+                alpha: 0.5,
+                duration: 800,
+                yoyo: true,
+                onComplete: () => {
+                    warning.destroy();
+                    
+                    const slashZone = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff6666, 0.7);
+                    scene.physics.add.existing(slashZone);
+                    
+                    const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
+                    if (dist < 120 && !isDodging) {
+                        hitPlayer(scene, 15);
+                    }
+                    
+                    scene.tweens.add({
+                        targets: slashZone,
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => slashZone.destroy()
+                    });
+                }
+            });
+        }
+
+        function boss2Attack(scene) {
+            // Gunner: 5 projectiles en éventail
+            const warning = scene.add.circle(boss.x, boss.y, 35, 0xff6600, 0.3);
+            warning.setStrokeStyle(4, 0xff6600);
+            
+            scene.tweens.add({
+                targets: warning,
+                radius: 55,
+                alpha: 0,
+                duration: 700,
+                onComplete: () => {
+                    warning.destroy();
+                    
+                    // Tirer 5 projectiles vers le joueur
+                    const angleToPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
+                    const spread = Math.PI / 4;
+                    
+                    for (let i = -2; i <= 2; i++) {
+                        const angle = angleToPlayer + (i * spread / 4);
+                        const bossProj = scene.add.circle(boss.x, boss.y, 8, 0xff6600);
+                        bossProj.setDepth(150);
+                        bossProj.vx = Math.cos(angle) * 300;
+                        bossProj.vy = Math.sin(angle) * 300;
+                        bossProj.isBossProj = true;
+                        
+                        bossProjectiles.push(bossProj);
+                        
+                        // Auto destroy après 3s
+                        scene.time.delayedCall(3000, () => {
+                            if (bossProj.scene) {
+                                const idx = bossProjectiles.indexOf(bossProj);
+                                if (idx > -1) bossProjectiles.splice(idx, 1);
+                                bossProj.destroy();
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        function boss3Attack(scene) {
+            // Dasher: Dash rapide vers le joueur
+            const targetX = player.x;
+            const targetY = player.y;
+            
+            // Telegraph line
+            const line = scene.add.line(0, 0, boss.x, boss.y, targetX, targetY, 0xcc00ff, 0.6);
+            line.setLineWidth(5);
+            
+            scene.tweens.add({
+                targets: line,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                    line.destroy();
+                    
+                    // DASH rapide
+                    scene.tweens.add({
+                        targets: boss,
+                        x: targetX,
+                        y: targetY,
+                        duration: 200,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            const dist = Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y);
+                            if (dist < 70) hitPlayer(scene, 20);
+                            
+                            // Screen shake
+                            scene.cameras.main.shake(150, 0.007);
+                        }
+                    });
+                }
+            });
+        }
+
+        function bossAttackOLD(scene) {
             // Slash simple
             const warning = scene.add.rectangle(boss.x - 100, boss.y, 150, 130, 0xff0051, 0.2);
             warning.setStrokeStyle(3, 0xff0051);
@@ -472,7 +636,13 @@
             const msg = isVictory ? '✨ VICTOIRE ✨' : '💀 DÉFAITE 💀';
             const color = isVictory ? '#00ff88' : '#ff3355';
             
-            const txt = scene.add.text(500, 300, msg, { 
+            // Unlock next boss si victoire
+            if (isVictory && currentBossId === unlockedBosses && currentBossId < 3) {
+                unlockedBosses++;
+                localStorage.setItem('unlockedBosses', unlockedBosses);
+            }
+            
+            const txt = scene.add.text(500, 250, msg, { 
                 fontSize: '64px', 
                 fill: color, 
                 fontStyle: 'bold', 
@@ -482,19 +652,129 @@
             
             scene.tweens.add({ targets: txt, scale: 1.15, duration: 600, yoyo: true, repeat: -1 });
             
-            const restart = scene.add.text(500, 400, 'Cliquer pour recommencer', { 
-                fontSize: '20px', 
-                fill: '#fff', 
+            // Boss name
+            scene.add.text(500, 340, BOSSES[currentBossId].name + ' VAINCU!', {
+                fontSize: '20px',
+                fill: '#888'
+            }).setOrigin(0.5).setVisible(isVictory);
+            
+            // Boutons
+            const retryBtn = scene.add.text(400, 450, '[RETRY]', { 
+                fontSize: '24px', 
+                fill: '#00d4ff', 
                 backgroundColor: '#00000099', 
                 padding: { x: 20, y: 10 }
-            }).setOrigin(0.5);
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
             
-            scene.input.once('pointerdown', () => {
+            retryBtn.on('pointerdown', () => {
                 scene.scene.restart();
                 playerHealth = 100;
-                bossHealth = 500;
+                bossHealth = BOSSES[currentBossId].hp;
                 playerStamina = 100;
                 projectiles = [];
+                bossProjectiles = [];
+            });
+            
+            // Boss select button
+            const selectBtn = scene.add.text(600, 450, '[SELECT BOSS]', { 
+                fontSize: '24px', 
+                fill: '#ff6600', 
+                backgroundColor: '#00000099', 
+                padding: { x: 20, y: 10 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            
+            selectBtn.on('pointerdown', () => showBossSelect(scene));
+            
+            // Next boss button (si unlocked)
+            if (isVictory && currentBossId < unlockedBosses) {
+                const nextBtn = scene.add.text(500, 520, '→ NEXT BOSS', { 
+                    fontSize: '20px', 
+                    fill: '#00ff88', 
+                    backgroundColor: '#00000099', 
+                    padding: { x: 15, y: 8 }
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                
+                nextBtn.on('pointerdown', () => {
+                    currentBossId++;
+                    localStorage.setItem('currentBoss', currentBossId);
+                    scene.scene.restart();
+                    playerHealth = 100;
+                    bossHealth = BOSSES[currentBossId].hp;
+                    playerStamina = 100;
+                    projectiles = [];
+                    bossProjectiles = [];
+                });
+            }
+        }
+
+        function showBossSelect(scene) {
+            // Clear screen
+            scene.children.removeAll();
+            
+            scene.add.text(500, 80, 'SELECT BOSS', {
+                fontSize: '48px',
+                fill: '#00d4ff',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            
+            // Boss cards
+            const startX = 250;
+            const spacing = 250;
+            
+            [1, 2, 3].forEach((bossId, index) => {
+                const bossData = BOSSES[bossId];
+                const x = startX + (index * spacing);
+                const y = 350;
+                const unlocked = bossId <= unlockedBosses;
+                
+                // Card
+                const card = scene.add.rectangle(x, y, 200, 250, 0x1a1a2e, unlocked ? 0.8 : 0.3);
+                card.setStrokeStyle(3, bossData.color, unlocked ? 1 : 0.3);
+                
+                if (unlocked) {
+                    card.setInteractive({ useHandCursor: true });
+                    
+                    card.on('pointerover', () => {
+                        scene.tweens.add({ targets: card, scaleX: 1.05, scaleY: 1.05, duration: 200 });
+                    });
+                    
+                    card.on('pointerout', () => {
+                        scene.tweens.add({ targets: card, scaleX: 1, scaleY: 1, duration: 200 });
+                    });
+                    
+                    card.on('pointerdown', () => {
+                        currentBossId = bossId;
+                        localStorage.setItem('currentBoss', currentBossId);
+                        scene.scene.restart();
+                        playerHealth = 100;
+                        bossHealth = BOSSES[currentBossId].hp;
+                        playerStamina = 100;
+                        projectiles = [];
+                        bossProjectiles = [];
+                    });
+                }
+                
+                // Boss preview
+                const preview = scene.add.circle(x, y - 60, 35, bossData.color, unlocked ? 1 : 0.3);
+                const glow = scene.add.circle(x, y - 60, 50, bossData.color, unlocked ? 0.3 : 0.1);
+                
+                // Name
+                scene.add.text(x, y + 30, bossData.name, {
+                    fontSize: '18px',
+                    fill: unlocked ? '#fff' : '#444',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+                
+                // HP
+                scene.add.text(x, y + 60, 'HP: ' + bossData.hp, {
+                    fontSize: '14px',
+                    fill: unlocked ? '#ffaa00' : '#333'
+                }).setOrigin(0.5);
+                
+                // Lock
+                if (!unlocked) {
+                    scene.add.text(x, y, '🔒', { fontSize: '32px' }).setOrigin(0.5);
+                }
             });
         }
 
