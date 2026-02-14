@@ -21,17 +21,45 @@ export class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Background
-        this.add.rectangle(0, 0, width, height, 0x0a0a14).setOrigin(0);
+        // BACKGROUND AVEC PROFONDEUR (suppression de la grille)
+        // Dégradé du sombre vers le légèrement plus clair pour donner de la profondeur
+        const gradient = this.add.graphics();
+        gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
+        gradient.fillRect(0, 0, width, height);
         
-        // Grid
-        const graphics = this.add.graphics();
-        graphics.lineStyle(1, 0x00d4ff, 0.1);
-        for (let i = 0; i < width; i += 50) {
-            graphics.lineBetween(i, 0, i, height);
+        // Ajout de particules d'ambiance pour la profondeur (étoiles lointaines)
+        for (let i = 0; i < 100; i++) {
+            const x = Phaser.Math.Between(0, width);
+            const y = Phaser.Math.Between(0, height);
+            const size = Phaser.Math.Between(1, 2);
+            const alpha = Math.random() * 0.3;
+            
+            const star = this.add.circle(x, y, size, 0xffffff, alpha);
+            
+            // Animation de scintillement très lente
+            this.tweens.add({
+                targets: star,
+                alpha: alpha * 0.3,
+                duration: Phaser.Math.Between(2000, 4000),
+                yoyo: true,
+                repeat: -1
+            });
         }
-        for (let i = 0; i < height; i += 50) {
-            graphics.lineBetween(0, i, width, i);
+        
+        // Ajout de quelques nébuleuses très subtiles
+        for (let i = 0; i < 5; i++) {
+            const x = Phaser.Math.Between(0, width);
+            const y = Phaser.Math.Between(0, height);
+            const radius = Phaser.Math.Between(100, 200);
+            
+            const nebula = this.add.circle(x, y, radius, 0x3366ff, 0.02);
+            this.tweens.add({
+                targets: nebula,
+                alpha: 0.01,
+                duration: 8000,
+                yoyo: true,
+                repeat: -1
+            });
         }
         
         // Create player
@@ -182,18 +210,20 @@ export class GameScene extends Phaser.Scene {
         this.moveTarget.x = x;
         this.moveTarget.y = y;
         
-        // Effet visuel léger du point de destination (SEULEMENT le cercle, pas de ligne)
+        // Effet visuel TRÈS léger du point de destination (uniquement le cercle)
         const playerColor = this.player.classData?.color || 0x00d4ff;
-        const indicator = this.add.circle(x, y, 12, playerColor, 0.15);
-        indicator.setStrokeStyle(1, playerColor, 0.3);
+        const indicator = this.add.circle(x, y, 10, playerColor, 0.08); // Transparence augmentée
+        indicator.setStrokeStyle(1, playerColor, 0.15);
         
         this.tweens.add({
             targets: indicator,
-            scale: 1.3,
+            scale: 1.2,
             alpha: 0,
-            duration: 400,
+            duration: 300,
             onComplete: () => indicator.destroy()
         });
+        
+        // PAS de ligne entre le joueur et la destination
     }
     
     shootProjectile(angle) {
@@ -223,14 +253,14 @@ export class GameScene extends Phaser.Scene {
         
         this.projectiles.push(proj);
         
-        // Trail léger
+        // Trail TRÈS léger (transparence augmentée)
         let trailCount = 0;
         const trailInterval = setInterval(() => {
-            if (!proj.scene || trailCount > 8) {
+            if (!proj.scene || trailCount > 6) {
                 clearInterval(trailInterval);
                 return;
             }
-            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.2);
+            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.1); // Transparence 0.1
             this.tweens.add({
                 targets: trail,
                 alpha: 0,
@@ -239,7 +269,7 @@ export class GameScene extends Phaser.Scene {
                 onComplete: () => trail.destroy()
             });
             trailCount++;
-        }, 40);
+        }, 50);
         
         // Reset attack cooldown
         this.time.delayedCall(250, () => {
@@ -249,15 +279,8 @@ export class GameScene extends Phaser.Scene {
     
     performDash() {
         // Vérifications
-        if (this.player.stamina < 40) {
-            console.log('Not enough stamina');
-            return;
-        }
-        
-        if (this.player.isDashing) {
-            console.log('Already dashing');
-            return;
-        }
+        if (this.player.stamina < 40) return;
+        if (this.player.isDashing) return;
         
         // Dash vers la souris
         const angle = Math.atan2(
@@ -269,13 +292,11 @@ export class GameScene extends Phaser.Scene {
         const success = this.player.dash(Math.cos(angle), Math.sin(angle));
         
         if (success) {
-            console.log('Dash successful!');
-            
-            // Effet de dash léger
+            // Effet de dash TRÈS léger (transparence augmentée)
             const playerColor = this.player.classData?.color || 0x00d4ff;
-            for (let i = 0; i < 5; i++) {
-                this.time.delayedCall(i * 40, () => {
-                    const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.2);
+            for (let i = 0; i < 4; i++) {
+                this.time.delayedCall(i * 50, () => {
+                    const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.1); // Transparence 0.1
                     this.tweens.add({
                         targets: trail,
                         alpha: 0,
@@ -285,8 +306,6 @@ export class GameScene extends Phaser.Scene {
                     });
                 });
             }
-        } else {
-            console.log('Dash failed');
         }
     }
     
@@ -340,7 +359,7 @@ export class GameScene extends Phaser.Scene {
         }
         
         // Ligne de visée principale (limitée)
-        this.aimLine.lineStyle(1, 0xff6666, 0.3);
+        this.aimLine.lineStyle(1, 0xff6666, 0.2); // Transparence réduite
         this.aimLine.lineBetween(this.player.x, this.player.y, aimX, aimY);
         
         // Ligne pointillée (limitée aussi)
@@ -355,16 +374,11 @@ export class GameScene extends Phaser.Scene {
         }
         
         // Cercle de visée (à la position limitée)
-        this.aimLine.lineStyle(1, 0xff3333, 0.5);
+        this.aimLine.lineStyle(1, 0xff3333, 0.3); // Transparence réduite
         this.aimLine.strokeCircle(aimX, aimY, 8);
         
-        // Marqueur de destination (uniquement le cercle, pas de ligne)
-        if (this.moveTarget.x !== null && this.moveTarget.y !== null) {
-            const playerColor = this.player.classData?.color || 0x00d4ff;
-            this.aimLine.lineStyle(1, playerColor, 0.3);
-            this.aimLine.strokeCircle(this.moveTarget.x, this.moveTarget.y, 12);
-            // Plus de ligne entre le joueur et la destination
-        }
+        // AUCUNE ligne ou marqueur pour la destination de mouvement
+        // (supprimé complètement)
         
         // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
