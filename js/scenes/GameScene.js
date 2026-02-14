@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (style LoL corrigé)
+// GameScene.js - Main gameplay scene (style LoL)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -134,8 +134,15 @@ export class GameScene extends Phaser.Scene {
     setupInput() {
         this.input.mouse.disableContextMenu();
         
-        // CLIC GAUCHE - Tirer
+        // CLIC DROIT - Déplacement
         this.input.on('pointerdown', (pointer) => {
+            if (pointer.rightButtonDown()) {
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.rightMouseDown = true;
+                this.setMoveTarget(worldPoint.x, worldPoint.y);
+            }
+            
+            // CLIC GAUCHE - Tirer
             if (pointer.leftButtonDown()) {
                 const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
                 const angle = Math.atan2(
@@ -143,13 +150,6 @@ export class GameScene extends Phaser.Scene {
                     worldPoint.x - this.player.x
                 );
                 this.shootProjectile(angle);
-            }
-            
-            // CLIC DROIT - Déplacement
-            if (pointer.rightButtonDown()) {
-                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-                this.rightMouseDown = true;
-                this.setMoveTarget(worldPoint.x, worldPoint.y);
             }
         });
         
@@ -165,7 +165,7 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
-        // Relâchement des clics
+        // Relâchement du clic droit
         this.input.on('pointerup', (pointer) => {
             if (pointer.button === 2) { // Clic droit
                 this.rightMouseDown = false;
