@@ -27,7 +27,7 @@ export class Player extends Phaser.GameObjects.Container {
         // Dash properties
         this.dashSpeed = 800;
         this.dashDuration = 200;
-        this.dashCooldown = 0;
+        this.dashCooldown = 1000;
         this.lastDashTime = 0;
         
         // Create player visuals
@@ -74,66 +74,59 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     dash(directionX, directionY) {
-        console.log('Player.dash called with:', directionX, directionY);
-        console.log('Stamina:', this.stamina, 'Required: 40');
-        console.log('isDashing:', this.isDashing);
-        
-        // Vérifications
-        if (this.stamina < 40) {
-            console.log('Dash failed: not enough stamina');
-            return false;
-        }
-        
-        if (this.isDashing) {
-            console.log('Dash failed: already dashing');
-            return false;
-        }
+        if (this.stamina < 40) return false;
+        if (this.isDashing) return false;
         
         const now = Date.now();
-        if (now - this.lastDashTime < 1000) { // Cooldown de 1 seconde
-            console.log('Dash failed: cooldown');
-            return false;
-        }
+        if (now - this.lastDashTime < this.dashCooldown) return false;
         
-        // Appliquer le dash
         this.stamina -= 40;
         this.isDashing = true;
         this.isInvulnerable = true;
         this.lastDashTime = now;
         
-        // Appliquer la vélocité du dash
-        const dashSpeed = 800;
         this.body.setVelocity(
-            directionX * dashSpeed,
-            directionY * dashSpeed
+            directionX * this.dashSpeed,
+            directionY * this.dashSpeed
         );
         
-        console.log('Dash started! New stamina:', this.stamina);
-        
-        // Fin du dash après la durée
-        this.scene.time.delayedCall(200, () => {
+        this.scene.time.delayedCall(this.dashDuration, () => {
             this.isDashing = false;
             this.isInvulnerable = false;
             this.body.setVelocity(0, 0);
-            console.log('Dash ended');
+            
+            // Effet de fin de dash - fumée
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const smoke = this.scene.add.circle(
+                    this.x,
+                    this.y,
+                    5 + Math.random() * 5,
+                    this.classData?.color || 0x00d4ff,
+                    0.3
+                );
+                
+                this.scene.tweens.add({
+                    targets: smoke,
+                    x: this.x + Math.cos(angle) * 40,
+                    y: this.y + Math.sin(angle) * 40,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 200,
+                    onComplete: () => smoke.destroy()
+                });
+            }
         });
         
         return true;
     }
     
     takeDamage(amount) {
-        if (this.isInvulnerable) {
-            console.log('Damage blocked by invulnerability');
-            return 0;
-        }
+        if (this.isInvulnerable) return 0;
         
-        // Apply damage reduction
         const reducedAmount = amount * (1 - this.damageReduction);
         this.health = Math.max(0, this.health - reducedAmount);
         
-        console.log('Player took damage:', reducedAmount, 'Health left:', this.health);
-        
-        // Visual feedback
         this.scene.tweens.add({
             targets: this,
             alpha: 0.3,
@@ -152,7 +145,6 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     update() {
-        // Animate rings
         if (this.ring1) {
             this.ring1.rotation += 0.01;
         }

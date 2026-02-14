@@ -12,15 +12,15 @@ export const WEAPONS = {
             damage: 22,
             color: 0xffaa00,
             count: 1,
-            range: 200, // Disparaît après 200px
-            cooldown: 250, // ms entre chaque tir
-            piercing: true // Peut traverser
+            range: 200,
+            cooldown: 250,
+            piercing: true
         },
         charged: {
             name: 'WHIRLWIND',
             chargeTime: 1200,
             staminaCost: 30,
-            damage: 45, // 15 x 3 coups
+            damage: 45,
             radius: 100,
             hits: 3,
             knockback: true
@@ -39,15 +39,15 @@ export const WEAPONS = {
             damage: 18,
             color: 0x88dd88,
             count: 1,
-            range: 600, // Très longue portée
-            cooldown: 400, // Lent
+            range: 600,
+            cooldown: 400,
             piercing: false
         },
         charged: {
             name: 'RAIN OF ARROWS',
             chargeTime: 1500,
             staminaCost: 35,
-            damage: 120, // 8 x 15
+            damage: 120,
             arrows: 8,
             radius: 150,
             aoe: true
@@ -66,9 +66,9 @@ export const WEAPONS = {
             damage: 16,
             color: 0x8888ff,
             count: 1,
-            range: 400, // Portée moyenne-longue
-            cooldown: 200, // Rapide
-            homing: true, // Légèrement téléguidé
+            range: 400,
+            cooldown: 200,
+            homing: true,
             homingStrength: 0.03
         },
         charged: {
@@ -78,7 +78,7 @@ export const WEAPONS = {
             damage: 40,
             radius: 120,
             explosion: true,
-            dotDamage: 5, // Dégâts sur la durée
+            dotDamage: 5,
             dotTicks: 4,
             dotInterval: 500
         }
@@ -95,17 +95,17 @@ export const WEAPONS = {
             speed: 1000,
             damage: 12,
             color: 0xcc88cc,
-            count: 3, // 3 dagues
-            spread: 0.3, // Angle d'éventail
-            range: 250, // Portée courte
-            cooldown: 150, // Très rapide
+            count: 3,
+            spread: 0.3,
+            range: 250,
+            cooldown: 150,
             piercing: false
         },
         charged: {
             name: 'POISON CLOUD',
             chargeTime: 1000,
             staminaCost: 25,
-            damage: 40, // 8 x 5 ticks
+            damage: 40,
             radius: 80,
             ticks: 5,
             tickRate: 500,
@@ -125,9 +125,9 @@ export const WEAPONS = {
             damage: 32,
             color: 0xcc6600,
             count: 1,
-            range: 300, // Portée moyenne
-            cooldown: 500, // Très lent
-            knockback: true, // Repousse
+            range: 300,
+            cooldown: 500,
+            knockback: true,
             knockbackForce: 200
         },
         charged: {
@@ -137,7 +137,7 @@ export const WEAPONS = {
             damage: 55,
             radius: 130,
             stun: true,
-            stunDuration: 1000 // 1 seconde de stun
+            stunDuration: 1000
         }
     }
 };

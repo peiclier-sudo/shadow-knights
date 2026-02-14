@@ -191,10 +191,8 @@ export class GameScene extends Phaser.Scene {
                 this.aimTargetX = worldPoint.x;
                 this.aimTargetY = worldPoint.y;
                 
-                // Start charging if right click held and not moving
-                if (this.player.stamina >= this.weaponData.charged.staminaCost && !this.player.isDashing) {
-                    this.startCharge();
-                }
+                // Commencer la charge immédiatement
+                this.startCharge();
             }
         });
         
@@ -207,12 +205,6 @@ export class GameScene extends Phaser.Scene {
             // Si on maintient le clic gauche, mettre à jour la destination
             if (this.leftMouseDown) {
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
-            }
-            
-            // Mise à jour de la charge
-            if (this.isCharging) {
-                const elapsed = Date.now() - this.chargeStartTime;
-                this.chargeLevel = Math.min(1, elapsed / this.weaponData.charged.chargeTime);
             }
         });
         
@@ -265,15 +257,12 @@ export class GameScene extends Phaser.Scene {
     }
     
     startCharge() {
-        if (this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0) {
-            return;
-        }
-        
         this.isCharging = true;
         this.player.isCharging = true;
         this.chargeStartTime = Date.now();
         this.chargeLevel = 0;
         
+        // Indicateur de charge
         this.chargeGraphics = this.add.graphics();
     }
     
@@ -532,20 +521,55 @@ export class GameScene extends Phaser.Scene {
         
         let proj;
         
-        // Créer selon le type
+        // Créer selon le type avec des formes distinctes
         switch(data.type) {
-            case 'arrow':
-                proj = this.add.rectangle(startX, startY, data.size * 2, data.size, data.color);
+            case 'arrow': // Arc - Flèche avec pointe
+                proj = this.add.container(startX, startY);
+                const shaft = this.add.rectangle(0, 0, data.size * 2, data.size * 0.8, data.color);
+                shaft.rotation = angle;
+                const tip = this.add.triangle(
+                    data.size, 0,
+                    0, -3,
+                    0, 3,
+                    data.color
+                );
+                tip.rotation = angle;
+                proj.add([shaft, tip]);
+                break;
+                
+            case 'slash': // Épée - Croissant
+                proj = this.add.graphics();
+                proj.lineStyle(3, data.color, 0.8);
+                proj.beginPath();
+                proj.arc(0, 0, data.size * 2, angle - 0.5, angle + 0.5);
+                proj.strokePath();
+                proj.setPosition(startX, startY);
+                break;
+                
+            case 'orb': // Bâton - Étoile
+                proj = this.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
+                break;
+                
+            case 'spread': // Dagues - Petit triangle
+                proj = this.add.triangle(
+                    startX, startY,
+                    -data.size, -data.size,
+                    data.size, 0,
+                    -data.size, data.size,
+                    data.color
+                );
                 proj.rotation = angle;
                 break;
-            case 'slash':
-                proj = this.add.ellipse(startX, startY, data.size * 3, data.size, data.color);
-                proj.rotation = angle;
+                
+            case 'shockwave': // Espadon - Onde épaisse avec contour
+                proj = this.add.container(startX, startY);
+                const wave = this.add.ellipse(0, 0, data.size * 4, data.size * 2, data.color, 0.6);
+                wave.rotation = angle;
+                const outline = this.add.ellipse(0, 0, data.size * 4, data.size * 2, data.color * 0.7, 0.3);
+                outline.rotation = angle;
+                proj.add([wave, outline]);
                 break;
-            case 'shockwave':
-                proj = this.add.ellipse(startX, startY, data.size * 4, data.size * 2, data.color, 0.7);
-                proj.rotation = angle;
-                break;
+                
             default:
                 proj = this.add.circle(startX, startY, data.size, data.color);
         }
@@ -560,7 +584,7 @@ export class GameScene extends Phaser.Scene {
         proj.knockback = data.knockback || false;
         proj.knockbackForce = data.knockbackForce || 150;
         proj.piercing = data.piercing || false;
-        proj.hits = []; // Pour le piercing
+        proj.hits = [];
         
         // Trail léger
         this.addProjectileTrail(proj, data);
@@ -600,18 +624,57 @@ export class GameScene extends Phaser.Scene {
         
         if (success) {
             const playerColor = this.player.classData?.color || 0x00d4ff;
-            for (let i = 0; i < 4; i++) {
-                this.time.delayedCall(i * 50, () => {
-                    const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.1);
-                    this.tweens.add({
-                        targets: trail,
-                        alpha: 0,
-                        scale: 1.3,
-                        duration: 200,
-                        onComplete: () => trail.destroy()
-                    });
+            
+            // Afterimages plus smooth
+            let afterimageCount = 0;
+            const afterimageInterval = setInterval(() => {
+                if (!this.player.isDashing || afterimageCount > 8) {
+                    clearInterval(afterimageInterval);
+                    return;
+                }
+                
+                const afterimage = this.add.container(this.player.x, this.player.y);
+                const core = this.add.circle(0, 0, 18, playerColor, 0.3);
+                const ring = this.add.circle(0, 0, 24, playerColor, 0.15);
+                afterimage.add([ring, core]);
+                afterimage.setDepth(40);
+                
+                this.tweens.add({
+                    targets: afterimage,
+                    alpha: 0,
+                    scale: 0.8,
+                    duration: 200,
+                    ease: 'Power2',
+                    onComplete: () => afterimage.destroy()
                 });
-            }
+                
+                // Particules de trail
+                for (let i = 0; i < 3; i++) {
+                    const particle = this.add.circle(
+                        this.player.x + (Math.random() - 0.5) * 30,
+                        this.player.y + (Math.random() - 0.5) * 30,
+                        3 + Math.random() * 4,
+                        playerColor,
+                        0.4
+                    );
+                    
+                    this.tweens.add({
+                        targets: particle,
+                        alpha: 0,
+                        scale: 0.3,
+                        x: particle.x + (Math.random() - 0.5) * 50,
+                        y: particle.y + (Math.random() - 0.5) * 50,
+                        duration: 300,
+                        ease: 'Power2',
+                        onComplete: () => particle.destroy()
+                    });
+                }
+                
+                afterimageCount++;
+            }, 40);
+            
+            // Effet de caméra
+            this.cameras.main.shake(100, 0.003);
         }
     }
     
@@ -645,15 +708,44 @@ export class GameScene extends Phaser.Scene {
             this.boss.update(time, this.player);
         }
         
-        // Update charge indicator
-        if (this.isCharging && this.chargeGraphics) {
-            this.chargeGraphics.clear();
-            const radius = 30 + this.chargeLevel * 40;
-            this.chargeGraphics.lineStyle(4, 0xffaa00, 0.8);
-            this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
+        // Update charge indicator - S'annule si le joueur bouge
+        if (this.isCharging) {
+            // Si le joueur bouge, annuler la charge
+            if (this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0) {
+                this.isCharging = false;
+                this.player.isCharging = false;
+                if (this.chargeGraphics) {
+                    this.chargeGraphics.destroy();
+                    this.chargeGraphics = null;
+                }
+            } else {
+                // Sinon, continuer la charge
+                const elapsed = Date.now() - this.chargeStartTime;
+                this.chargeLevel = Math.min(1, elapsed / this.weaponData.charged.chargeTime);
+                
+                if (this.chargeGraphics) {
+                    this.chargeGraphics.clear();
+                    const radius = 30 + this.chargeLevel * 50;
+                    const alpha = 0.3 + this.chargeLevel * 0.5;
+                    
+                    // Cercle extérieur
+                    this.chargeGraphics.lineStyle(2, 0xffaa00, alpha * 0.5);
+                    this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
+                    
+                    // Remplissage
+                    this.chargeGraphics.fillStyle(0xffaa00, alpha * 0.2);
+                    this.chargeGraphics.slice(
+                        this.player.x, this.player.y,
+                        radius - 5,
+                        0, Math.PI * 2 * this.chargeLevel,
+                        false
+                    );
+                    this.chargeGraphics.fillPath();
+                }
+            }
         }
         
-        // DESSINER LA LIGNE DE VISÉE UNIQUEMENT QUAND ON TIRE
+        // DESSINER LA LIGNE DE VISÉE
         this.aimLine.clear();
         
         if (this.input.activePointer.rightButtonDown()) {
