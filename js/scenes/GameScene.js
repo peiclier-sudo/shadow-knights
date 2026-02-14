@@ -7,6 +7,11 @@ import { ParticleManager } from '../effects/ParticleManager.js';
 import { ShakeEffect } from '../effects/ShakeEffect.js';
 import { FlashEffect } from '../effects/FlashEffect.js';
 import { UIManager } from '../ui/UIManager.js';
+import { ArrowProjectile } from '../entities/projectiles/ArrowProjectile.js';
+import { FireballProjectile } from '../entities/projectiles/FireballProjectile.js';
+import { PoisonCloudProjectile } from '../entities/projectiles/PoisonCloudProjectile.js';
+import { SlashProjectile } from '../entities/projectiles/SlashProjectile.js';
+import { Projectile } from '../entities/projectiles/Projectile.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -55,6 +60,18 @@ export class GameScene extends Phaser.Scene {
         this.isCharging = false;
         this.chargeLevel = 0;
         this.chargeStartTime = 0;
+        this.chargeGraphics = null;
+        
+        // Input state
+        this.leftMouseDown = false;
+        this.rightMouseDown = false;
+        this.moveTargetX = 0;
+        this.moveTargetY = 0;
+        this.aimStartX = 0;
+        this.aimStartY = 0;
+        this.aimTargetX = 0;
+        this.aimTargetY = 0;
+        this.aimLine = null;
         
         // Setup input
         this.setupInput();
@@ -88,20 +105,22 @@ export class GameScene extends Phaser.Scene {
     setupInput() {
         this.input.mouse.disableContextMenu();
         
+        // Mouse movement (left click)
         this.input.on('pointerdown', (pointer) => {
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
-                this.mouseX = pointer.x;
-                this.mouseY = pointer.y;
+                this.moveTargetX = pointer.x;
+                this.moveTargetY = pointer.y;
             }
             
             if (pointer.rightButtonDown()) {
                 this.rightMouseDown = true;
                 this.aimStartX = this.player.x;
                 this.aimStartY = this.player.y;
-                this.mouseX = pointer.x;
-                this.mouseY = pointer.y;
+                this.aimTargetX = pointer.x;
+                this.aimTargetY = pointer.y;
                 
+                // Start charging if right click held and not moving
                 if (this.player.stamina >= 30 && !this.player.isDashing) {
                     this.startCharge();
                 }
@@ -109,30 +128,50 @@ export class GameScene extends Phaser.Scene {
         });
         
         this.input.on('pointermove', (pointer) => {
-            this.mouseX = pointer.x;
-            this.mouseY = pointer.y;
+            // Update move target if left click held
+            if (this.leftMouseDown) {
+                this.moveTargetX = pointer.x;
+                this.moveTargetY = pointer.y;
+            }
             
-            if (this.isCharging) {
-                const elapsed = Date.now() - this.chargeStartTime;
-                this.chargeLevel = Math.min(1, elapsed / this.weaponData.charged.chargeTime);
+            // Update aim target if right click held
+            if (this.rightMouseDown) {
+                this.aimTargetX = pointer.x;
+                this.aimTargetY = pointer.y;
+                
+                if (this.isCharging) {
+                    const elapsed = Date.now() - this.chargeStartTime;
+                    this.chargeLevel = Math.min(1, elapsed / this.weaponData.charged.chargeTime);
+                }
             }
         });
         
         this.input.on('pointerup', (pointer) => {
-            if (pointer.button === 0) {
+            if (pointer.button === 0) { // Left click released
                 this.leftMouseDown = false;
             }
             
-            if (pointer.button === 2) {
+            if (pointer.button === 2) { // Right click released
                 if (this.isCharging) {
-                    this.releaseCharge();
+                    // Get aim angle before releasing
+                    const angle = Math.atan2(
+                        this.aimTargetY - this.aimStartY,
+                        this.aimTargetX - this.aimStartX
+                    );
+                    this.releaseCharge(angle);
                 } else if (this.rightMouseDown && this.player.canAttack && this.player.stamina >= 7) {
-                    this.shootProjectile();
+                    // Normal shot
+                    const angle = Math.atan2(
+                        this.aimTargetY - this.player.y,
+                        this.aimTargetX - this.player.x
+                    );
+                    this.shootProjectile(angle);
                 }
                 this.rightMouseDown = false;
             }
         });
         
+        // Keyboard dash
         this.input.keyboard.on('keydown-SPACE', () => {
             this.performDash();
         });
@@ -151,7 +190,7 @@ export class GameScene extends Phaser.Scene {
         this.chargeGraphics = this.add.graphics();
     }
     
-    releaseCharge() {
+    releaseCharge(angle) {
         if (!this.isCharging) return;
         
         this.isCharging = false;
@@ -159,15 +198,16 @@ export class GameScene extends Phaser.Scene {
         
         if (this.chargeGraphics) {
             this.chargeGraphics.destroy();
+            this.chargeGraphics = null;
         }
         
         if (this.chargeLevel < 0.3) {
-            this.shootProjectile();
+            this.shootProjectile(angle);
             return;
         }
         
         // Charged attack
-        const angle = Math.atan2(this.mouseY - this.player.y, this.mouseX - this.player.x);
+        if (this.player.stamina < this.weaponData.charged.staminaCost) return;
         this.player.stamina -= this.weaponData.charged.staminaCost;
         
         // Different charged attacks per weapon
@@ -188,7 +228,7 @@ export class GameScene extends Phaser.Scene {
                 this.groundSlam();
                 break;
             default:
-                this.shootProjectile();
+                this.shootProjectile(angle);
         }
         
         this.flashEffect.flash(0xffffff, 150, 0.5);
@@ -317,15 +357,27 @@ export class GameScene extends Phaser.Scene {
         }
     }
     
-    shootProjectile() {
+    shootProjectile(angle) {
         if (this.player.stamina < 7 || !this.player.canAttack) return;
         
         this.player.stamina -= 7;
         this.player.canAttack = false;
         
-        const angle = Math.atan2(this.mouseY - this.player.y, this.mouseX - this.player.x);
         const projectileData = this.weaponData.projectile;
         
+        // Create muzzle flash
+        const flashX = this.player.x + Math.cos(angle) * 30;
+        const flashY = this.player.y + Math.sin(angle) * 30;
+        const flash = this.add.circle(flashX, flashY, 15, 0xffffff, 0.8);
+        this.tweens.add({
+            targets: flash,
+            scale: 2,
+            alpha: 0,
+            duration: 100,
+            onComplete: () => flash.destroy()
+        });
+        
+        // Create projectile(s)
         if (projectileData.count > 1) {
             const spread = projectileData.spread || 0.2;
             for (let i = 0; i < projectileData.count; i++) {
@@ -347,12 +399,15 @@ export class GameScene extends Phaser.Scene {
         
         let projectile;
         
-        switch(data.type) {
-            case 'arrow':
+        switch(this.playerConfig.weapon) {
+            case 'BOW':
                 projectile = new ArrowProjectile(this, startX, startY, angle, data);
                 break;
-            case 'spread':
-                projectile = new Projectile(this, startX, startY, angle, data);
+            case 'STAFF':
+                projectile = new FireballProjectile(this, startX, startY, angle, data);
+                break;
+            case 'SWORD':
+                projectile = new SlashProjectile(this, startX, startY, angle, data);
                 break;
             default:
                 projectile = new Projectile(this, startX, startY, angle, data);
@@ -363,28 +418,34 @@ export class GameScene extends Phaser.Scene {
     }
     
     performDash() {
-        const direction = { x: 1, y: 0 };
+        // Get dash direction from mouse position
+        let dx = 1, dy = 0;
         
-        if (this.leftMouseDown) {
-            const dx = this.mouseX - this.player.x;
-            const dy = this.mouseY - this.player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist > 5) {
-                direction.x = dx / dist;
-                direction.y = dy / dist;
-            }
+        if (this.rightMouseDown) {
+            const angle = Math.atan2(
+                this.aimTargetY - this.player.y,
+                this.aimTargetX - this.player.x
+            );
+            dx = Math.cos(angle);
+            dy = Math.sin(angle);
+        } else if (this.leftMouseDown) {
+            const angle = Math.atan2(
+                this.moveTargetY - this.player.y,
+                this.moveTargetX - this.player.x
+            );
+            dx = Math.cos(angle);
+            dy = Math.sin(angle);
         }
         
-        this.player.dash(direction.x, direction.y);
+        this.player.dash(dx, dy);
         this.particleManager.createDashEffect(this.player.x, this.player.y, this.player.classData.color);
     }
     
     update(time, delta) {
-        // Player movement
+        // Player movement (left click to move to target)
         if (this.leftMouseDown && !this.isCharging) {
-            const dx = this.mouseX - this.player.x;
-            const dy = this.mouseY - this.player.y;
+            const dx = this.moveTargetX - this.player.x;
+            const dy = this.moveTargetY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 10) {
@@ -413,6 +474,37 @@ export class GameScene extends Phaser.Scene {
             this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
         }
         
+        // Draw aim line (if right mouse down and not charging)
+        if (this.rightMouseDown && !this.isCharging) {
+            if (!this.aimLine) {
+                this.aimLine = this.add.graphics();
+            }
+            this.aimLine.clear();
+            
+            const dx = this.aimTargetX - this.player.x;
+            const dy = this.aimTargetY - this.player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 10) {
+                // Draw dotted line
+                this.aimLine.lineStyle(2, 0xff6666, 0.8);
+                for (let i = 0; i < dist; i += 20) {
+                    const t = i / dist;
+                    const x1 = this.player.x + dx * t;
+                    const y1 = this.player.y + dy * t;
+                    const x2 = this.player.x + dx * Math.min(1, t + 0.1);
+                    const y2 = this.player.y + dy * Math.min(1, t + 0.1);
+                    this.aimLine.lineBetween(x1, y1, x2, y2);
+                }
+                
+                // Draw target circle
+                this.aimLine.lineStyle(2, 0xff3333, 1);
+                this.aimLine.strokeCircle(this.aimTargetX, this.aimTargetY, 10);
+            }
+        } else if (this.aimLine) {
+            this.aimLine.clear();
+        }
+        
         // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const proj = this.projectiles[i];
@@ -427,7 +519,8 @@ export class GameScene extends Phaser.Scene {
                 continue;
             }
             
-            if (proj.isOffScreen()) {
+            if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
+                proj.y < -50 || proj.y > this.cameras.main.height + 50) {
                 proj.destroy();
                 this.projectiles.splice(i, 1);
             }
@@ -455,7 +548,8 @@ export class GameScene extends Phaser.Scene {
                 continue;
             }
             
-            if (proj.isOffScreen) {
+            if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
+                proj.y < -50 || proj.y > this.cameras.main.height + 50) {
                 if (proj.glow) proj.glow.destroy();
                 proj.destroy();
                 this.bossProjectiles.splice(i, 1);
