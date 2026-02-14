@@ -21,13 +21,13 @@ export class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // BACKGROUND AVEC PROFONDEUR (suppression de la grille)
-        // Dégradé du sombre vers le légèrement plus clair pour donner de la profondeur
+        // BACKGROUND AVEC PROFONDEUR
+        // Dégradé du sombre vers le légèrement plus clair
         const gradient = this.add.graphics();
         gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
         gradient.fillRect(0, 0, width, height);
         
-        // Ajout de particules d'ambiance pour la profondeur (étoiles lointaines)
+        // Étoiles lointaines
         for (let i = 0; i < 100; i++) {
             const x = Phaser.Math.Between(0, width);
             const y = Phaser.Math.Between(0, height);
@@ -36,7 +36,6 @@ export class GameScene extends Phaser.Scene {
             
             const star = this.add.circle(x, y, size, 0xffffff, alpha);
             
-            // Animation de scintillement très lente
             this.tweens.add({
                 targets: star,
                 alpha: alpha * 0.3,
@@ -46,7 +45,7 @@ export class GameScene extends Phaser.Scene {
             });
         }
         
-        // Ajout de quelques nébuleuses très subtiles
+        // Nébuleuses subtiles
         for (let i = 0; i < 5; i++) {
             const x = Phaser.Math.Between(0, width);
             const y = Phaser.Math.Between(0, height);
@@ -212,7 +211,7 @@ export class GameScene extends Phaser.Scene {
         
         // Effet visuel TRÈS léger du point de destination (uniquement le cercle)
         const playerColor = this.player.classData?.color || 0x00d4ff;
-        const indicator = this.add.circle(x, y, 10, playerColor, 0.08); // Transparence augmentée
+        const indicator = this.add.circle(x, y, 10, playerColor, 0.08);
         indicator.setStrokeStyle(1, playerColor, 0.15);
         
         this.tweens.add({
@@ -222,8 +221,6 @@ export class GameScene extends Phaser.Scene {
             duration: 300,
             onComplete: () => indicator.destroy()
         });
-        
-        // PAS de ligne entre le joueur et la destination
     }
     
     shootProjectile(angle) {
@@ -253,14 +250,14 @@ export class GameScene extends Phaser.Scene {
         
         this.projectiles.push(proj);
         
-        // Trail TRÈS léger (transparence augmentée)
+        // Trail TRÈS léger
         let trailCount = 0;
         const trailInterval = setInterval(() => {
             if (!proj.scene || trailCount > 6) {
                 clearInterval(trailInterval);
                 return;
             }
-            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.1); // Transparence 0.1
+            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.1);
             this.tweens.add({
                 targets: trail,
                 alpha: 0,
@@ -292,11 +289,11 @@ export class GameScene extends Phaser.Scene {
         const success = this.player.dash(Math.cos(angle), Math.sin(angle));
         
         if (success) {
-            // Effet de dash TRÈS léger (transparence augmentée)
+            // Effet de dash TRÈS léger
             const playerColor = this.player.classData?.color || 0x00d4ff;
             for (let i = 0; i < 4; i++) {
                 this.time.delayedCall(i * 50, () => {
-                    const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.1); // Transparence 0.1
+                    const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.1);
                     this.tweens.add({
                         targets: trail,
                         alpha: 0,
@@ -339,46 +336,46 @@ export class GameScene extends Phaser.Scene {
             this.boss.update(time, this.player);
         }
         
-        // DESSINER LA LIGNE DE VISÉE (limitée à 300 pixels)
+        // DESSINER LA LIGNE DE VISÉE UNIQUEMENT QUAND ON TIRE (clic droit maintenu)
         this.aimLine.clear();
         
-        // Calculer la direction et la distance
-        const dx = this.worldMouseX - this.player.x;
-        const dy = this.worldMouseY - this.player.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        // Limiter la distance de la ligne à 300 pixels
-        const maxAimDistance = 300;
-        let aimX = this.worldMouseX;
-        let aimY = this.worldMouseY;
-        
-        if (dist > maxAimDistance) {
-            const ratio = maxAimDistance / dist;
-            aimX = this.player.x + dx * ratio;
-            aimY = this.player.y + dy * ratio;
+        // Ne dessiner la ligne que si le clic droit est enfoncé
+        if (this.input.activePointer.rightButtonDown()) {
+            // Calculer la direction et la distance
+            const dx = this.worldMouseX - this.player.x;
+            const dy = this.worldMouseY - this.player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Limiter la distance de la ligne à 300 pixels
+            const maxAimDistance = 300;
+            let aimX = this.worldMouseX;
+            let aimY = this.worldMouseY;
+            
+            if (dist > maxAimDistance) {
+                const ratio = maxAimDistance / dist;
+                aimX = this.player.x + dx * ratio;
+                aimY = this.player.y + dy * ratio;
+            }
+            
+            // Ligne de visée principale (limitée)
+            this.aimLine.lineStyle(1, 0xff6666, 0.2);
+            this.aimLine.lineBetween(this.player.x, this.player.y, aimX, aimY);
+            
+            // Ligne pointillée (limitée aussi)
+            const limitedDist = Math.min(dist, maxAimDistance);
+            for (let i = 20; i < limitedDist; i += 30) {
+                const t = i / limitedDist;
+                const x1 = this.player.x + (aimX - this.player.x) * t;
+                const y1 = this.player.y + (aimY - this.player.y) * t;
+                const x2 = this.player.x + (aimX - this.player.x) * (t + 0.05);
+                const y2 = this.player.y + (aimY - this.player.y) * (t + 0.05);
+                this.aimLine.lineBetween(x1, y1, x2, y2);
+            }
+            
+            // Cercle de visée (à la position limitée)
+            this.aimLine.lineStyle(1, 0xff3333, 0.3);
+            this.aimLine.strokeCircle(aimX, aimY, 8);
         }
-        
-        // Ligne de visée principale (limitée)
-        this.aimLine.lineStyle(1, 0xff6666, 0.2); // Transparence réduite
-        this.aimLine.lineBetween(this.player.x, this.player.y, aimX, aimY);
-        
-        // Ligne pointillée (limitée aussi)
-        const limitedDist = Math.min(dist, maxAimDistance);
-        for (let i = 20; i < limitedDist; i += 30) {
-            const t = i / limitedDist;
-            const x1 = this.player.x + (aimX - this.player.x) * t;
-            const y1 = this.player.y + (aimY - this.player.y) * t;
-            const x2 = this.player.x + (aimX - this.player.x) * (t + 0.05);
-            const y2 = this.player.y + (aimY - this.player.y) * (t + 0.05);
-            this.aimLine.lineBetween(x1, y1, x2, y2);
-        }
-        
-        // Cercle de visée (à la position limitée)
-        this.aimLine.lineStyle(1, 0xff3333, 0.3); // Transparence réduite
-        this.aimLine.strokeCircle(aimX, aimY, 8);
-        
-        // AUCUNE ligne ou marqueur pour la destination de mouvement
-        // (supprimé complètement)
         
         // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
