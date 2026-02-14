@@ -1,6 +1,6 @@
-// GameScene.js - Main gameplay scene (déplacement style LoL)
+// GameScene.js - Main gameplay scene (style LoL corrigé)
 import { Player } from '../entities/Player.js';
-import { Boss } from '../entities/Boss.js';
+import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
 import { WEAPONS } from '../weapons/weaponData.js';
 
@@ -34,11 +34,12 @@ export class GameScene extends Phaser.Scene {
             graphics.lineBetween(0, i, width, i);
         }
         
-        // Create player
+        // Create player (avec sa couleur de classe)
         this.player = new Player(this, this.playerConfig);
+        const playerColor = this.player.classData?.color || 0x00d4ff;
         
-        // Create boss
-        this.boss = new Boss(this, this.bossId);
+        // Create boss avec BossFactory pour avoir les comportements
+        this.boss = BossFactory.createBoss(this, this.bossId);
         
         // Projectile arrays
         this.projectiles = [];
@@ -56,8 +57,8 @@ export class GameScene extends Phaser.Scene {
         };
         
         // Input state
-        this.moveTarget = { x: null, y: null }; // Point de destination
-        this.rightMouseDown = false; // Pour savoir si on maintient le clic
+        this.moveTarget = { x: null, y: null };
+        this.rightMouseDown = false;
         this.worldMouseX = 0;
         this.worldMouseY = 0;
         
@@ -65,7 +66,7 @@ export class GameScene extends Phaser.Scene {
         this.aimLine = this.add.graphics();
         
         // UI elements
-        this.createUI(width, height);
+        this.createUI(width, height, playerColor);
         
         // Setup input
         this.setupInput();
@@ -75,24 +76,50 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
-    createUI(width, height) {
-        // Health bar
+    createUI(width, height, playerColor) {
+        // Health bar avec chiffres
         this.healthBarBg = this.add.rectangle(20, 20, 300, 25, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
         this.healthBar = this.add.rectangle(20, 20, 300, 25, 0x00ff88)
             .setScrollFactor(0).setOrigin(0, 0.5);
+        this.healthText = this.add.text(330, 20, '100/100', {
+            fontSize: '18px',
+            fill: '#fff',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setScrollFactor(0).setOrigin(0, 0.5);
         
-        // Stamina bar
+        // Stamina bar avec chiffres
         this.staminaBarBg = this.add.rectangle(20, 55, 250, 15, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
         this.staminaBar = this.add.rectangle(20, 55, 250, 15, 0xffaa00)
             .setScrollFactor(0).setOrigin(0, 0.5);
+        this.staminaText = this.add.text(280, 55, '100', {
+            fontSize: '16px',
+            fill: '#ffaa00',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setScrollFactor(0).setOrigin(0, 0.5);
         
-        // Boss health bar
-        this.bossHealthBarBg = this.add.rectangle(width - 350, 30, 300, 25, 0x333333)
+        // Boss health bar avec chiffres et nom
+        this.bossName = this.add.text(width - 200, 15, this.boss?.bossData?.name || 'BOSS', {
+            fontSize: '20px',
+            fill: '#ff5555',
+            fontStyle: 'bold',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setScrollFactor(0).setOrigin(0.5);
+        
+        this.bossHealthBarBg = this.add.rectangle(width - 350, 40, 300, 25, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
-        this.bossHealthBar = this.add.rectangle(width - 350, 30, 300, 25, 0xff5555)
+        this.bossHealthBar = this.add.rectangle(width - 350, 40, 300, 25, 0xff5555)
             .setScrollFactor(0).setOrigin(0, 0.5);
+        this.bossHealthText = this.add.text(width - 40, 40, '400/400', {
+            fontSize: '18px',
+            fill: '#fff',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setScrollFactor(0).setOrigin(1, 0.5);
         
         // Instructions
         this.instructions = this.add.text(width/2, height - 30, 
@@ -107,11 +134,20 @@ export class GameScene extends Phaser.Scene {
     setupInput() {
         this.input.mouse.disableContextMenu();
         
-        // CLIC DROIT - Déplacement (click ou maintien)
+        // CLIC GAUCHE - Tirer
         this.input.on('pointerdown', (pointer) => {
-            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            if (pointer.leftButtonDown()) {
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                const angle = Math.atan2(
+                    worldPoint.y - this.player.y,
+                    worldPoint.x - this.player.x
+                );
+                this.shootProjectile(angle);
+            }
             
+            // CLIC DROIT - Déplacement
             if (pointer.rightButtonDown()) {
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
                 this.rightMouseDown = true;
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
             }
@@ -129,21 +165,10 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
-        // Relâchement du clic droit
+        // Relâchement des clics
         this.input.on('pointerup', (pointer) => {
             if (pointer.button === 2) { // Clic droit
                 this.rightMouseDown = false;
-            }
-        });
-        
-        // CLIC GAUCHE - Tirer
-        this.input.on('pointerdown', (pointer) => {
-            if (pointer.leftButtonDown()) {
-                const angle = Math.atan2(
-                    this.worldMouseY - this.player.y,
-                    this.worldMouseX - this.player.x
-                );
-                this.shootProjectile(angle);
             }
         });
         
@@ -157,36 +182,17 @@ export class GameScene extends Phaser.Scene {
         this.moveTarget.x = x;
         this.moveTarget.y = y;
         
-        // Effet visuel du point de destination
-        this.showMoveIndicator(x, y);
-    }
-    
-    showMoveIndicator(x, y) {
-        // Cercle d'indication de destination
-        const indicator = this.add.circle(x, y, 12, 0x00ff00, 0.3);
-        indicator.setStrokeStyle(2, 0x00ff00);
+        // Effet visuel léger du point de destination (couleur du joueur)
+        const playerColor = this.player.classData?.color || 0x00d4ff;
+        const indicator = this.add.circle(x, y, 12, playerColor, 0.15);
+        indicator.setStrokeStyle(1, playerColor, 0.3);
         
         this.tweens.add({
             targets: indicator,
-            scale: 1.5,
+            scale: 1.3,
             alpha: 0,
-            duration: 300,
+            duration: 400,
             onComplete: () => indicator.destroy()
-        });
-        
-        // Ligne de chemin (optionnelle, style LoL)
-        const line = this.add.line(
-            this.player.x, this.player.y,
-            0, 0,
-            x - this.player.x, y - this.player.y,
-            0x00ff00, 0.3
-        ).setLineWidth(1);
-        
-        this.tweens.add({
-            targets: line,
-            alpha: 0,
-            duration: 200,
-            onComplete: () => line.destroy()
         });
     }
     
@@ -199,23 +205,41 @@ export class GameScene extends Phaser.Scene {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
         
-        // Muzzle flash
-        const flash = this.add.circle(startX, startY, 15, 0xffffff, 0.8);
+        // Muzzle flash léger
+        const flash = this.add.circle(startX, startY, 12, 0xffffff, 0.5);
         this.tweens.add({
             targets: flash,
-            scale: 2,
+            scale: 1.5,
             alpha: 0,
             duration: 100,
             onComplete: () => flash.destroy()
         });
         
-        // Créer le projectile
-        const proj = this.add.circle(startX, startY, 10, 0x66ffff);
+        // Créer le projectile selon l'arme
+        const proj = this.add.circle(startX, startY, 8, this.weaponData.projectile.color || 0x66ffff);
         proj.vx = Math.cos(angle) * 800;
         proj.vy = Math.sin(angle) * 800;
-        proj.damage = 18;
+        proj.damage = this.weaponData.projectile.damage || 18;
         
         this.projectiles.push(proj);
+        
+        // Trail léger du projectile
+        let trailCount = 0;
+        const trailInterval = setInterval(() => {
+            if (!proj.scene || trailCount > 8) {
+                clearInterval(trailInterval);
+                return;
+            }
+            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.2);
+            this.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.5,
+                duration: 200,
+                onComplete: () => trail.destroy()
+            });
+            trailCount++;
+        }, 40);
         
         // Reset attack cooldown
         this.time.delayedCall(250, () => {
@@ -234,14 +258,15 @@ export class GameScene extends Phaser.Scene {
         
         this.player.dash(Math.cos(angle), Math.sin(angle));
         
-        // Effet de dash
-        for (let i = 0; i < 8; i++) {
-            this.time.delayedCall(i * 30, () => {
-                const trail = this.add.circle(this.player.x, this.player.y, 15, 0x00d4ff, 0.5);
+        // Effet de dash LÉGER avec la couleur du joueur
+        const playerColor = this.player.classData?.color || 0x00d4ff;
+        for (let i = 0; i < 5; i++) {
+            this.time.delayedCall(i * 40, () => {
+                const trail = this.add.circle(this.player.x, this.player.y, 12, playerColor, 0.2);
                 this.tweens.add({
                     targets: trail,
                     alpha: 0,
-                    scale: 1.5,
+                    scale: 1.3,
                     duration: 200,
                     onComplete: () => trail.destroy()
                 });
@@ -250,20 +275,18 @@ export class GameScene extends Phaser.Scene {
     }
     
     update(time, delta) {
-        // MOUVEMENT VERS LA DESTINATION (style LoL)
+        // MOUVEMENT VERS LA DESTINATION (clic droit)
         if (this.moveTarget.x !== null && this.moveTarget.y !== null) {
             const dx = this.moveTarget.x - this.player.x;
             const dy = this.moveTarget.y - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 5) {
-                // Se déplacer vers la destination
                 this.player.move(
                     (dx / dist) * this.player.speed,
                     (dy / dist) * this.player.speed
                 );
             } else {
-                // Arrivé à destination
                 this.player.move(0, 0);
                 this.moveTarget.x = null;
                 this.moveTarget.y = null;
@@ -276,17 +299,19 @@ export class GameScene extends Phaser.Scene {
         this.player.update();
         this.player.regenerateStamina();
         
-        // Update boss
-        this.boss.update(time, this.player);
+        // Update boss (comportements spécifiques)
+        if (this.boss) {
+            this.boss.update(time, this.player);
+        }
         
-        // DESSINER LA LIGNE DE VISÉE
+        // DESSINER LA LIGNE DE VISÉE (pour le clic gauche)
         this.aimLine.clear();
         
-        // Ligne de visée (tir)
-        this.aimLine.lineStyle(1, 0xff6666, 0.4);
+        // Ligne de visée légère
+        this.aimLine.lineStyle(1, 0xff6666, 0.3);
         this.aimLine.lineBetween(this.player.x, this.player.y, this.worldMouseX, this.worldMouseY);
         
-        // Ligne pointillée
+        // Ligne pointillée légère
         const dx = this.worldMouseX - this.player.x;
         const dy = this.worldMouseY - this.player.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -300,17 +325,18 @@ export class GameScene extends Phaser.Scene {
             this.aimLine.lineBetween(x1, y1, x2, y2);
         }
         
-        // Cercle de visée
-        this.aimLine.lineStyle(2, 0xff3333, 1);
-        this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 10);
+        // Cercle de visée léger
+        this.aimLine.lineStyle(1, 0xff3333, 0.5);
+        this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 8);
         
-        // Si on a une destination, afficher un marqueur
+        // Si on a une destination, afficher un marqueur léger
         if (this.moveTarget.x !== null && this.moveTarget.y !== null) {
-            this.aimLine.lineStyle(2, 0x00ff00, 0.6);
-            this.aimLine.strokeCircle(this.moveTarget.x, this.moveTarget.y, 15);
+            const playerColor = this.player.classData?.color || 0x00d4ff;
+            this.aimLine.lineStyle(1, playerColor, 0.3);
+            this.aimLine.strokeCircle(this.moveTarget.x, this.moveTarget.y, 12);
             
-            // Petit chemin (optionnel)
-            this.aimLine.lineStyle(1, 0x00ff00, 0.3);
+            // Petit chemin léger
+            this.aimLine.lineStyle(1, playerColor, 0.15);
             this.aimLine.lineBetween(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
         }
         
@@ -320,22 +346,25 @@ export class GameScene extends Phaser.Scene {
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             
-            const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
-            if (dist < 50) {
-                this.boss.takeDamage(proj.damage);
-                
-                const impact = this.add.circle(proj.x, proj.y, 15, 0xffaa00, 0.7);
-                this.tweens.add({
-                    targets: impact,
-                    alpha: 0,
-                    scale: 1.5,
-                    duration: 200,
-                    onComplete: () => impact.destroy()
-                });
-                
-                proj.destroy();
-                this.projectiles.splice(i, 1);
-                continue;
+            if (this.boss) {
+                const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
+                if (dist < 50) {
+                    this.boss.takeDamage(proj.damage);
+                    
+                    // Impact léger
+                    const impact = this.add.circle(proj.x, proj.y, 12, 0xffaa00, 0.4);
+                    this.tweens.add({
+                        targets: impact,
+                        alpha: 0,
+                        scale: 1.3,
+                        duration: 150,
+                        onComplete: () => impact.destroy()
+                    });
+                    
+                    proj.destroy();
+                    this.projectiles.splice(i, 1);
+                    continue;
+                }
             }
             
             if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
@@ -355,15 +384,16 @@ export class GameScene extends Phaser.Scene {
             if (dist < 25 && !this.player.isInvulnerable) {
                 this.player.takeDamage(10);
                 
-                const hit = this.add.circle(this.player.x, this.player.y, 20, 0xff0000, 0.5);
+                const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);
                 this.tweens.add({
                     targets: hit,
                     alpha: 0,
-                    scale: 1.5,
-                    duration: 200,
+                    scale: 1.3,
+                    duration: 150,
                     onComplete: () => hit.destroy()
                 });
                 
+                if (proj.glow) proj.glow.destroy();
                 proj.destroy();
                 this.bossProjectiles.splice(i, 1);
                 continue;
@@ -371,20 +401,31 @@ export class GameScene extends Phaser.Scene {
             
             if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
                 proj.y < -50 || proj.y > this.cameras.main.height + 50) {
+                if (proj.glow) proj.glow.destroy();
                 proj.destroy();
                 this.bossProjectiles.splice(i, 1);
             }
         }
         
-        // Update UI
-        this.healthBar.width = 300 * (this.player.health / this.player.maxHealth);
-        this.staminaBar.width = 250 * (this.player.stamina / this.player.maxStamina);
-        this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
+        // Update UI avec chiffres
+        if (this.player) {
+            this.healthBar.width = 300 * (this.player.health / this.player.maxHealth);
+            this.healthText.setText(`${Math.floor(this.player.health)}/${this.player.maxHealth}`);
+            
+            this.staminaBar.width = 250 * (this.player.stamina / this.player.maxStamina);
+            this.staminaText.setText(`${Math.floor(this.player.stamina)}`);
+        }
+        
+        if (this.boss) {
+            this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
+            this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
+            this.bossName.setText(this.boss.bossData?.name || 'BOSS');
+        }
         
         // Check game over
         if (this.player.health <= 0) {
             this.scene.start('GameOverScene', { victory: false });
-        } else if (this.boss.health <= 0) {
+        } else if (this.boss && this.boss.health <= 0) {
             GameData.unlockNextBoss();
             this.scene.start('GameOverScene', { 
                 victory: true,
