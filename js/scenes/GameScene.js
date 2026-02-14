@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (visée précise)
+// GameScene.js - Main gameplay scene (mouvement continu)
 import { Player } from '../entities/Player.js';
 import { Boss } from '../entities/Boss.js';
 import { GameData } from '../data/GameData.js';
@@ -18,21 +18,19 @@ export class GameScene extends Phaser.Scene {
     }
     
     create() {
-        // Obtenir les dimensions actuelles
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
         // Background
         this.add.rectangle(0, 0, width, height, 0x0a0a14).setOrigin(0);
         
-        // Simple grid
+        // Grid
         const graphics = this.add.graphics();
         graphics.lineStyle(1, 0x00d4ff, 0.1);
-        const cellSize = 50;
-        for (let i = 0; i < width; i += cellSize) {
+        for (let i = 0; i < width; i += 50) {
             graphics.lineBetween(i, 0, i, height);
         }
-        for (let i = 0; i < height; i += cellSize) {
+        for (let i = 0; i < height; i += 50) {
             graphics.lineBetween(0, i, width, i);
         }
         
@@ -58,19 +56,17 @@ export class GameScene extends Phaser.Scene {
         };
         
         // Input state
-        this.leftMouseDown = false;
-        this.rightMouseDown = false;
+        this.moveDirection = { x: 0, y: 0 }; // Direction de mouvement continue
+        self.recentRightClick = false;
         
-        // IMPORTANT: Utiliser les coordonnées du monde, pas de l'écran
+        // Coordonnées de la souris
         this.worldMouseX = 0;
         this.worldMouseY = 0;
-        this.aimStartX = 0;
-        this.aimStartY = 0;
         
         // Aim line
         this.aimLine = this.add.graphics();
         
-        // UI elements (positionnés relativement)
+        // UI elements
         this.createUI(width, height);
         
         // Setup input
@@ -82,7 +78,7 @@ export class GameScene extends Phaser.Scene {
     }
     
     createUI(width, height) {
-        // Health bar (fixe à l'écran, pas dans le monde)
+        // Health bar
         this.healthBarBg = this.add.rectangle(20, 20, 300, 25, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
         this.healthBar = this.add.rectangle(20, 20, 300, 25, 0x00ff88)
@@ -99,62 +95,107 @@ export class GameScene extends Phaser.Scene {
             .setScrollFactor(0).setOrigin(0, 0.5);
         this.bossHealthBar = this.add.rectangle(width - 350, 30, 300, 25, 0xff5555)
             .setScrollFactor(0).setOrigin(0, 0.5);
+        
+        // Instructions
+        this.instructions = this.add.text(width/2, height - 30, 
+            'CLIC DROIT: DIRECTION | CLIC GAUCHE: TIRER | ESPACE: DASH', {
+            fontSize: '14px',
+            fill: '#aaa',
+            backgroundColor: '#00000099',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setScrollFactor(0);
     }
     
     setupInput() {
         this.input.mouse.disableContextMenu();
         
-        // Pointer down
+        // CLIC DROIT - Définir la direction de mouvement
         this.input.on('pointerdown', (pointer) => {
-            // Convertir les coordonnées de l'écran en coordonnées du monde
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
             
-            if (pointer.leftButtonDown()) {
-                this.leftMouseDown = true;
-            }
             if (pointer.rightButtonDown()) {
-                this.rightMouseDown = true;
-                this.aimStartX = this.player.x;
-                this.aimStartY = this.player.y;
+                // Calculer la direction vers le point cliqué
+                const dx = worldPoint.x - this.player.x;
+                const dy = worldPoint.y - this.player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 5) {
+                    this.moveDirection.x = dx / dist;
+                    this.moveDirection.y = dy / dist;
+                }
+                
+                // Feedback visuel du clic droit
+                this.showDirectionIndicator(worldPoint.x, worldPoint.y);
             }
         });
         
-        // Pointer move
+        // CLIC GAUCHE - Tirer
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.leftButtonDown()) {
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.worldMouseX = worldPoint.x;
+                this.worldMouseY = worldPoint.y;
+            }
+        });
+        
+        // Mise à jour de la position de la souris
         this.input.on('pointermove', (pointer) => {
-            // Convertir les coordonnées de l'écran en coordonnées du monde
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
             this.worldMouseX = worldPoint.x;
             this.worldMouseY = worldPoint.y;
         });
         
-        // Pointer up
+        // Tir au relâchement du clic gauche
         this.input.on('pointerup', (pointer) => {
-            if (pointer.button === 0) {
-                this.leftMouseDown = false;
-            }
-            if (pointer.button === 2) {
-                if (this.rightMouseDown) {
-                    // Calculer l'angle avec les coordonnées du monde
-                    const angle = Math.atan2(
-                        this.worldMouseY - this.aimStartY,
-                        this.worldMouseX - this.aimStartX
-                    );
-                    this.shootProjectile(angle);
-                }
-                this.rightMouseDown = false;
+            if (pointer.button === 0) { // Clic gauche
+                const angle = Math.atan2(
+                    this.worldMouseY - this.player.y,
+                    this.worldMouseX - this.player.x
+                );
+                this.shootProjectile(angle);
             }
         });
         
-        // Keyboard dash
+        // DASH avec ESPACE
         this.input.keyboard.on('keydown-SPACE', () => {
             this.performDash();
         });
     }
     
+    showDirectionIndicator(x, y) {
+        // Cercle d'indication de direction
+        const indicator = this.add.circle(x, y, 15, 0xff6600, 0.3);
+        indicator.setStrokeStyle(2, 0xffaa00);
+        
+        this.tweens.add({
+            targets: indicator,
+            scale: 1.5,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => indicator.destroy()
+        });
+        
+        // Ligne de la direction
+        const line = this.add.line(
+            this.player.x, this.player.y,
+            0, 0,
+            x - this.player.x, y - this.player.y,
+            0xff6600, 0.5
+        ).setLineWidth(2);
+        
+        this.tweens.add({
+            targets: line,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => line.destroy()
+        });
+    }
+    
     shootProjectile(angle) {
-        if (this.player.stamina < 7) return;
+        if (this.player.stamina < 7 || !this.player.canAttack) return;
         
         this.player.stamina -= 7;
+        this.player.canAttack = false;
         
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
@@ -176,45 +217,53 @@ export class GameScene extends Phaser.Scene {
         proj.damage = 18;
         
         this.projectiles.push(proj);
+        
+        // Reset attack cooldown
+        this.time.delayedCall(250, () => {
+            this.player.canAttack = true;
+        });
     }
     
     performDash() {
-        // Dash vers la position de la souris
-        const angle = Math.atan2(
-            this.worldMouseY - this.player.y,
-            this.worldMouseX - this.player.x
-        );
+        if (this.player.stamina < 40 || this.player.isDashing) return;
         
-        this.player.dash(Math.cos(angle), Math.sin(angle));
+        // Dash dans la direction du mouvement, ou vers la souris si pas de mouvement
+        let dx = this.moveDirection.x;
+        let dy = this.moveDirection.y;
+        
+        if (dx === 0 && dy === 0) {
+            const angle = Math.atan2(
+                this.worldMouseY - this.player.y,
+                this.worldMouseX - this.player.x
+            );
+            dx = Math.cos(angle);
+            dy = Math.sin(angle);
+        }
+        
+        this.player.dash(dx, dy);
         
         // Effet de dash
-        for (let i = 0; i < 5; i++) {
-            const trail = this.add.circle(this.player.x, this.player.y, 15, 0x00d4ff, 0.5);
-            this.tweens.add({
-                targets: trail,
-                alpha: 0,
-                scale: 0.5,
-                duration: 200,
-                onComplete: () => trail.destroy()
+        for (let i = 0; i < 8; i++) {
+            this.time.delayedCall(i * 30, () => {
+                const trail = this.add.circle(this.player.x, this.player.y, 15, 0x00d4ff, 0.5);
+                this.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 200,
+                    onComplete: () => trail.destroy()
+                });
             });
         }
     }
     
     update(time, delta) {
-        // Mouvement du joueur (clic gauche)
-        if (this.leftMouseDown) {
-            const dx = this.worldMouseX - this.player.x;
-            const dy = this.worldMouseY - this.player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist > 10) {
-                this.player.move(
-                    (dx / dist) * this.player.speed,
-                    (dy / dist) * this.player.speed
-                );
-            } else {
-                this.player.move(0, 0);
-            }
+        // MOUVEMENT CONTINU basé sur la direction définie par clic droit
+        if (this.moveDirection.x !== 0 || this.moveDirection.y !== 0) {
+            this.player.move(
+                this.moveDirection.x * this.player.speed,
+                this.moveDirection.y * this.player.speed
+            );
         } else {
             this.player.move(0, 0);
         }
@@ -226,28 +275,45 @@ export class GameScene extends Phaser.Scene {
         // Update boss
         this.boss.update(time, this.player);
         
-        // Dessiner la ligne de visée (avec les coordonnées du monde)
+        // DESSINER LA LIGNE DE VISÉE (pour le tir)
         this.aimLine.clear();
-        if (this.rightMouseDown) {
-            this.aimLine.lineStyle(2, 0xff6666, 0.8);
-            this.aimLine.lineBetween(this.player.x, this.player.y, this.worldMouseX, this.worldMouseY);
+        
+        // Ligne de visée (toujours visible pour montrer où on va tirer)
+        this.aimLine.lineStyle(1, 0xff6666, 0.4);
+        this.aimLine.lineBetween(this.player.x, this.player.y, this.worldMouseX, this.worldMouseY);
+        
+        // Ligne pointillée
+        const dx = this.worldMouseX - this.player.x;
+        const dy = this.worldMouseY - this.player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        for (let i = 20; i < dist; i += 30) {
+            const t = i / dist;
+            const x1 = this.player.x + dx * t;
+            const y1 = this.player.y + dy * t;
+            const x2 = this.player.x + dx * (t + 0.05);
+            const y2 = this.player.y + dy * (t + 0.05);
+            this.aimLine.lineBetween(x1, y1, x2, y2);
+        }
+        
+        // Cercle de visée
+        this.aimLine.lineStyle(2, 0xff3333, 1);
+        this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 10);
+        
+        // DESSINER LA DIRECTION DE MOUVEMENT
+        if (this.moveDirection.x !== 0 || this.moveDirection.y !== 0) {
+            this.aimLine.lineStyle(2, 0xffaa00, 0.6);
+            const moveEndX = this.player.x + this.moveDirection.x * 80;
+            const moveEndY = this.player.y + this.moveDirection.y * 80;
+            this.aimLine.lineBetween(this.player.x, this.player.y, moveEndX, moveEndY);
             
-            // Ligne pointillée
-            const dx = this.worldMouseX - this.player.x;
-            const dy = this.worldMouseY - this.player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            for (let i = 20; i < dist; i += 30) {
-                const t = i / dist;
-                const x1 = this.player.x + dx * t;
-                const y1 = this.player.y + dy * t;
-                const x2 = this.player.x + dx * (t + 0.05);
-                const y2 = this.player.y + dy * (t + 0.05);
-                this.aimLine.lineBetween(x1, y1, x2, y2);
-            }
-            
-            this.aimLine.lineStyle(2, 0xff3333, 1);
-            this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 10);
+            // Flèche
+            this.aimLine.fillStyle(0xffaa00, 0.8);
+            this.aimLine.fillTriangle(
+                moveEndX, moveEndY,
+                moveEndX - 10 * this.moveDirection.y, moveEndY + 10 * this.moveDirection.x,
+                moveEndX + 10 * this.moveDirection.y, moveEndY - 10 * this.moveDirection.x
+            );
         }
         
         // Update projectiles
@@ -260,7 +326,6 @@ export class GameScene extends Phaser.Scene {
             if (dist < 50) {
                 this.boss.takeDamage(proj.damage);
                 
-                // Effet d'impact
                 const impact = this.add.circle(proj.x, proj.y, 15, 0xffaa00, 0.7);
                 this.tweens.add({
                     targets: impact,
