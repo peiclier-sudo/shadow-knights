@@ -24,6 +24,12 @@ export class Player extends Phaser.GameObjects.Container {
         this.damageMultiplier = 1.0;
         this.damageReduction = 0;
         
+        // Dash properties
+        this.dashSpeed = 800;
+        this.dashDuration = 200;
+        this.dashCooldown = 0;
+        this.lastDashTime = 0;
+        
         // Create player visuals
         this.createVisuals();
         
@@ -67,12 +73,65 @@ export class Player extends Phaser.GameObjects.Container {
         }
     }
     
+    dash(directionX, directionY) {
+        console.log('Player.dash called with:', directionX, directionY);
+        console.log('Stamina:', this.stamina, 'Required: 40');
+        console.log('isDashing:', this.isDashing);
+        
+        // Vérifications
+        if (this.stamina < 40) {
+            console.log('Dash failed: not enough stamina');
+            return false;
+        }
+        
+        if (this.isDashing) {
+            console.log('Dash failed: already dashing');
+            return false;
+        }
+        
+        const now = Date.now();
+        if (now - this.lastDashTime < 1000) { // Cooldown de 1 seconde
+            console.log('Dash failed: cooldown');
+            return false;
+        }
+        
+        // Appliquer le dash
+        this.stamina -= 40;
+        this.isDashing = true;
+        this.isInvulnerable = true;
+        this.lastDashTime = now;
+        
+        // Appliquer la vélocité du dash
+        const dashSpeed = 800;
+        this.body.setVelocity(
+            directionX * dashSpeed,
+            directionY * dashSpeed
+        );
+        
+        console.log('Dash started! New stamina:', this.stamina);
+        
+        // Fin du dash après la durée
+        this.scene.time.delayedCall(200, () => {
+            this.isDashing = false;
+            this.isInvulnerable = false;
+            this.body.setVelocity(0, 0);
+            console.log('Dash ended');
+        });
+        
+        return true;
+    }
+    
     takeDamage(amount) {
-        if (this.isInvulnerable) return 0;
+        if (this.isInvulnerable) {
+            console.log('Damage blocked by invulnerability');
+            return 0;
+        }
         
         // Apply damage reduction
         const reducedAmount = amount * (1 - this.damageReduction);
         this.health = Math.max(0, this.health - reducedAmount);
+        
+        console.log('Player took damage:', reducedAmount, 'Health left:', this.health);
         
         // Visual feedback
         this.scene.tweens.add({
