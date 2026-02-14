@@ -1,7 +1,8 @@
-// GameScene.js - Main gameplay scene (version stable)
+// GameScene.js - Main gameplay scene (visée précise)
 import { Player } from '../entities/Player.js';
 import { Boss } from '../entities/Boss.js';
 import { GameData } from '../data/GameData.js';
+import { WEAPONS } from '../weapons/weaponData.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -17,6 +18,7 @@ export class GameScene extends Phaser.Scene {
     }
     
     create() {
+        // Obtenir les dimensions actuelles
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
@@ -26,10 +28,11 @@ export class GameScene extends Phaser.Scene {
         // Simple grid
         const graphics = this.add.graphics();
         graphics.lineStyle(1, 0x00d4ff, 0.1);
-        for (let i = 0; i < width; i += 50) {
+        const cellSize = 50;
+        for (let i = 0; i < width; i += cellSize) {
             graphics.lineBetween(i, 0, i, height);
         }
-        for (let i = 0; i < height; i += 50) {
+        for (let i = 0; i < height; i += cellSize) {
             graphics.lineBetween(0, i, width, i);
         }
         
@@ -43,16 +46,8 @@ export class GameScene extends Phaser.Scene {
         this.projectiles = [];
         this.bossProjectiles = [];
         
-        // Input state
-        this.leftMouseDown = false;
-        this.rightMouseDown = false;
-        this.mouseX = 0;
-        this.mouseY = 0;
-        this.aimStartX = 0;
-        this.aimStartY = 0;
-        
-        // Weapon data (simplified)
-        this.weaponData = {
+        // Weapon data
+        this.weaponData = WEAPONS[this.playerConfig.weapon] || {
             projectile: {
                 size: 10,
                 speed: 800,
@@ -62,45 +57,58 @@ export class GameScene extends Phaser.Scene {
             }
         };
         
+        // Input state
+        this.leftMouseDown = false;
+        this.rightMouseDown = false;
+        
+        // IMPORTANT: Utiliser les coordonnées du monde, pas de l'écran
+        this.worldMouseX = 0;
+        this.worldMouseY = 0;
+        this.aimStartX = 0;
+        this.aimStartY = 0;
+        
         // Aim line
         this.aimLine = this.add.graphics();
         
-        // UI elements
-        this.createUI();
+        // UI elements (positionnés relativement)
+        this.createUI(width, height);
         
         // Setup input
         this.setupInput();
         
         // Camera
         this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
+        this.cameras.main.setBounds(0, 0, width, height);
     }
     
-    createUI() {
-        const width = this.cameras.main.width;
-        
-        // Health bar
-        this.healthBarBg = this.add.rectangle(20, 20, 300, 25, 0x333333);
-        this.healthBarBg.setOrigin(0, 0.5);
-        this.healthBar = this.add.rectangle(20, 20, 300, 25, 0x00ff88);
-        this.healthBar.setOrigin(0, 0.5);
+    createUI(width, height) {
+        // Health bar (fixe à l'écran, pas dans le monde)
+        this.healthBarBg = this.add.rectangle(20, 20, 300, 25, 0x333333)
+            .setScrollFactor(0).setOrigin(0, 0.5);
+        this.healthBar = this.add.rectangle(20, 20, 300, 25, 0x00ff88)
+            .setScrollFactor(0).setOrigin(0, 0.5);
         
         // Stamina bar
-        this.staminaBarBg = this.add.rectangle(20, 55, 250, 15, 0x333333);
-        this.staminaBarBg.setOrigin(0, 0.5);
-        this.staminaBar = this.add.rectangle(20, 55, 250, 15, 0xffaa00);
-        this.staminaBar.setOrigin(0, 0.5);
+        this.staminaBarBg = this.add.rectangle(20, 55, 250, 15, 0x333333)
+            .setScrollFactor(0).setOrigin(0, 0.5);
+        this.staminaBar = this.add.rectangle(20, 55, 250, 15, 0xffaa00)
+            .setScrollFactor(0).setOrigin(0, 0.5);
         
         // Boss health bar
-        this.bossHealthBarBg = this.add.rectangle(width - 350, 30, 300, 25, 0x333333);
-        this.bossHealthBarBg.setOrigin(0, 0.5);
-        this.bossHealthBar = this.add.rectangle(width - 350, 30, 300, 25, 0xff5555);
-        this.bossHealthBar.setOrigin(0, 0.5);
+        this.bossHealthBarBg = this.add.rectangle(width - 350, 30, 300, 25, 0x333333)
+            .setScrollFactor(0).setOrigin(0, 0.5);
+        this.bossHealthBar = this.add.rectangle(width - 350, 30, 300, 25, 0xff5555)
+            .setScrollFactor(0).setOrigin(0, 0.5);
     }
     
     setupInput() {
         this.input.mouse.disableContextMenu();
         
+        // Pointer down
         this.input.on('pointerdown', (pointer) => {
+            // Convertir les coordonnées de l'écran en coordonnées du monde
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
             }
@@ -111,20 +119,25 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
+        // Pointer move
         this.input.on('pointermove', (pointer) => {
-            this.mouseX = pointer.x;
-            this.mouseY = pointer.y;
+            // Convertir les coordonnées de l'écran en coordonnées du monde
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            this.worldMouseX = worldPoint.x;
+            this.worldMouseY = worldPoint.y;
         });
         
+        // Pointer up
         this.input.on('pointerup', (pointer) => {
             if (pointer.button === 0) {
                 this.leftMouseDown = false;
             }
             if (pointer.button === 2) {
                 if (this.rightMouseDown) {
+                    // Calculer l'angle avec les coordonnées du monde
                     const angle = Math.atan2(
-                        this.mouseY - this.aimStartY,
-                        this.mouseX - this.aimStartX
+                        this.worldMouseY - this.aimStartY,
+                        this.worldMouseX - this.aimStartX
                     );
                     this.shootProjectile(angle);
                 }
@@ -132,6 +145,7 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
+        // Keyboard dash
         this.input.keyboard.on('keydown-SPACE', () => {
             this.performDash();
         });
@@ -145,7 +159,17 @@ export class GameScene extends Phaser.Scene {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
         
-        // Simple projectile
+        // Muzzle flash
+        const flash = this.add.circle(startX, startY, 15, 0xffffff, 0.8);
+        this.tweens.add({
+            targets: flash,
+            scale: 2,
+            alpha: 0,
+            duration: 100,
+            onComplete: () => flash.destroy()
+        });
+        
+        // Créer le projectile
         const proj = this.add.circle(startX, startY, 10, 0x66ffff);
         proj.vx = Math.cos(angle) * 800;
         proj.vy = Math.sin(angle) * 800;
@@ -155,20 +179,32 @@ export class GameScene extends Phaser.Scene {
     }
     
     performDash() {
-        // Simple dash forward
+        // Dash vers la position de la souris
         const angle = Math.atan2(
-            this.mouseY - this.player.y,
-            this.mouseX - this.player.x
+            this.worldMouseY - this.player.y,
+            this.worldMouseX - this.player.x
         );
         
         this.player.dash(Math.cos(angle), Math.sin(angle));
+        
+        // Effet de dash
+        for (let i = 0; i < 5; i++) {
+            const trail = this.add.circle(this.player.x, this.player.y, 15, 0x00d4ff, 0.5);
+            this.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.5,
+                duration: 200,
+                onComplete: () => trail.destroy()
+            });
+        }
     }
     
     update(time, delta) {
-        // Player movement (left click)
+        // Mouvement du joueur (clic gauche)
         if (this.leftMouseDown) {
-            const dx = this.mouseX - this.player.x;
-            const dy = this.mouseY - this.player.y;
+            const dx = this.worldMouseX - this.player.x;
+            const dy = this.worldMouseY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 10) {
@@ -190,13 +226,28 @@ export class GameScene extends Phaser.Scene {
         // Update boss
         this.boss.update(time, this.player);
         
-        // Draw aim line
+        // Dessiner la ligne de visée (avec les coordonnées du monde)
         this.aimLine.clear();
         if (this.rightMouseDown) {
             this.aimLine.lineStyle(2, 0xff6666, 0.8);
-            this.aimLine.lineBetween(this.player.x, this.player.y, this.mouseX, this.mouseY);
+            this.aimLine.lineBetween(this.player.x, this.player.y, this.worldMouseX, this.worldMouseY);
+            
+            // Ligne pointillée
+            const dx = this.worldMouseX - this.player.x;
+            const dy = this.worldMouseY - this.player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            for (let i = 20; i < dist; i += 30) {
+                const t = i / dist;
+                const x1 = this.player.x + dx * t;
+                const y1 = this.player.y + dy * t;
+                const x2 = this.player.x + dx * (t + 0.05);
+                const y2 = this.player.y + dy * (t + 0.05);
+                this.aimLine.lineBetween(x1, y1, x2, y2);
+            }
+            
             this.aimLine.lineStyle(2, 0xff3333, 1);
-            this.aimLine.strokeCircle(this.mouseX, this.mouseY, 10);
+            this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 10);
         }
         
         // Update projectiles
@@ -208,6 +259,17 @@ export class GameScene extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
             if (dist < 50) {
                 this.boss.takeDamage(proj.damage);
+                
+                // Effet d'impact
+                const impact = this.add.circle(proj.x, proj.y, 15, 0xffaa00, 0.7);
+                this.tweens.add({
+                    targets: impact,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 200,
+                    onComplete: () => impact.destroy()
+                });
+                
                 proj.destroy();
                 this.projectiles.splice(i, 1);
                 continue;
@@ -229,6 +291,16 @@ export class GameScene extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
             if (dist < 25 && !this.player.isInvulnerable) {
                 this.player.takeDamage(10);
+                
+                const hit = this.add.circle(this.player.x, this.player.y, 20, 0xff0000, 0.5);
+                this.tweens.add({
+                    targets: hit,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 200,
+                    onComplete: () => hit.destroy()
+                });
+                
                 proj.destroy();
                 this.bossProjectiles.splice(i, 1);
                 continue;
