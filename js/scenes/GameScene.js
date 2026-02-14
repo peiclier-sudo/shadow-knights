@@ -174,7 +174,6 @@ export class GameScene extends Phaser.Scene {
         
         // DASH avec ESPACE
         this.input.keyboard.on('keydown-SPACE', () => {
-            console.log('Space pressed'); // Debug
             this.performDash();
         });
     }
@@ -183,7 +182,7 @@ export class GameScene extends Phaser.Scene {
         this.moveTarget.x = x;
         this.moveTarget.y = y;
         
-        // Effet visuel léger du point de destination
+        // Effet visuel léger du point de destination (SEULEMENT le cercle, pas de ligne)
         const playerColor = this.player.classData?.color || 0x00d4ff;
         const indicator = this.add.circle(x, y, 12, playerColor, 0.15);
         indicator.setStrokeStyle(1, playerColor, 0.3);
@@ -198,10 +197,7 @@ export class GameScene extends Phaser.Scene {
     }
     
     shootProjectile(angle) {
-        if (this.player.stamina < 7 || !this.player.canAttack) {
-            console.log('Cannot shoot:', this.player.stamina, this.player.canAttack);
-            return;
-        }
+        if (this.player.stamina < 7 || !this.player.canAttack) return;
         
         this.player.stamina -= 7;
         this.player.canAttack = false;
@@ -252,9 +248,7 @@ export class GameScene extends Phaser.Scene {
     }
     
     performDash() {
-        console.log('Perform dash called'); // Debug
-        console.log('Stamina:', this.player.stamina, 'IsDashing:', this.player.isDashing);
-        
+        // Vérifications
         if (this.player.stamina < 40) {
             console.log('Not enough stamina');
             return;
@@ -271,12 +265,12 @@ export class GameScene extends Phaser.Scene {
             this.worldMouseX - this.player.x
         );
         
-        console.log('Dash angle:', angle);
-        
+        // Appeler la méthode dash du player
         const success = this.player.dash(Math.cos(angle), Math.sin(angle));
-        console.log('Dash success:', success);
         
         if (success) {
+            console.log('Dash successful!');
+            
             // Effet de dash léger
             const playerColor = this.player.classData?.color || 0x00d4ff;
             for (let i = 0; i < 5; i++) {
@@ -291,6 +285,8 @@ export class GameScene extends Phaser.Scene {
                     });
                 });
             }
+        } else {
+            console.log('Dash failed');
         }
     }
     
@@ -324,40 +320,50 @@ export class GameScene extends Phaser.Scene {
             this.boss.update(time, this.player);
         }
         
-        // Dessiner la ligne de visée
+        // DESSINER LA LIGNE DE VISÉE (limitée à 300 pixels)
         this.aimLine.clear();
         
-        // Ligne de visée (pour le tir, clic droit)
-        this.aimLine.lineStyle(1, 0xff6666, 0.3);
-        this.aimLine.lineBetween(this.player.x, this.player.y, this.worldMouseX, this.worldMouseY);
-        
-        // Ligne pointillée
+        // Calculer la direction et la distance
         const dx = this.worldMouseX - this.player.x;
         const dy = this.worldMouseY - this.player.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        for (let i = 20; i < dist; i += 30) {
-            const t = i / dist;
-            const x1 = this.player.x + dx * t;
-            const y1 = this.player.y + dy * t;
-            const x2 = this.player.x + dx * (t + 0.05);
-            const y2 = this.player.y + dy * (t + 0.05);
+        // Limiter la distance de la ligne à 300 pixels
+        const maxAimDistance = 300;
+        let aimX = this.worldMouseX;
+        let aimY = this.worldMouseY;
+        
+        if (dist > maxAimDistance) {
+            const ratio = maxAimDistance / dist;
+            aimX = this.player.x + dx * ratio;
+            aimY = this.player.y + dy * ratio;
+        }
+        
+        // Ligne de visée principale (limitée)
+        this.aimLine.lineStyle(1, 0xff6666, 0.3);
+        this.aimLine.lineBetween(this.player.x, this.player.y, aimX, aimY);
+        
+        // Ligne pointillée (limitée aussi)
+        const limitedDist = Math.min(dist, maxAimDistance);
+        for (let i = 20; i < limitedDist; i += 30) {
+            const t = i / limitedDist;
+            const x1 = this.player.x + (aimX - this.player.x) * t;
+            const y1 = this.player.y + (aimY - this.player.y) * t;
+            const x2 = this.player.x + (aimX - this.player.x) * (t + 0.05);
+            const y2 = this.player.y + (aimY - this.player.y) * (t + 0.05);
             this.aimLine.lineBetween(x1, y1, x2, y2);
         }
         
-        // Cercle de visée
+        // Cercle de visée (à la position limitée)
         this.aimLine.lineStyle(1, 0xff3333, 0.5);
-        this.aimLine.strokeCircle(this.worldMouseX, this.worldMouseY, 8);
+        this.aimLine.strokeCircle(aimX, aimY, 8);
         
-        // Marqueur de destination
+        // Marqueur de destination (uniquement le cercle, pas de ligne)
         if (this.moveTarget.x !== null && this.moveTarget.y !== null) {
             const playerColor = this.player.classData?.color || 0x00d4ff;
             this.aimLine.lineStyle(1, playerColor, 0.3);
             this.aimLine.strokeCircle(this.moveTarget.x, this.moveTarget.y, 12);
-            
-            // Chemin vers la destination
-            this.aimLine.lineStyle(1, playerColor, 0.15);
-            this.aimLine.lineBetween(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+            // Plus de ligne entre le joueur et la destination
         }
         
         // Update projectiles
