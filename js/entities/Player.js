@@ -1,6 +1,5 @@
 // Player.js - Player entity
 import { CLASSES } from '../classes/classData.js';
-import { WEAPONS } from '../weapons/weaponData.js';
 
 export class Player extends Phaser.GameObjects.Container {
     constructor(scene, config) {
@@ -8,7 +7,6 @@ export class Player extends Phaser.GameObjects.Container {
         
         this.scene = scene;
         this.classData = CLASSES[config.class];
-        this.weaponData = WEAPONS[config.weapon];
         
         // Stats
         this.health = this.classData.baseHealth;
@@ -23,6 +21,8 @@ export class Player extends Phaser.GameObjects.Container {
         this.isInvulnerable = false;
         this.isCharging = false;
         this.canAttack = true;
+        this.damageMultiplier = 1.0;
+        this.damageReduction = 0;
         
         // Create player visuals
         this.createVisuals();
@@ -67,35 +67,12 @@ export class Player extends Phaser.GameObjects.Container {
         }
     }
     
-    dash(directionX, directionY) {
-        const dashData = this.classData.dash;
-        
-        if (this.stamina < dashData.staminaCost || this.isDashing) return false;
-        
-        this.stamina -= dashData.staminaCost;
-        this.isDashing = true;
-        this.isInvulnerable = true;
-        
-        // Apply dash velocity
-        this.body.setVelocity(
-            directionX * dashData.speed,
-            directionY * dashData.speed
-        );
-        
-        // End dash after duration
-        this.scene.time.delayedCall(dashData.duration, () => {
-            this.isDashing = false;
-            this.isInvulnerable = false;
-            this.body.setVelocity(0, 0);
-        });
-        
-        return true;
-    }
-    
     takeDamage(amount) {
-        if (this.isInvulnerable) return;
+        if (this.isInvulnerable) return 0;
         
-        this.health = Math.max(0, this.health - amount);
+        // Apply damage reduction
+        const reducedAmount = amount * (1 - this.damageReduction);
+        this.health = Math.max(0, this.health - reducedAmount);
         
         // Visual feedback
         this.scene.tweens.add({
@@ -105,6 +82,8 @@ export class Player extends Phaser.GameObjects.Container {
             yoyo: true,
             repeat: 1
         });
+        
+        return reducedAmount;
     }
     
     regenerateStamina() {

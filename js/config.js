@@ -8,7 +8,8 @@ export const GameConfig = {
         arcade: {
             gravity: { y: 0 },
             fps: 144,
-            timeScale: 1
+            timeScale: 1,
+            debug: false
         }
     },
     scale: {
@@ -21,10 +22,33 @@ export const GameConfig = {
         antialias: false,
         pixelArt: true,
         roundPixels: true,
-        powerPreference: 'high-performance'
+        powerPreference: 'high-performance',
+        transparent: false,
+        clearBeforeRender: true
     },
     fps: {
         target: 144,
-        forceSetTimeOut: false
-    }
+        forceSetTimeOut: false,
+        deltaHistory: 10,
+        panicMax: 144
+    },
+    
+    // Game settings
+    settings: {
+        soundVolume: 0.7,
+        musicVolume: 0.5,
+        screenShake: true,
+        particleEffects: true,
+        damageNumbers: true,
+        criticalHits: true
+    },
+    
+    // Default player config
+    defaultPlayer: {
+        class: 'WARRIOR',
+        weapon: 'SWORD'
+    },
+    
+    // Version
+    version: '1.0.0'
 };

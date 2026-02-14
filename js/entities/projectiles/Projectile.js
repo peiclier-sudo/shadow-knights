@@ -20,6 +20,37 @@ export class Projectile extends Phaser.GameObjects.Container {
         this.vy = Math.sin(angle) * this.speed;
         
         scene.add.existing(this);
+        
+        // Trail effect
+        this.createTrail();
+    }
+    
+    createTrail() {
+        let trailCount = 0;
+        this.trailInterval = setInterval(() => {
+            if (!this.scene || trailCount > 20) {
+                clearInterval(this.trailInterval);
+                return;
+            }
+            
+            const trail = this.scene.add.circle(
+                this.x, this.y,
+                this.data.size * 0.6,
+                this.data.color,
+                0.5
+            );
+            trail.setDepth(148);
+            
+            this.scene.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.5,
+                duration: 200,
+                onComplete: () => trail.destroy()
+            });
+            
+            trailCount++;
+        }, 40);
     }
     
     update(delta) {
@@ -31,5 +62,12 @@ export class Projectile extends Phaser.GameObjects.Container {
         const width = this.scene.cameras.main.width;
         const height = this.scene.cameras.main.height;
         return this.x < -50 || this.x > width + 50 || this.y < -50 || this.y > height + 50;
+    }
+    
+    destroy() {
+        if (this.trailInterval) {
+            clearInterval(this.trailInterval);
+        }
+        super.destroy();
     }
 }

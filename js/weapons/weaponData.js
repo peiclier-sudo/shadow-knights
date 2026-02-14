@@ -1,8 +1,9 @@
-// weaponData.js - Weapon definitions
+// weaponData.js - All weapon definitions
 export const WEAPONS = {
     SWORD: {
         name: 'SWORD',
-        icon: '',
+        icon: '⚔️',
+        color: 0xffaa00,
         projectile: {
             type: 'slash',
             size: 14,
@@ -16,12 +17,15 @@ export const WEAPONS = {
             chargeTime: 1200,
             staminaCost: 30,
             damage: 45,
-            radius: 100
+            radius: 100,
+            hits: 3
         }
     },
+    
     BOW: {
         name: 'BOW',
-        icon: '',
+        icon: '🏹',
+        color: 0x88dd88,
         projectile: {
             type: 'arrow',
             size: 8,
@@ -39,9 +43,11 @@ export const WEAPONS = {
             radius: 150
         }
     },
+    
     STAFF: {
         name: 'STAFF',
-        icon: '',
+        icon: '🔮',
+        color: 0x8888ff,
         projectile: {
             type: 'orb',
             size: 12,
@@ -60,9 +66,11 @@ export const WEAPONS = {
             explosion: true
         }
     },
+    
     DAGGERS: {
         name: 'DAGGERS',
-        icon: '',
+        icon: '🗡️',
+        color: 0xcc88cc,
         projectile: {
             type: 'spread',
             size: 6,
@@ -81,9 +89,11 @@ export const WEAPONS = {
             ticks: 5
         }
     },
+    
     GREATSWORD: {
         name: 'GREATSWORD',
-        icon: '',
+        icon: '⚔️',
+        color: 0xcc6600,
         projectile: {
             type: 'shockwave',
             size: 24,
