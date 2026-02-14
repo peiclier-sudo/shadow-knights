@@ -4,21 +4,26 @@ export const WEAPONS = {
         name: 'SWORD',
         icon: '⚔️',
         color: 0xffaa00,
+        description: 'Épée équilibrée - Slash en croissant',
         projectile: {
             type: 'slash',
             size: 14,
             speed: 800,
             damage: 22,
             color: 0xffaa00,
-            count: 1
+            count: 1,
+            range: 200, // Disparaît après 200px
+            cooldown: 250, // ms entre chaque tir
+            piercing: true // Peut traverser
         },
         charged: {
             name: 'WHIRLWIND',
             chargeTime: 1200,
             staminaCost: 30,
-            damage: 45,
+            damage: 45, // 15 x 3 coups
             radius: 100,
-            hits: 3
+            hits: 3,
+            knockback: true
         }
     },
     
@@ -26,21 +31,26 @@ export const WEAPONS = {
         name: 'BOW',
         icon: '🏹',
         color: 0x88dd88,
+        description: 'Arc long - Tir précis à longue portée',
         projectile: {
             type: 'arrow',
             size: 8,
             speed: 1100,
             damage: 18,
             color: 0x88dd88,
-            count: 1
+            count: 1,
+            range: 600, // Très longue portée
+            cooldown: 400, // Lent
+            piercing: false
         },
         charged: {
             name: 'RAIN OF ARROWS',
             chargeTime: 1500,
             staminaCost: 35,
-            damage: 15,
+            damage: 120, // 8 x 15
             arrows: 8,
-            radius: 150
+            radius: 150,
+            aoe: true
         }
     },
     
@@ -48,6 +58,7 @@ export const WEAPONS = {
         name: 'STAFF',
         icon: '🔮',
         color: 0x8888ff,
+        description: 'Bâton magique - Orbes téléguidés',
         projectile: {
             type: 'orb',
             size: 12,
@@ -55,7 +66,10 @@ export const WEAPONS = {
             damage: 16,
             color: 0x8888ff,
             count: 1,
-            homing: true
+            range: 400, // Portée moyenne-longue
+            cooldown: 200, // Rapide
+            homing: true, // Légèrement téléguidé
+            homingStrength: 0.03
         },
         charged: {
             name: 'FIREBALL',
@@ -63,7 +77,10 @@ export const WEAPONS = {
             staminaCost: 40,
             damage: 40,
             radius: 120,
-            explosion: true
+            explosion: true,
+            dotDamage: 5, // Dégâts sur la durée
+            dotTicks: 4,
+            dotInterval: 500
         }
     },
     
@@ -71,22 +88,28 @@ export const WEAPONS = {
         name: 'DAGGERS',
         icon: '🗡️',
         color: 0xcc88cc,
+        description: 'Dagues - Tir en éventail rapide',
         projectile: {
             type: 'spread',
             size: 6,
             speed: 1000,
             damage: 12,
             color: 0xcc88cc,
-            count: 3,
-            spread: 0.3
+            count: 3, // 3 dagues
+            spread: 0.3, // Angle d'éventail
+            range: 250, // Portée courte
+            cooldown: 150, // Très rapide
+            piercing: false
         },
         charged: {
             name: 'POISON CLOUD',
             chargeTime: 1000,
             staminaCost: 25,
-            damage: 8,
+            damage: 40, // 8 x 5 ticks
             radius: 80,
-            ticks: 5
+            ticks: 5,
+            tickRate: 500,
+            slow: true
         }
     },
     
@@ -94,6 +117,7 @@ export const WEAPONS = {
         name: 'GREATSWORD',
         icon: '⚔️',
         color: 0xcc6600,
+        description: 'Espadon lent - Onde de choc repoussante',
         projectile: {
             type: 'shockwave',
             size: 24,
@@ -101,7 +125,10 @@ export const WEAPONS = {
             damage: 32,
             color: 0xcc6600,
             count: 1,
-            knockback: true
+            range: 300, // Portée moyenne
+            cooldown: 500, // Très lent
+            knockback: true, // Repousse
+            knockbackForce: 200
         },
         charged: {
             name: 'GROUND SLAM',
@@ -109,7 +136,8 @@ export const WEAPONS = {
             staminaCost: 45,
             damage: 55,
             radius: 130,
-            stun: true
+            stun: true,
+            stunDuration: 1000 // 1 seconde de stun
         }
     }
 };

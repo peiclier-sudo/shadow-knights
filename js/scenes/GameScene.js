@@ -22,7 +22,6 @@ export class GameScene extends Phaser.Scene {
         const height = this.cameras.main.height;
         
         // BACKGROUND AVEC PROFONDEUR
-        // Dégradé du sombre vers le légèrement plus clair
         const gradient = this.add.graphics();
         gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
         gradient.fillRect(0, 0, width, height);
@@ -73,21 +72,20 @@ export class GameScene extends Phaser.Scene {
         this.bossProjectiles = [];
         
         // Weapon data
-        this.weaponData = WEAPONS[this.playerConfig.weapon] || {
-            projectile: {
-                size: 10,
-                speed: 800,
-                damage: 18,
-                color: 0x66ffff,
-                count: 1
-            }
-        };
+        this.weaponData = WEAPONS[this.playerConfig.weapon];
+        
+        // Charging state
+        this.isCharging = false;
+        this.chargeLevel = 0;
+        this.chargeStartTime = 0;
+        this.chargeGraphics = null;
         
         // Input state
         this.moveTarget = { x: null, y: null };
         this.leftMouseDown = false;
         this.worldMouseX = 0;
         this.worldMouseY = 0;
+        this.lastShotTime = 0;
         
         // Aim line
         this.aimLine = this.add.graphics();
@@ -148,6 +146,22 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 2
         }).setScrollFactor(0).setOrigin(1, 0.5);
         
+        // Weapon name and description
+        this.weaponName = this.add.text(20, 90, this.weaponData.name, {
+            fontSize: '16px',
+            fill: '#fff',
+            fontStyle: 'bold',
+            stroke: '#000',
+            strokeThickness: 1
+        }).setScrollFactor(0);
+        
+        this.weaponDesc = this.add.text(20, 110, this.weaponData.description, {
+            fontSize: '12px',
+            fill: '#aaa',
+            stroke: '#000',
+            strokeThickness: 1
+        }).setScrollFactor(0);
+        
         // Instructions
         this.instructions = this.add.text(width/2, height - 30, 
             'CLIC GAUCHE: SE DÉPLACER | CLIC DROIT: TIRER | ESPACE: DASH', {
@@ -169,14 +183,18 @@ export class GameScene extends Phaser.Scene {
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
             }
             
-            // CLIC DROIT - Tirer
+            // CLIC DROIT - Tirer ou charger
             if (pointer.rightButtonDown()) {
                 const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-                const angle = Math.atan2(
-                    worldPoint.y - this.player.y,
-                    worldPoint.x - this.player.x
-                );
-                this.shootProjectile(angle);
+                this.aimStartX = this.player.x;
+                this.aimStartY = this.player.y;
+                this.aimTargetX = worldPoint.x;
+                this.aimTargetY = worldPoint.y;
+                
+                // Start charging if right click held and not moving
+                if (this.player.stamina >= this.weaponData.charged.staminaCost && !this.player.isDashing) {
+                    this.startCharge();
+                }
             }
         });
         
@@ -190,12 +208,35 @@ export class GameScene extends Phaser.Scene {
             if (this.leftMouseDown) {
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
             }
+            
+            // Mise à jour de la charge
+            if (this.isCharging) {
+                const elapsed = Date.now() - this.chargeStartTime;
+                this.chargeLevel = Math.min(1, elapsed / this.weaponData.charged.chargeTime);
+            }
         });
         
         // Relâchement du clic gauche
         this.input.on('pointerup', (pointer) => {
             if (pointer.button === 0) { // Clic gauche
                 this.leftMouseDown = false;
+            }
+            
+            if (pointer.button === 2) { // Clic droit
+                if (this.isCharging) {
+                    const angle = Math.atan2(
+                        this.aimTargetY - this.aimStartY,
+                        this.aimTargetX - this.aimStartX
+                    );
+                    this.releaseCharge(angle);
+                } else {
+                    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                    const angle = Math.atan2(
+                        worldPoint.y - this.player.y,
+                        worldPoint.x - this.player.x
+                    );
+                    this.shootProjectile(angle);
+                }
             }
         });
         
@@ -209,7 +250,7 @@ export class GameScene extends Phaser.Scene {
         this.moveTarget.x = x;
         this.moveTarget.y = y;
         
-        // Effet visuel TRÈS léger du point de destination (uniquement le cercle)
+        // Effet visuel TRÈS léger du point de destination
         const playerColor = this.player.classData?.color || 0x00d4ff;
         const indicator = this.add.circle(x, y, 10, playerColor, 0.08);
         indicator.setStrokeStyle(1, playerColor, 0.15);
@@ -223,8 +264,233 @@ export class GameScene extends Phaser.Scene {
         });
     }
     
+    startCharge() {
+        if (this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0) {
+            return;
+        }
+        
+        this.isCharging = true;
+        this.player.isCharging = true;
+        this.chargeStartTime = Date.now();
+        this.chargeLevel = 0;
+        
+        this.chargeGraphics = this.add.graphics();
+    }
+    
+    releaseCharge(angle) {
+        if (!this.isCharging) return;
+        
+        this.isCharging = false;
+        this.player.isCharging = false;
+        
+        if (this.chargeGraphics) {
+            this.chargeGraphics.destroy();
+            this.chargeGraphics = null;
+        }
+        
+        if (this.chargeLevel < 0.3) {
+            this.shootProjectile(angle);
+            return;
+        }
+        
+        // Charged attack
+        if (this.player.stamina < this.weaponData.charged.staminaCost) return;
+        this.player.stamina -= this.weaponData.charged.staminaCost;
+        
+        // Different charged attacks per weapon
+        switch(this.playerConfig.weapon) {
+            case 'SWORD':
+                this.whirlwindAttack();
+                break;
+            case 'STAFF':
+                this.fireballAttack(angle);
+                break;
+            case 'BOW':
+                this.rainOfArrows();
+                break;
+            case 'DAGGERS':
+                this.poisonCloud();
+                break;
+            case 'GREATSWORD':
+                this.groundSlam();
+                break;
+        }
+    }
+    
+    whirlwindAttack() {
+        const charged = this.weaponData.charged;
+        
+        for (let i = 0; i < charged.hits; i++) {
+            this.time.delayedCall(i * 200, () => {
+                const hitbox = this.add.circle(this.player.x, this.player.y, charged.radius, 0xffaa00, 0.5);
+                
+                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+                if (dist < charged.radius) {
+                    this.boss.takeDamage(charged.damage / charged.hits);
+                    
+                    if (charged.knockback) {
+                        const angle = Math.atan2(
+                            this.boss.y - this.player.y,
+                            this.boss.x - this.player.x
+                        );
+                        this.tweens.add({
+                            targets: this.boss,
+                            x: this.boss.x + Math.cos(angle) * 80,
+                            y: this.boss.y + Math.sin(angle) * 80,
+                            duration: 150,
+                            ease: 'Power2'
+                        });
+                    }
+                }
+                
+                this.tweens.add({
+                    targets: hitbox,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 200,
+                    onComplete: () => hitbox.destroy()
+                });
+            });
+        }
+    }
+    
+    fireballAttack(angle) {
+        const charged = this.weaponData.charged;
+        
+        const fireball = this.add.circle(this.player.x, this.player.y, 20, 0xff6600);
+        
+        this.tweens.add({
+            targets: fireball,
+            x: this.boss.x,
+            y: this.boss.y,
+            duration: 400,
+            ease: 'Power2',
+            onComplete: () => {
+                const explosion = this.add.circle(this.boss.x, this.boss.y, charged.radius, 0xff6600, 0.7);
+                this.boss.takeDamage(charged.damage);
+                
+                // Damage over time
+                if (charged.dotDamage) {
+                    let tickCount = 0;
+                    const dotInterval = setInterval(() => {
+                        if (!this.boss.scene || tickCount >= charged.dotTicks) {
+                            clearInterval(dotInterval);
+                            return;
+                        }
+                        this.boss.takeDamage(charged.dotDamage);
+                        this.boss.setTint(0xff6600);
+                        this.time.delayedCall(100, () => this.boss.clearTint());
+                        tickCount++;
+                    }, charged.dotInterval);
+                }
+                
+                this.tweens.add({
+                    targets: explosion,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 300,
+                    onComplete: () => explosion.destroy()
+                });
+                fireball.destroy();
+            }
+        });
+    }
+    
+    rainOfArrows() {
+        const charged = this.weaponData.charged;
+        
+        for (let i = 0; i < charged.arrows; i++) {
+            this.time.delayedCall(i * 100, () => {
+                const x = this.boss.x + (Math.random() - 0.5) * charged.radius * 2;
+                const y = this.boss.y + (Math.random() - 0.5) * charged.radius * 2;
+                
+                const arrow = this.add.rectangle(x, y - 50, 4, 15, 0x88dd88);
+                
+                this.tweens.add({
+                    targets: arrow,
+                    y: y,
+                    duration: 200,
+                    onComplete: () => {
+                        const dist = Phaser.Math.Distance.Between(x, y, this.boss.x, this.boss.y);
+                        if (dist < 30) {
+                            this.boss.takeDamage(charged.damage / charged.arrows);
+                        }
+                        arrow.destroy();
+                    }
+                });
+            });
+        }
+    }
+    
+    poisonCloud() {
+        const charged = this.weaponData.charged;
+        
+        const cloud = this.add.circle(this.boss.x, this.boss.y, charged.radius, 0x88aa88, 0.3);
+        
+        let tickCount = 0;
+        const interval = setInterval(() => {
+            if (!this.boss.scene || tickCount >= charged.ticks) {
+                clearInterval(interval);
+                cloud.destroy();
+                return;
+            }
+            
+            this.boss.takeDamage(charged.damage / charged.ticks);
+            this.boss.setTint(0x88aa88);
+            
+            if (charged.slow) {
+                this.boss.slowed = true;
+            }
+            
+            this.time.delayedCall(100, () => {
+                this.boss.clearTint();
+                this.boss.slowed = false;
+            });
+            
+            tickCount++;
+        }, charged.tickRate);
+    }
+    
+    groundSlam() {
+        const charged = this.weaponData.charged;
+        
+        this.cameras.main.shake(200, 0.01);
+        
+        const slamWave = this.add.circle(this.player.x, this.player.y, 30, 0xcc6600, 0.7);
+        
+        this.tweens.add({
+            targets: slamWave,
+            radius: charged.radius,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => slamWave.destroy()
+        });
+        
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+        if (dist < charged.radius) {
+            this.boss.takeDamage(charged.damage);
+            
+            if (charged.stun) {
+                this.boss.stunned = true;
+                this.boss.setTint(0xcccccc);
+                
+                this.time.delayedCall(charged.stunDuration, () => {
+                    this.boss.stunned = false;
+                    this.boss.clearTint();
+                });
+            }
+        }
+    }
+    
     shootProjectile(angle) {
         if (this.player.stamina < 7 || !this.player.canAttack) return;
+        
+        const projData = this.weaponData.projectile;
+        
+        // Vérifier le cooldown spécifique de l'arme
+        const now = Date.now();
+        if (this.lastShotTime && now - this.lastShotTime < projData.cooldown) return;
+        this.lastShotTime = now;
         
         this.player.stamina -= 7;
         this.player.canAttack = false;
@@ -232,8 +498,8 @@ export class GameScene extends Phaser.Scene {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
         
-        // Muzzle flash
-        const flash = this.add.circle(startX, startY, 12, 0xffffff, 0.5);
+        // Muzzle flash (couleur de l'arme)
+        const flash = this.add.circle(startX, startY, 12, this.weaponData.color, 0.5);
         this.tweens.add({
             targets: flash,
             scale: 1.5,
@@ -242,22 +508,75 @@ export class GameScene extends Phaser.Scene {
             onComplete: () => flash.destroy()
         });
         
-        // Créer le projectile
-        const proj = this.add.circle(startX, startY, 8, this.weaponData.projectile.color || 0x66ffff);
-        proj.vx = Math.cos(angle) * 800;
-        proj.vy = Math.sin(angle) * 800;
-        proj.damage = this.weaponData.projectile.damage || 18;
+        // Créer le(s) projectile(s) selon l'arme
+        if (projData.count > 1) {
+            // Tir en éventail (dagues)
+            for (let i = 0; i < projData.count; i++) {
+                const offset = (i - (projData.count - 1) / 2) * projData.spread;
+                this.createProjectile(angle + offset, projData);
+            }
+        } else {
+            // Tir simple
+            this.createProjectile(angle, projData);
+        }
+        
+        // Cooldown spécifique à l'arme
+        this.time.delayedCall(projData.cooldown, () => {
+            this.player.canAttack = true;
+        });
+    }
+    
+    createProjectile(angle, data) {
+        const startX = this.player.x + Math.cos(angle) * 30;
+        const startY = this.player.y + Math.sin(angle) * 30;
+        
+        let proj;
+        
+        // Créer selon le type
+        switch(data.type) {
+            case 'arrow':
+                proj = this.add.rectangle(startX, startY, data.size * 2, data.size, data.color);
+                proj.rotation = angle;
+                break;
+            case 'slash':
+                proj = this.add.ellipse(startX, startY, data.size * 3, data.size, data.color);
+                proj.rotation = angle;
+                break;
+            case 'shockwave':
+                proj = this.add.ellipse(startX, startY, data.size * 4, data.size * 2, data.color, 0.7);
+                proj.rotation = angle;
+                break;
+            default:
+                proj = this.add.circle(startX, startY, data.size, data.color);
+        }
+        
+        proj.setDepth(150);
+        proj.vx = Math.cos(angle) * data.speed;
+        proj.vy = Math.sin(angle) * data.speed;
+        proj.damage = data.damage;
+        proj.range = data.range;
+        proj.startX = startX;
+        proj.startY = startY;
+        proj.knockback = data.knockback || false;
+        proj.knockbackForce = data.knockbackForce || 150;
+        proj.piercing = data.piercing || false;
+        proj.hits = []; // Pour le piercing
+        
+        // Trail léger
+        this.addProjectileTrail(proj, data);
         
         this.projectiles.push(proj);
-        
-        // Trail TRÈS léger
+        return proj;
+    }
+    
+    addProjectileTrail(proj, data) {
         let trailCount = 0;
         const trailInterval = setInterval(() => {
             if (!proj.scene || trailCount > 6) {
                 clearInterval(trailInterval);
                 return;
             }
-            const trail = this.add.circle(proj.x, proj.y, 5, proj.fillColor, 0.1);
+            const trail = this.add.circle(proj.x, proj.y, data.size * 0.6, data.color, 0.1);
             this.tweens.add({
                 targets: trail,
                 alpha: 0,
@@ -267,29 +586,19 @@ export class GameScene extends Phaser.Scene {
             });
             trailCount++;
         }, 50);
-        
-        // Reset attack cooldown
-        this.time.delayedCall(250, () => {
-            this.player.canAttack = true;
-        });
     }
     
     performDash() {
-        // Vérifications
-        if (this.player.stamina < 40) return;
-        if (this.player.isDashing) return;
+        if (this.player.stamina < 40 || this.player.isDashing) return;
         
-        // Dash vers la souris
         const angle = Math.atan2(
             this.worldMouseY - this.player.y,
             this.worldMouseX - this.player.x
         );
         
-        // Appeler la méthode dash du player
         const success = this.player.dash(Math.cos(angle), Math.sin(angle));
         
         if (success) {
-            // Effet de dash TRÈS léger
             const playerColor = this.player.classData?.color || 0x00d4ff;
             for (let i = 0; i < 4; i++) {
                 this.time.delayedCall(i * 50, () => {
@@ -336,17 +645,22 @@ export class GameScene extends Phaser.Scene {
             this.boss.update(time, this.player);
         }
         
-        // DESSINER LA LIGNE DE VISÉE UNIQUEMENT QUAND ON TIRE (clic droit maintenu)
+        // Update charge indicator
+        if (this.isCharging && this.chargeGraphics) {
+            this.chargeGraphics.clear();
+            const radius = 30 + this.chargeLevel * 40;
+            this.chargeGraphics.lineStyle(4, 0xffaa00, 0.8);
+            this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
+        }
+        
+        // DESSINER LA LIGNE DE VISÉE UNIQUEMENT QUAND ON TIRE
         this.aimLine.clear();
         
-        // Ne dessiner la ligne que si le clic droit est enfoncé
         if (this.input.activePointer.rightButtonDown()) {
-            // Calculer la direction et la distance
             const dx = this.worldMouseX - this.player.x;
             const dy = this.worldMouseY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            // Limiter la distance de la ligne à 300 pixels
             const maxAimDistance = 300;
             let aimX = this.worldMouseX;
             let aimY = this.worldMouseY;
@@ -357,11 +671,9 @@ export class GameScene extends Phaser.Scene {
                 aimY = this.player.y + dy * ratio;
             }
             
-            // Ligne de visée principale (limitée)
             this.aimLine.lineStyle(1, 0xff6666, 0.2);
             this.aimLine.lineBetween(this.player.x, this.player.y, aimX, aimY);
             
-            // Ligne pointillée (limitée aussi)
             const limitedDist = Math.min(dist, maxAimDistance);
             for (let i = 20; i < limitedDist; i += 30) {
                 const t = i / limitedDist;
@@ -372,7 +684,6 @@ export class GameScene extends Phaser.Scene {
                 this.aimLine.lineBetween(x1, y1, x2, y2);
             }
             
-            // Cercle de visée (à la position limitée)
             this.aimLine.lineStyle(1, 0xff3333, 0.3);
             this.aimLine.strokeCircle(aimX, aimY, 8);
         }
@@ -383,10 +694,33 @@ export class GameScene extends Phaser.Scene {
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             
+            // Vérifier la portée
+            if (proj.range) {
+                const distTraveled = Phaser.Math.Distance.Between(proj.startX, proj.startY, proj.x, proj.y);
+                if (distTraveled > proj.range) {
+                    proj.destroy();
+                    this.projectiles.splice(i, 1);
+                    continue;
+                }
+            }
+            
+            // Collision avec le boss
             if (this.boss) {
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
                 if (dist < 50) {
                     this.boss.takeDamage(proj.damage);
+                    
+                    // Effet de knockback
+                    if (proj.knockback) {
+                        const angle = Math.atan2(proj.y - this.boss.y, proj.x - this.boss.x);
+                        this.tweens.add({
+                            targets: this.boss,
+                            x: this.boss.x + Math.cos(angle) * proj.knockbackForce,
+                            y: this.boss.y + Math.sin(angle) * proj.knockbackForce,
+                            duration: 150,
+                            ease: 'Power2'
+                        });
+                    }
                     
                     const impact = this.add.circle(proj.x, proj.y, 12, 0xffaa00, 0.4);
                     this.tweens.add({
@@ -397,12 +731,15 @@ export class GameScene extends Phaser.Scene {
                         onComplete: () => impact.destroy()
                     });
                     
-                    proj.destroy();
-                    this.projectiles.splice(i, 1);
+                    if (!proj.piercing) {
+                        proj.destroy();
+                        this.projectiles.splice(i, 1);
+                    }
                     continue;
                 }
             }
             
+            // Hors écran
             if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
                 proj.y < -50 || proj.y > this.cameras.main.height + 50) {
                 proj.destroy();
@@ -455,7 +792,6 @@ export class GameScene extends Phaser.Scene {
         if (this.boss) {
             this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
-            this.bossName.setText(this.boss.bossData?.name || 'BOSS');
         }
         
         // Check game over
