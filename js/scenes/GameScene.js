@@ -656,6 +656,16 @@ export class GameScene extends Phaser.Scene {
         // Boss projectiles
         for (let i = this.bossProjectiles.length - 1; i >= 0; i--) {
             const proj = this.bossProjectiles[i];
+
+            // Frost Nova effect: enemy projectiles are suspended while boss is frozen.
+            if (this.boss?.frozen) {
+                if (proj.glow) {
+                    proj.glow.x = proj.x;
+                    proj.glow.y = proj.y;
+                }
+                continue;
+            }
+
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             

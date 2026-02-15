@@ -36,6 +36,11 @@ export class DasherBoss extends Boss {
             onComplete: () => {
                 line.destroy();
                 warnings.forEach(w => w.destroy());
+
+                if (this.frozen) {
+                    this.isAttacking = false;
+                    return;
+                }
                 
                 // Dash
                 this.scene.tweens.add({
@@ -58,9 +63,11 @@ export class DasherBoss extends Boss {
                         }
                     },
                     onComplete: () => {
-                        const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
-                        if (dist < 60 && !player.isInvulnerable) {
-                            player.takeDamage(20);
+                        if (!this.frozen) {
+                            const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+                            if (dist < 60 && !player.isInvulnerable) {
+                                player.takeDamage(20);
+                            }
                         }
                         this.isAttacking = false;
                     }
