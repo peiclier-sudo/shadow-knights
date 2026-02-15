@@ -1,9 +1,9 @@
-// WarriorClass.js - Guerrier
+// WarriorClass.js - Guerrier (UPDATED - Grappling Hook)
 import { ClassBase } from './ClassBase.js';
 import { CLASSES } from './classData.js';
 import { BattleCrySkill } from '../skills/skills/BattleCrySkill.js';
 import { IronWillSkill } from '../skills/skills/IronWillSkill.js';
-import { ExecutionSkill } from '../skills/skills/ExecutionSkill.js';
+import { GrapplingHookSkill } from '../skills/skills/GrapplingHookSkill.js';
 
 export class WarriorClass extends ClassBase {
     constructor(scene, player) {
@@ -15,7 +15,7 @@ export class WarriorClass extends ClassBase {
         this.skills = [
             new BattleCrySkill(this.scene, this.player),
             new IronWillSkill(this.scene, this.player),
-            new ExecutionSkill(this.scene, this.player)
+            new GrapplingHookSkill(this.scene, this.player)  // ✅ CHANGÉ
         ];
     }
     

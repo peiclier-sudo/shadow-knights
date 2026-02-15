@@ -1,4 +1,4 @@
-// classData.js - Class definitions
+// classData.js - Class definitions (UPDATED - Grappling Hook)
 export const CLASSES = {
     WARRIOR: {
         name: 'WARRIOR',
@@ -17,9 +17,9 @@ export const CLASSES = {
             damage: 25
         },
         skills: [
-            { id: 'battleCry', name: 'BATTLE CRY', icon: '📢', staminaCost: 30, cooldown: 8000 },
-            { id: 'ironWill', name: 'IRON WILL', icon: '🛡️', staminaCost: 25, cooldown: 6000 },
-            { id: 'execution', name: 'EXECUTION', icon: '⚔️', staminaCost: 40, cooldown: 10000 }
+            { id: 'battleCry', name: 'BATTLE CRY', icon: '📢', staminaCost: 30, cooldown: 20000 },
+            { id: 'ironWill', name: 'IRON WILL', icon: '🛡️', staminaCost: 25, cooldown: 20000 },
+            { id: 'grapplingHook', name: 'GRAPPLING HOOK', icon: '🪝', staminaCost: 35, cooldown: 12000 }  // ✅ CHANGÉ
         ]
     },
     MAGE: {
