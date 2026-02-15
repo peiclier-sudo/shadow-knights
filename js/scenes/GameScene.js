@@ -86,9 +86,8 @@ export class GameScene extends Phaser.Scene {
         this.setupInput();
         
         // Camera
-        this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-        this.cameras.main.setDeadzone(120, 80);
-        this.cameras.main.setZoom(1.02);
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        this.cameras.main.setDeadzone(90, 60);
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
@@ -207,11 +206,11 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 2
         }).setScrollFactor(0).setOrigin(0.5);
         
-        this.bossHealthBarBg = this.add.rectangle(width - 350, 40, 300, 25, 0x333333)
+        this.bossHealthBarBg = this.add.rectangle(width - 370, 44, 300, 25, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
-        this.bossHealthBar = this.add.rectangle(width - 350, 40, 300, 25, 0xff5555)
+        this.bossHealthBar = this.add.rectangle(width - 370, 44, 300, 25, 0xff5555)
             .setScrollFactor(0).setOrigin(0, 0.5);
-        this.bossHealthText = this.add.text(width - 40, 40, '400/400', {
+        this.bossHealthText = this.add.text(width - 60, 44, '400/400', {
             fontSize: '18px',
             fill: '#fff',
             stroke: '#000',
@@ -236,7 +235,7 @@ export class GameScene extends Phaser.Scene {
 
         this.createWeaponHelpButtons(width, height);
 
-        this.rangePreviewToggleText = this.add.text(width - 20, 70, '', {
+        this.rangePreviewToggleText = this.add.text(width - 28, 80, '', {
             fontSize: '14px',
             fill: '#9ecbff',
             backgroundColor: '#00000099',
@@ -246,7 +245,7 @@ export class GameScene extends Phaser.Scene {
         this.refreshRangePreviewToggleText();
         
         // Instructions
-        this.add.text(width/2, height - 30, 
+        this.add.text(width/2, height - 46, 
             'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS (HOOK: R then R)', {
             fontSize: '14px',
             fill: '#aaa',
@@ -256,8 +255,8 @@ export class GameScene extends Phaser.Scene {
     }
     
     createWeaponHelpButtons(width, height) {
-        const x = 58;
-        const y = height - 70;
+        const x = 72;
+        const y = height - 92;
 
         const weaponIcon = this.weapon?.data?.icon || '⚔️';
 

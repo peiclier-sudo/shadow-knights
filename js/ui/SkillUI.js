@@ -11,8 +11,8 @@ export class SkillUI {
         const width = this.scene.cameras.main.width;
         const height = this.scene.cameras.main.height;
         
-        const startX = width - 280;
-        const startY = height - 80;
+        const startX = width - 300;
+        const startY = height - 98;
         const spacing = 90;
         
         const keys = ['Q', 'E', 'R'];
