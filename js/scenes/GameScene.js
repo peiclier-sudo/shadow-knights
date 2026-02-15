@@ -65,9 +65,11 @@ export class GameScene extends Phaser.Scene {
         this.worldMouseY = 0;
         this.aimCurrentX = 0;
         this.aimCurrentY = 0;
-        
+        this.showAttackRangePreview = true;
+
         // Aim line
         this.aimLine = this.add.graphics();
+        this.rangePreviewGraphics = this.add.graphics();
         this.chargeGraphics = null;
         
         // Tooltip
@@ -194,10 +196,19 @@ export class GameScene extends Phaser.Scene {
             stroke: '#000',
             strokeThickness: 1
         }).setScrollFactor(0);
+
+        this.rangePreviewToggleText = this.add.text(width - 20, 70, '', {
+            fontSize: '14px',
+            fill: '#9ecbff',
+            backgroundColor: '#00000099',
+            padding: { x: 8, y: 4 }
+        }).setOrigin(1, 0.5).setScrollFactor(0).setInteractive({ useHandCursor: true });
+        this.rangePreviewToggleText.on('pointerdown', () => this.toggleAttackRangePreview());
+        this.refreshRangePreviewToggleText();
         
         // Instructions
         this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
+            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | T: APERÇU PORTÉE | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -275,6 +286,10 @@ export class GameScene extends Phaser.Scene {
             this.performDash();
         });
         
+        this.input.keyboard.on('keydown-T', () => {
+            this.toggleAttackRangePreview();
+        });
+
         // ✅ COMPÉTENCES avec Q, E, R
         this.input.keyboard.on('keydown-Q', () => {
             if (this.skills?.q) {
@@ -327,6 +342,65 @@ export class GameScene extends Phaser.Scene {
         this.player.dash(Math.cos(angle), Math.sin(angle));
     }
     
+
+
+    toggleAttackRangePreview() {
+        this.showAttackRangePreview = !this.showAttackRangePreview;
+        this.refreshRangePreviewToggleText();
+
+        if (!this.showAttackRangePreview && this.rangePreviewGraphics) {
+            this.rangePreviewGraphics.clear();
+        }
+    }
+
+    refreshRangePreviewToggleText() {
+        if (!this.rangePreviewToggleText) return;
+
+        const status = this.showAttackRangePreview ? 'ON' : 'OFF';
+        this.rangePreviewToggleText.setText(`APERCU PORTÉES [T]: ${status}`);
+        this.rangePreviewToggleText.setStyle({ fill: this.showAttackRangePreview ? '#9ecbff' : '#999999' });
+    }
+
+    drawAttackRangePreview() {
+        if (!this.rangePreviewGraphics || !this.weapon || !this.player) return;
+
+        const graphics = this.rangePreviewGraphics;
+        graphics.clear();
+
+        const normalRange = this.weapon.getNormalRange();
+        if (normalRange > 0) {
+            graphics.lineStyle(1, 0x66ccff, 0.55);
+            graphics.strokeCircle(this.player.x, this.player.y, normalRange);
+        }
+
+        const charged = this.weapon.getChargedPreviewConfig();
+        const targetPoint = this.weapon.getClampedChargedTarget(this.aimCurrentX, this.aimCurrentY);
+
+        if (charged.targeting === 'self') {
+            if (charged.aoeRadius > 0) {
+                graphics.lineStyle(2, 0xffaa00, 0.7);
+                graphics.strokeCircle(this.player.x, this.player.y, charged.aoeRadius);
+            }
+            return;
+        }
+
+        if (charged.maxRange > 0) {
+            graphics.lineStyle(1, 0xffaa00, 0.45);
+            graphics.strokeCircle(this.player.x, this.player.y, charged.maxRange);
+        }
+
+        graphics.lineStyle(1, 0xffaa00, 0.4);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+
+        if (charged.targeting === 'ground' && charged.aoeRadius > 0) {
+            graphics.lineStyle(2, 0xff8844, 0.7);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, charged.aoeRadius);
+        } else {
+            graphics.lineStyle(1.5, 0xff8844, 0.8);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, 10);
+        }
+    }
+
     update(time, delta) {
         // Mouvement
         if (this.moveTarget) {
@@ -403,7 +477,8 @@ export class GameScene extends Phaser.Scene {
         
         // Ligne de visée
         this.aimLine.clear();
-        if (this.input.activePointer.rightButtonDown()) {
+        const isChargingInput = this.input.activePointer.rightButtonDown();
+        if (isChargingInput) {
             const dx = this.aimCurrentX - this.player.x;
             const dy = this.aimCurrentY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -432,6 +507,12 @@ export class GameScene extends Phaser.Scene {
             
             this.aimLine.lineStyle(1, 0xff3333, 0.3);
             this.aimLine.strokeCircle(aimX, aimY, 8);
+        }
+
+        if (this.showAttackRangePreview && isChargingInput) {
+            this.drawAttackRangePreview();
+        } else if (this.rangePreviewGraphics) {
+            this.rangePreviewGraphics.clear();
         }
         
         // ✅ PROJECTILES JOUEUR

@@ -44,9 +44,10 @@ export class BowWeapon extends WeaponBase {
     executeChargedAttack(angle) {
         const charged = this.data.charged;
         
-        // Utiliser la position de la souris comme centre
-        const centerX = this.scene.worldMouseX;
-        const centerY = this.scene.worldMouseY;
+        // Utiliser la position de la souris comme centre (avec portée max fixe)
+        const targetPoint = this.getClampedChargedTarget(this.scene.worldMouseX, this.scene.worldMouseY);
+        const centerX = targetPoint.x;
+        const centerY = targetPoint.y;
         
         for (let i = 0; i < charged.arrows; i++) {
             this.scene.time.delayedCall(i * 100, () => {

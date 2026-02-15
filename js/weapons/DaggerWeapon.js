@@ -48,8 +48,9 @@ export class DaggerWeapon extends WeaponBase {
     executeChargedAttack(angle) {
         const charged = this.data.charged;
         
-        const cloudX = this.scene.worldMouseX;
-        const cloudY = this.scene.worldMouseY;
+        const targetPoint = this.getClampedChargedTarget(this.scene.worldMouseX, this.scene.worldMouseY);
+        const cloudX = targetPoint.x;
+        const cloudY = targetPoint.y;
         
         const cloud = this.scene.add.circle(cloudX, cloudY, charged.radius, 0x88aa88, 0.3);
         
