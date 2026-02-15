@@ -358,7 +358,31 @@ export class GameScene extends Phaser.Scene {
 
         const status = this.showAttackRangePreview ? 'ON' : 'OFF';
         this.rangePreviewToggleText.setText(`APERCU PORTÉES [T]: ${status}`);
-        this.rangePreviewToggleText.setStyle({ fill: this.showAttackRangePreview ? '#9ecbff' : '#999999' });
+        this.rangePreviewToggleText.setStyle({
+            fill: this.showAttackRangePreview ? '#b9f1ff' : '#888888',
+            backgroundColor: this.showAttackRangePreview ? '#0b1d3099' : '#1a1a1a99'
+        });
+    }
+
+    drawDashedCircle(graphics, centerX, centerY, radius, options = {}) {
+        const {
+            segments = 72,
+            dashRatio = 0.55,
+            offset = 0,
+            lineWidth = 1,
+            color = 0xffffff,
+            alpha = 0.5
+        } = options;
+
+        graphics.lineStyle(lineWidth, color, alpha);
+
+        for (let i = 0; i < segments; i++) {
+            const start = (i / segments) * Math.PI * 2 + offset;
+            const end = ((i + dashRatio) / segments) * Math.PI * 2 + offset;
+            graphics.beginPath();
+            graphics.arc(centerX, centerY, radius, start, end, false);
+            graphics.strokePath();
+        }
     }
 
     drawAttackRangePreview() {
@@ -367,10 +391,23 @@ export class GameScene extends Phaser.Scene {
         const graphics = this.rangePreviewGraphics;
         graphics.clear();
 
+        const pulse = 0.75 + Math.sin(this.time.now * 0.01) * 0.25;
+        const spin = this.time.now * 0.002;
+
         const normalRange = this.weapon.getNormalRange();
         if (normalRange > 0) {
-            graphics.lineStyle(1, 0x66ccff, 0.55);
-            graphics.strokeCircle(this.player.x, this.player.y, normalRange);
+            graphics.lineStyle(2, 0x55d8ff, 0.08 * pulse);
+            graphics.fillStyle(0x55d8ff, 0.03 * pulse);
+            graphics.fillCircle(this.player.x, this.player.y, normalRange);
+
+            this.drawDashedCircle(graphics, this.player.x, this.player.y, normalRange, {
+                segments: 84,
+                dashRatio: 0.45,
+                offset: spin,
+                lineWidth: 1.5,
+                color: 0x66ddff,
+                alpha: 0.55
+            });
         }
 
         const charged = this.weapon.getChargedPreviewConfig();
@@ -378,26 +415,55 @@ export class GameScene extends Phaser.Scene {
 
         if (charged.targeting === 'self') {
             if (charged.aoeRadius > 0) {
-                graphics.lineStyle(2, 0xffaa00, 0.7);
-                graphics.strokeCircle(this.player.x, this.player.y, charged.aoeRadius);
+                graphics.fillStyle(0xffaa00, 0.06 * pulse);
+                graphics.fillCircle(this.player.x, this.player.y, charged.aoeRadius);
+                this.drawDashedCircle(graphics, this.player.x, this.player.y, charged.aoeRadius, {
+                    segments: 64,
+                    dashRatio: 0.52,
+                    offset: -spin,
+                    lineWidth: 2,
+                    color: 0xffb347,
+                    alpha: 0.8
+                });
             }
             return;
         }
 
         if (charged.maxRange > 0) {
-            graphics.lineStyle(1, 0xffaa00, 0.45);
-            graphics.strokeCircle(this.player.x, this.player.y, charged.maxRange);
+            this.drawDashedCircle(graphics, this.player.x, this.player.y, charged.maxRange, {
+                segments: 76,
+                dashRatio: 0.48,
+                offset: -spin,
+                lineWidth: 1.5,
+                color: 0xffc266,
+                alpha: 0.58
+            });
         }
 
-        graphics.lineStyle(1, 0xffaa00, 0.4);
+        const glowColor = charged.targeting === 'ground' ? 0xff9b4d : 0xffb347;
+        graphics.lineStyle(4, glowColor, 0.12 * pulse);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+        graphics.lineStyle(1.5, glowColor, 0.7);
         graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
 
         if (charged.targeting === 'ground' && charged.aoeRadius > 0) {
-            graphics.lineStyle(2, 0xff8844, 0.7);
-            graphics.strokeCircle(targetPoint.x, targetPoint.y, charged.aoeRadius);
+            graphics.fillStyle(0xff8844, 0.09 * pulse);
+            graphics.fillCircle(targetPoint.x, targetPoint.y, charged.aoeRadius);
+
+            this.drawDashedCircle(graphics, targetPoint.x, targetPoint.y, charged.aoeRadius, {
+                segments: 48,
+                dashRatio: 0.55,
+                offset: spin * 1.2,
+                lineWidth: 2,
+                color: 0xff8844,
+                alpha: 0.85
+            });
         } else {
-            graphics.lineStyle(1.5, 0xff8844, 0.8);
-            graphics.strokeCircle(targetPoint.x, targetPoint.y, 10);
+            const markerRadius = 8 + pulse * 3;
+            graphics.lineStyle(2, 0xff9f5a, 0.85);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius);
+            graphics.lineStyle(1, 0xffd1a4, 0.85);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius + 6);
         }
     }
 
