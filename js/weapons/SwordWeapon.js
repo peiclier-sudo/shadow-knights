@@ -32,6 +32,7 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
         slash.startX = startX;
         slash.startY = startY;
         slash.piercing = data.piercing;
+        slash.hasHit = false;  // ✅ FIX: Flag pour éviter multi-hit
         
         this.scene.projectiles.push(slash);
         this.addTrail(slash, data.color, data.size);

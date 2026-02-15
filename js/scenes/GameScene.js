@@ -505,6 +505,16 @@ export class GameScene extends Phaser.Scene {
             if (this.boss) {
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
                 if (dist < 50) {
+                    // ✅ FIX: Vérifier si le projectile a déjà touché
+                    if (proj.hasHit !== undefined && proj.hasHit) {
+                        continue; // Skip si déjà touché
+                    }
+                    
+                    // Marquer comme ayant touché
+                    if (proj.hasHit !== undefined) {
+                        proj.hasHit = true;
+                    }
+                    
                     this.boss.takeDamage(proj.damage);
                     
                     // Knockback

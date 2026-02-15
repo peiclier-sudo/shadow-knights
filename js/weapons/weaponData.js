@@ -1,4 +1,4 @@
-// weaponData.js - All weapon definitions
+// weaponData.js - All weapon definitions (FIXED)
 export const WEAPONS = {
     SWORD: {
         name: 'SWORD',
@@ -14,17 +14,17 @@ export const WEAPONS = {
             count: 1,
             range: 200,
             cooldown: 250,
-            piercing: true
+            piercing: false  // ✅ FIXED - était true, maintenant false
         },
         charged: {
             name: 'PIERCING LASER',
             chargeTime: 1200,
             staminaCost: 35,
             damage: 60,
-            width: 8,           // Largeur du laser
-            length: 2000,        // Longueur (traverse l'écran)
-            speed: 2000,         // Vitesse d'apparition
-            piercing: true,      // Traverse tout
+            width: 8,
+            length: 2000,
+            speed: 2000,
+            piercing: true,
             knockback: true
         }
     },
@@ -71,7 +71,8 @@ export const WEAPONS = {
             range: 400,
             cooldown: 200,
             homing: true,
-            homingStrength: 0.03
+            homingStrength: 0.03,
+            piercing: false
         },
         charged: {
             name: 'FIREBALL',
@@ -130,7 +131,8 @@ export const WEAPONS = {
             range: 300,
             cooldown: 500,
             knockback: true,
-            knockbackForce: 200
+            knockbackForce: 200,
+            piercing: false  // ✅ Aussi fixé ici
         },
         charged: {
             name: 'GROUND SLAM',
