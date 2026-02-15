@@ -1,10 +1,11 @@
-// BattleCrySkill.js - Warrior skill: Increase damage
+// BattleCrySkill.js - Warrior skill: +30% damage for 8s (FIXED)
 import { SkillBase } from '../SkillBase.js';
 import { SKILL_DATA } from '../skillData.js';
 
 export class BattleCrySkill extends SkillBase {
     constructor(scene, player) {
         super(scene, player, SKILL_DATA.battleCry);
+        this.buffActive = false;
     }
     
     use() {
@@ -45,14 +46,66 @@ export class BattleCrySkill extends SkillBase {
             });
         }
         
-        // Apply damage buff
-        this.player.damageMultiplier = 1.5;
+        // ✅ FIX: Appliquer le buff de dégâts correctement (+30%)
+        this.buffActive = true;
+        const oldMultiplier = this.player.damageMultiplier || 1.0;
+        this.player.damageMultiplier = oldMultiplier * 1.3;  // +30%
         
-        // Remove buff after duration
-        this.scene.time.delayedCall(5000, () => {
-            this.player.damageMultiplier = 1.0;
+        console.log(`🔥 BATTLE CRY! Damage: ${oldMultiplier.toFixed(1)}x → ${this.player.damageMultiplier.toFixed(1)}x`);
+        
+        // ✅ Buff indicator sur le joueur (orbites rouges)
+        this.createBuffIndicator();
+        
+        // ✅ FIX: Retirer le buff après 8 secondes (pas 5)
+        this.scene.time.delayedCall(8000, () => {
+            this.player.damageMultiplier = oldMultiplier;
+            this.buffActive = false;
+            console.log(`⏱️ Battle Cry ended. Damage back to ${oldMultiplier.toFixed(1)}x`);
+            
+            if (this.buffIndicator) {
+                this.buffIndicator.destroy();
+                this.buffIndicator = null;
+            }
         });
         
         return true;
+    }
+    
+    createBuffIndicator() {
+        // Créer un indicateur visuel rotatif autour du joueur
+        this.buffIndicator = this.scene.add.container(0, 0);
+        
+        // 3 particules qui orbitent
+        for (let i = 0; i < 3; i++) {
+            const angle = (i / 3) * Math.PI * 2;
+            const particle = this.scene.add.circle(
+                this.player.x + Math.cos(angle) * 35,
+                this.player.y + Math.sin(angle) * 35,
+                4,
+                0xff5500,
+                0.8
+            );
+            this.buffIndicator.add(particle);
+        }
+        
+        // Animation d'orbite
+        let rotation = 0;
+        const orbitInterval = setInterval(() => {
+            if (!this.buffActive || !this.buffIndicator || !this.buffIndicator.scene) {
+                clearInterval(orbitInterval);
+                return;
+            }
+            
+            rotation += 0.05;
+            this.buffIndicator.list.forEach((particle, i) => {
+                const angle = (i / 3) * Math.PI * 2 + rotation;
+                particle.x = this.player.x + Math.cos(angle) * 35;
+                particle.y = this.player.y + Math.sin(angle) * 35;
+            });
+        }, 16);
+    }
+    
+    update() {
+        // Position déjà mise à jour dans l'interval
     }
 }

@@ -1,13 +1,13 @@
-// skillData.js - Skill definitions and metadata
+// skillData.js - Skill definitions (FIXED - correct cooldowns)
 export const SKILL_DATA = {
     battleCry: {
         id: 'battleCry',
         name: 'BATTLE CRY',
         class: 'WARRIOR',
         icon: '📢',
-        description: '+50% damage for 5 seconds',
+        description: '+30% damage for 8 seconds',  // ✅ Corrigé
         staminaCost: 30,
-        cooldown: 8000,
+        cooldown: 20000,  // ✅ FIXED - 20s au lieu de 8s
         color: 0xff5500
     },
     ironWill: {
@@ -17,7 +17,7 @@ export const SKILL_DATA = {
         icon: '🛡️',
         description: '50% damage reduction for 4 seconds',
         staminaCost: 25,
-        cooldown: 6000,
+        cooldown: 20000,  // ✅ FIXED - 20s au lieu de 6s
         color: 0xffaa00
     },
     execution: {
@@ -25,9 +25,9 @@ export const SKILL_DATA = {
         name: 'EXECUTION',
         class: 'WARRIOR',
         icon: '⚔️',
-        description: 'Instantly kill enemies below 20% health',
+        description: 'Kill enemies below 20% health (250px range)',  // ✅ Précisé
         staminaCost: 40,
-        cooldown: 10000,
+        cooldown: 30000,  // ✅ Déjà 30s - correct
         color: 0xff0000
     },
     frostNova: {

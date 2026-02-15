@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (FIXED - projectiles hit only once)
+// GameScene.js - Main gameplay scene (FIXED - projectiles hit only once + Skills)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -7,6 +7,10 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
+import { BattleCrySkill } from '../skills/BattleCrySkill.js';
+import { IronWillSkill } from '../skills/IronWillSkill.js';
+import { ExecutionSkill } from '../skills/ExecutionSkill.js';
+import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -40,6 +44,19 @@ export class GameScene extends Phaser.Scene {
         
         // Créer l'arme
         this.createWeapon();
+        
+        // ✅ Initialize skills
+        if (this.playerConfig.class === 'WARRIOR') {
+            this.skills = {
+                q: new BattleCrySkill(this, this.player),
+                e: new IronWillSkill(this, this.player),
+                r: new ExecutionSkill(this, this.player)
+            };
+        }
+        
+        // ✅ Initialize player combat modifiers
+        this.player.damageMultiplier = 1.0;
+        this.player.damageReduction = 0;
         
         // Input state
         this.moveTarget = null;
@@ -178,7 +195,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | E/R/F: COMPÉTENCES', {
+            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | Q/E/R: COMPÉTENCES', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -187,62 +204,8 @@ export class GameScene extends Phaser.Scene {
     }
     
     createSkillButtons() {
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
-        
-        this.skillButtons = [];
-        const skills = this.player.classData?.skills || [];
-        
-        skills.forEach((skill, index) => {
-            const x = width - 300 + index * 90;
-            const y = height - 80;
-            
-            // Bouton
-            const button = this.add.container(x, y);
-            
-            // Fond
-            const bg = this.add.circle(0, 0, 30, 0x333333, 0.8);
-            bg.setStrokeStyle(2, this.player.classData?.data?.color || 0x00d4ff);
-            
-            // Icône
-            const icon = this.add.text(0, -2, skill.icon, { fontSize: '24px' }).setOrigin(0.5);
-            
-            // Raccourci
-            const keyHint = this.add.text(0, 22, ['E', 'R', 'F'][index], {
-                fontSize: '12px',
-                fill: '#aaa'
-            }).setOrigin(0.5);
-            
-            // Cooldown overlay
-            const cooldownOverlay = this.add.circle(0, 0, 30, 0x000000, 0);
-            
-            button.add([bg, icon, keyHint, cooldownOverlay]);
-            button.setSize(60, 60);
-            button.setInteractive({ useHandCursor: true });
-            
-            button.on('pointerdown', () => {
-                this.player.useSkill(index);
-            });
-            
-            button.on('pointerover', () => {
-                this.showSkillTooltip(skill, x, y - 60);
-            });
-            
-            button.on('pointerout', () => {
-                if (this.tooltip) {
-                    this.tooltip.destroy();
-                    this.tooltip = null;
-                }
-            });
-            
-            // Stocker pour mise à jour
-            this.skillButtons.push({
-                container: button,
-                cooldownOverlay,
-                skill,
-                lastUsed: 0
-            });
-        });
+        // ✅ Créer l'UI des compétences avec indicateurs circulaires
+        this.skillUI = new SkillUI(this);
     }
     
     showSkillTooltip(skill, x, y) {
@@ -346,17 +309,23 @@ export class GameScene extends Phaser.Scene {
             this.performDash();
         });
         
-        // COMPÉTENCES avec E, R, F
+        // ✅ COMPÉTENCES avec Q, E, R (nouveau système)
+        this.input.keyboard.on('keydown-Q', () => {
+            if (this.skills?.q) {
+                this.skills.q.use();
+            }
+        });
+        
         this.input.keyboard.on('keydown-E', () => {
-            this.player.useSkill(0);
+            if (this.skills?.e) {
+                this.skills.e.use();
+            }
         });
         
         this.input.keyboard.on('keydown-R', () => {
-            this.player.useSkill(1);
-        });
-        
-        this.input.keyboard.on('keydown-F', () => {
-            this.player.useSkill(2);
+            if (this.skills?.r) {
+                this.skills.r.use();
+            }
         });
     }
     
@@ -533,7 +502,9 @@ export class GameScene extends Phaser.Scene {
                         proj.hasHit = true;
                     }
                     
-                    this.boss.takeDamage(proj.damage);
+                    // ✅ FIX: Appliquer le multiplicateur de dégâts (Battle Cry)
+                    const finalDamage = proj.damage * (this.player.damageMultiplier || 1.0);
+                    this.boss.takeDamage(finalDamage);
                     
                     // Knockback
                     if (proj.knockback) {
@@ -627,6 +598,18 @@ export class GameScene extends Phaser.Scene {
         if (this.boss) {
             this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
+        }
+        
+        // ✅ Update skills UI (cooldown circulaire)
+        if (this.skillUI && this.skills) {
+            this.skillUI.update(this.skills);
+        }
+        
+        // ✅ Update active skills (orbites Battle Cry, bouclier Iron Will, etc.)
+        if (this.skills) {
+            if (this.skills.q) this.skills.q.update();
+            if (this.skills.e) this.skills.e.update();
+            if (this.skills.r) this.skills.r.update();
         }
         
         // Game over
