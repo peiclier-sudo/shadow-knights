@@ -1,8 +1,9 @@
-// SkillUI.js - Affichage des compétences avec cooldown circulaire
+// SkillUI.js - Affichage des compétences avec cooldown circulaire + tooltip de survol
 export class SkillUI {
     constructor(scene) {
         this.scene = scene;
         this.skillButtons = [];
+        this.skillTooltip = null;
         this.createSkillButtons();
     }
     
@@ -43,6 +44,7 @@ export class SkillUI {
             }).setOrigin(0.5);
             keyText.setScrollFactor(0);
             keyText.setDepth(201);
+            keyText.setInteractive({ useHandCursor: true });
             
             const cooldownOverlay = this.scene.add.circle(x, y, 35, 0x000000, 0);
             cooldownOverlay.setStrokeStyle(2, 0xff0000);
@@ -56,8 +58,14 @@ export class SkillUI {
                 }
             };
 
-            bg.on('pointerdown', useSkill);
-            icon.on('pointerdown', useSkill);
+            const showTooltip = () => this.showSkillTooltip(skillKey, x, y - 70);
+            const hideTooltip = () => this.hideSkillTooltip();
+
+            [bg, icon, keyText].forEach((obj) => {
+                obj.on('pointerdown', useSkill);
+                obj.on('pointerover', showTooltip);
+                obj.on('pointerout', hideTooltip);
+            });
             
             this.skillButtons.push({
                 bg,
@@ -70,6 +78,55 @@ export class SkillUI {
                 radius: 35
             });
         });
+    }
+
+    showSkillTooltip(skillKey, x, y) {
+        this.hideSkillTooltip();
+
+        const skill = this.scene.skills?.[skillKey];
+        if (!skill?.data) return;
+
+        const cooldownS = Math.round((skill.cooldown || 0) / 1000);
+        const lines = [
+            skill.data.name || skill.name || 'SKILL',
+            skill.data.description || '',
+            `STA: ${skill.staminaCost}  CD: ${cooldownS}s`
+        ];
+
+        const maxLineLen = Math.max(...lines.map(line => line.length));
+        const width = Math.max(200, maxLineLen * 7 + 20);
+        const height = 76;
+
+        const bg = this.scene.add.rectangle(x, y, width, height, 0x000000, 0.9)
+            .setStrokeStyle(2, 0x88ccff, 0.95)
+            .setScrollFactor(0)
+            .setDepth(320);
+
+        const title = this.scene.add.text(x, y - 24, lines[0], {
+            fontSize: '13px',
+            fill: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const desc = this.scene.add.text(x, y - 3, lines[1], {
+            fontSize: '12px',
+            fill: '#b9d7ff',
+            align: 'center',
+            wordWrap: { width: width - 16 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const info = this.scene.add.text(x, y + 24, lines[2], {
+            fontSize: '11px',
+            fill: '#ffaa66'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        this.skillTooltip = { bg, title, desc, info };
+    }
+
+    hideSkillTooltip() {
+        if (!this.skillTooltip) return;
+        Object.values(this.skillTooltip).forEach((obj) => obj?.destroy());
+        this.skillTooltip = null;
     }
 
     isPointerOnSkillButton(pointerX, pointerY) {
@@ -116,6 +173,8 @@ export class SkillUI {
     }
     
     destroy() {
+        this.hideSkillTooltip();
+
         this.skillButtons.forEach(btn => {
             btn.bg.destroy();
             btn.icon.destroy();

@@ -193,6 +193,8 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 1
         }).setScrollFactor(0);
 
+        this.createWeaponHelpButtons(width, height);
+
         this.rangePreviewToggleText = this.add.text(width - 20, 70, '', {
             fontSize: '14px',
             fill: '#9ecbff',
@@ -212,12 +214,100 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0);
     }
     
+    createWeaponHelpButtons(width, height) {
+        const baseX = 20;
+        const buttonWidth = 270;
+        const buttonHeight = 34;
+        const gap = 10;
+        const startY = height - 100;
+
+        const normalDamage = this.weapon?.data?.projectile?.damage ?? '?';
+        const chargedName = this.weapon?.data?.charged?.name || 'CHARGED';
+        const chargedDamage = this.weapon?.data?.charged?.damage ?? '?';
+
+        const makeButton = (x, y, label, tooltipText, color) => {
+            const bg = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x000000, 0.68)
+                .setOrigin(0, 0)
+                .setScrollFactor(0)
+                .setDepth(210)
+                .setStrokeStyle(2, color, 0.95)
+                .setInteractive({ useHandCursor: true });
+
+            const text = this.add.text(x + 10, y + 8, label, {
+                fontSize: '12px',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
+
+            const showHelp = () => this.showWeaponHelpTooltip(x + buttonWidth / 2, y - 46, tooltipText);
+            const hideHelp = () => this.hideWeaponHelpTooltip();
+
+            bg.on('pointerover', showHelp);
+            bg.on('pointerout', hideHelp);
+            text.on('pointerover', showHelp);
+            text.on('pointerout', hideHelp);
+
+            return { bg, text, x, y, w: buttonWidth, h: buttonHeight };
+        };
+
+        this.weaponHelpButtons = [
+            makeButton(
+                baseX,
+                startY,
+                `NORMAL ATTACK: Right click tap (${normalDamage} dmg)` ,
+                this.weapon?.data?.description || 'Base weapon attack.',
+                0x55aaff
+            ),
+            makeButton(
+                baseX,
+                startY + buttonHeight + gap,
+                `CHARGED ATTACK: Hold + release (${chargedName}, ${chargedDamage} dmg)` ,
+                `${chargedName}: hold right click to charge, release when full charge is ready.`,
+                0xffaa55
+            )
+        ];
+    }
+
+    showWeaponHelpTooltip(x, y, text) {
+        this.hideWeaponHelpTooltip();
+
+        const width = Math.max(260, text.length * 6 + 20);
+        const bg = this.add.rectangle(x, y, width, 42, 0x000000, 0.92)
+            .setScrollFactor(0)
+            .setDepth(320)
+            .setStrokeStyle(2, 0xffffff, 0.85);
+
+        const info = this.add.text(x, y, text, {
+            fontSize: '12px',
+            fill: '#d9ecff',
+            align: 'center',
+            wordWrap: { width: width - 16 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        this.weaponHelpTooltip = { bg, info };
+    }
+
+    hideWeaponHelpTooltip() {
+        if (!this.weaponHelpTooltip) return;
+        this.weaponHelpTooltip.bg?.destroy();
+        this.weaponHelpTooltip.info?.destroy();
+        this.weaponHelpTooltip = null;
+    }
+
+    isPointerOnWeaponHelpButton(pointerX, pointerY) {
+        if (!this.weaponHelpButtons) return false;
+        return this.weaponHelpButtons.some((btn) => {
+            return pointerX >= btn.x && pointerX <= (btn.x + btn.w) &&
+                pointerY >= btn.y && pointerY <= (btn.y + btn.h);
+        });
+    }
+
     setupInput() {
         this.input.mouse.disableContextMenu();
         
         // CLIC GAUCHE - Déplacement
         this.input.on('pointerdown', (pointer) => {
-            if (this.skillUI?.isPointerOnSkillButton(pointer.x, pointer.y)) {
+            if (this.skillUI?.isPointerOnSkillButton(pointer.x, pointer.y) ||
+                this.isPointerOnWeaponHelpButton(pointer.x, pointer.y)) {
                 return;
             }
 
