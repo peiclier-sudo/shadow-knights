@@ -211,6 +211,10 @@ export class GameScene extends Phaser.Scene {
         // CLIC GAUCHE - Déplacement
         this.input.on('pointerdown', (pointer) => {
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+            if (this.skills?.r?.handlePointerDown?.(pointer, worldPoint)) {
+                return;
+            }
             
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
