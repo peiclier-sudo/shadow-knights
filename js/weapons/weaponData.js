@@ -4,7 +4,7 @@ export const WEAPONS = {
         name: 'SWORD',
         icon: '⚔️',
         color: 0xffaa00,
-        description: 'Épée - Slash rapide / Laser perçant',
+        description: 'Sword - Fast slash / Piercing laser',
         projectile: {
             type: 'slash',
             size: 14,
@@ -36,7 +36,7 @@ export const WEAPONS = {
         name: 'BOW',
         icon: '🏹',
         color: 0x88dd88,
-        description: 'Arc long - Tir précis / Pluie de flèches',
+        description: 'Bow - Precise shot / Rain of arrows',
         projectile: {
             type: 'arrow',
             size: 8,
@@ -66,7 +66,7 @@ export const WEAPONS = {
         name: 'STAFF',
         icon: '🔮',
         color: 0x8888ff,
-        description: 'Bâton - Orbes téléguidés / Boule de feu',
+        description: 'Staff - Homing orbs / Fireball',
         projectile: {
             type: 'orb',
             size: 12,
@@ -100,7 +100,7 @@ export const WEAPONS = {
         name: 'DAGGERS',
         icon: '🗡️',
         color: 0xcc88cc,
-        description: 'Dagues - Tir en éventail / Nuage de poison',
+        description: 'Daggers - Spread throw / Poison cloud',
         projectile: {
             type: 'spread',
             size: 6,
@@ -132,7 +132,7 @@ export const WEAPONS = {
         name: 'GREATSWORD',
         icon: '⚔️',
         color: 0xcc6600,
-        description: 'Espadon - Onde de choc / Ground slam',
+        description: 'Greatsword - Shockwave / Ground slam',
         projectile: {
             type: 'shockwave',
             size: 24,

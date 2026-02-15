@@ -83,6 +83,9 @@ export class SkillUI {
     showSkillTooltip(skillKey, x, y) {
         this.hideSkillTooltip();
 
+        const camera = this.scene.cameras.main;
+        const margin = 12;
+
         const skill = this.scene.skills?.[skillKey];
         if (!skill?.data) return;
 
@@ -97,25 +100,28 @@ export class SkillUI {
         const width = Math.max(200, maxLineLen * 7 + 20);
         const height = 76;
 
-        const bg = this.scene.add.rectangle(x, y, width, height, 0x000000, 0.9)
+        const clampedX = Phaser.Math.Clamp(x, margin + width / 2, camera.width - margin - width / 2);
+        const clampedY = Phaser.Math.Clamp(y, margin + height / 2, camera.height - margin - height / 2);
+
+        const bg = this.scene.add.rectangle(clampedX, clampedY, width, height, 0x000000, 0.9)
             .setStrokeStyle(2, 0x88ccff, 0.95)
             .setScrollFactor(0)
             .setDepth(320);
 
-        const title = this.scene.add.text(x, y - 24, lines[0], {
+        const title = this.scene.add.text(clampedX, clampedY - 24, lines[0], {
             fontSize: '13px',
             fill: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        const desc = this.scene.add.text(x, y - 3, lines[1], {
+        const desc = this.scene.add.text(clampedX, clampedY - 3, lines[1], {
             fontSize: '12px',
             fill: '#b9d7ff',
             align: 'center',
             wordWrap: { width: width - 16 }
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        const info = this.scene.add.text(x, y + 24, lines[2], {
+        const info = this.scene.add.text(clampedX, clampedY + 24, lines[2], {
             fontSize: '11px',
             fill: '#ffaa66'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);

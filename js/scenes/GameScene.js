@@ -206,7 +206,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | T: APERÇU PORTÉE | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
+            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS (HOOK: R then R)', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -254,6 +254,9 @@ export class GameScene extends Phaser.Scene {
     showWeaponHelpTooltip(x, y) {
         this.hideWeaponHelpTooltip();
 
+        const camera = this.cameras.main;
+        const margin = 14;
+
         const projectile = this.weapon?.data?.projectile || {};
         const charged = this.weapon?.data?.charged || {};
         const chargedExtras = [];
@@ -273,28 +276,31 @@ export class GameScene extends Phaser.Scene {
         const width = 460;
         const height = 102;
 
-        const bg = this.add.rectangle(x, y, width, height, 0x000000, 0.92)
+        const clampedX = Phaser.Math.Clamp(x, margin + width / 2, camera.width - margin - width / 2);
+        const clampedY = Phaser.Math.Clamp(y, margin + height / 2, camera.height - margin - height / 2);
+
+        const bg = this.add.rectangle(clampedX, clampedY, width, height, 0x000000, 0.92)
             .setScrollFactor(0)
             .setDepth(320)
             .setStrokeStyle(2, 0xffffff, 0.85);
 
-        const title = this.add.text(x, y - 34, line1, {
+        const title = this.add.text(clampedX, clampedY - 34, line1, {
             fontSize: '14px',
             fill: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        const basic = this.add.text(x, y - 10, line2, {
+        const basic = this.add.text(clampedX, clampedY - 10, line2, {
             fontSize: '12px',
             fill: '#9fd7ff'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        const chargedText = this.add.text(x, y + 14, line3, {
+        const chargedText = this.add.text(clampedX, clampedY + 14, line3, {
             fontSize: '12px',
             fill: '#ffc98f'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        const extra = this.add.text(x, y + 36, line4, {
+        const extra = this.add.text(clampedX, clampedY + 36, line4, {
             fontSize: '11px',
             fill: '#d9ecff',
             align: 'center',
@@ -468,7 +474,7 @@ export class GameScene extends Phaser.Scene {
         if (!this.rangePreviewToggleText) return;
 
         const status = this.showAttackRangePreview ? 'ON' : 'OFF';
-        this.rangePreviewToggleText.setText(`APERCU PORTÉES [T]: ${status}`);
+        this.rangePreviewToggleText.setText(`RANGE PREVIEW [T]: ${status}`);
         this.rangePreviewToggleText.setStyle({
             fill: this.showAttackRangePreview ? '#b9f1ff' : '#888888',
             backgroundColor: this.showAttackRangePreview ? '#0b1d3099' : '#1a1a1a99'
