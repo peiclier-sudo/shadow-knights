@@ -15,6 +15,11 @@ export class Boss extends Phaser.GameObjects.Container {
         this.isAttacking = false;
         this.nextAttackTime = 0;
         this.frozen = false;
+        this.stunned = false;
+        this.slowed = false;
+        
+        // Defense multiplier (pour debug)
+        this.defenseMultiplier = 1.0;
         
         // Create visuals
         this.createVisuals();
@@ -99,11 +104,28 @@ export class Boss extends Phaser.GameObjects.Container {
     }
     
     takeDamage(amount) {
+        // Appliquer les multiplicateurs
+        let finalDamage = amount;
+        
         if (this.frozen) {
-            amount *= 1.5; // Bonus damage when frozen
+            finalDamage *= 1.5; // Bonus dégâts quand gelé
         }
         
-        this.health = Math.max(0, this.health - amount);
+        if (this.stunned) {
+            finalDamage *= 1.3; // Bonus dégâts quand étourdi
+        }
+        
+        // Appliquer la défense (si jamais)
+        finalDamage *= this.defenseMultiplier;
+        
+        // Arrondir pour éviter les décimales
+        finalDamage = Math.round(finalDamage);
+        
+        // Appliquer les dégâts
+        this.health = Math.max(0, this.health - finalDamage);
+        
+        // Debug
+        console.log(`Boss took ${finalDamage} damage (original: ${amount}). Health: ${this.health}/${this.maxHealth}`);
         
         // Visual feedback
         this.scene.tweens.add({
@@ -114,7 +136,7 @@ export class Boss extends Phaser.GameObjects.Container {
         });
         
         // Damage number
-        const dmgText = this.scene.add.text(this.x, this.y - 50, Math.floor(amount).toString(), {
+        const dmgText = this.scene.add.text(this.x, this.y - 50, finalDamage.toString(), {
             fontSize: '24px',
             fill: '#ffaa00',
             stroke: '#000',
@@ -129,6 +151,147 @@ export class Boss extends Phaser.GameObjects.Container {
             duration: 500,
             onComplete: () => dmgText.destroy()
         });
+        
+        return finalDamage;
+    }
+    
+    attack(player) {
+        if (this.isAttacking || this.frozen || this.stunned) return;
+        
+        this.isAttacking = true;
+        
+        // Different attacks per boss
+        switch(this.bossId) {
+            case 1:
+                this.slashAttack(player);
+                break;
+            case 2:
+                this.spreadShot(player);
+                break;
+            case 3:
+                this.dashAttack(player);
+                break;
+        }
+    }
+    
+    slashAttack(player) {
+        const warning = this.scene.add.rectangle(this.x - 100, this.y, 180, 150, 0xff0051, 0.3);
+        warning.setStrokeStyle(4, 0xff3366);
+        
+        this.scene.tweens.add({
+            targets: warning,
+            alpha: 0.6,
+            duration: 600,
+            yoyo: true,
+            onComplete: () => {
+                warning.destroy();
+                
+                const slashZone = this.scene.add.rectangle(this.x - 100, this.y, 180, 150, 0xff6666, 0.7);
+                
+                const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+                if (dist < 120 && !player.isInvulnerable) {
+                    player.takeDamage(15);
+                }
+                
+                this.scene.tweens.add({
+                    targets: slashZone,
+                    alpha: 0,
+                    duration: 150,
+                    onComplete: () => {
+                        slashZone.destroy();
+                        this.isAttacking = false;
+                    }
+                });
+            }
+        });
+    }
+    
+    spreadShot(player) {
+        const warning = this.scene.add.circle(this.x, this.y, 45, 0xff6600, 0.3);
+        warning.setStrokeStyle(4, 0xff8833);
+        
+        this.scene.tweens.add({
+            targets: warning,
+            radius: 65,
+            alpha: 0,
+            duration: 600,
+            onComplete: () => {
+                warning.destroy();
+                
+                const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+                
+                for (let i = -2; i <= 2; i++) {
+                    const angle = angleToPlayer + (i * 0.2);
+                    const projectile = this.scene.add.circle(this.x, this.y, 8, 0xff6600);
+                    projectile.setDepth(150);
+                    projectile.vx = Math.cos(angle) * 350;
+                    projectile.vy = Math.sin(angle) * 350;
+                    
+                    // Add glow
+                    const glow = this.scene.add.circle(this.x, this.y, 14, 0xff6600, 0.3);
+                    glow.setDepth(149);
+                    projectile.glow = glow;
+                    
+                    this.scene.bossProjectiles.push(projectile);
+                }
+                
+                this.isAttacking = false;
+            }
+        });
+    }
+    
+    dashAttack(player) {
+        const targetX = player.x;
+        const targetY = player.y;
+        
+        const line = this.scene.add.line(0, 0, this.x, this.y, targetX, targetY, 0xcc00ff, 0.5);
+        line.setLineWidth(6);
+        
+        const warnings = [];
+        for (let i = 0.2; i <= 1; i += 0.2) {
+            const warnX = this.x + (targetX - this.x) * i;
+            const warnY = this.y + (targetY - this.y) * i;
+            const warn = this.scene.add.circle(warnX, warnY, 20, 0xcc00ff, 0.3);
+            warn.setStrokeStyle(2, 0xdd33ff);
+            warnings.push(warn);
+        }
+        
+        this.scene.tweens.add({
+            targets: [...warnings, line],
+            alpha: 0,
+            duration: 400,
+            onComplete: () => {
+                line.destroy();
+                warnings.forEach(w => w.destroy());
+                
+                this.scene.tweens.add({
+                    targets: this,
+                    x: targetX,
+                    y: targetY,
+                    duration: 100,
+                    ease: 'Power3',
+                    onUpdate: () => {
+                        if (Math.random() > 0.5) {
+                            const trail = this.scene.add.circle(this.x, this.y, 15, 0xcc00ff, 0.4);
+                            this.scene.tweens.add({
+                                targets: trail,
+                                alpha: 0,
+                                scale: 0.5,
+                                duration: 200,
+                                onComplete: () => trail.destroy()
+                            });
+                        }
+                    },
+                    onComplete: () => {
+                        const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+                        if (dist < 60 && !player.isInvulnerable) {
+                            player.takeDamage(20);
+                        }
+                        this.isAttacking = false;
+                    }
+                });
+            }
+        });
     }
     
     update(time, player) {
@@ -142,7 +305,13 @@ export class Boss extends Phaser.GameObjects.Container {
             this.glow2.y = this.y;
         }
         
-        // Don't attack if frozen
-        if (this.frozen) return;
+        // Don't attack if frozen or stunned
+        if (this.frozen || this.stunned) return;
+        
+        // Attack cooldown
+        if (time > this.nextAttackTime && !this.isAttacking) {
+            this.attack(player);
+            this.nextAttackTime = time + 2000;
+        }
     }
 }
