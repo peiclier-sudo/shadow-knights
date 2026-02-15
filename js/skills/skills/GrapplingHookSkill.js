@@ -5,58 +5,102 @@ import { SKILL_DATA } from '../skillData.js';
 export class GrapplingHookSkill extends SkillBase {
     constructor(scene, player) {
         super(scene, player, SKILL_DATA.grapplingHook);
+        this.maxRange = 500;
+        this.isTargeting = false;
+        this.targetingGraphics = null;
+        this.directionMarker = null;
+        this.waitingForConfirmKeyRelease = false;
     }
     
     use() {
-        if (!super.use()) return false;
-        
-        const boss = this.scene.boss;
-        if (!boss) return false;
-        
-        // ✅ Calculer la distance
-        const distance = Phaser.Math.Distance.Between(
-            this.player.x, this.player.y,
-            boss.x, boss.y
-        );
-        
-        const maxRange = 500;  // Portée maximale du grappin
-        
-        // ✅ Vérifier la portée
-        if (distance > maxRange) {
-            console.log(`❌ GRAPPLING hors de portée: ${Math.floor(distance)}/${maxRange}`);
-            
-            // Message "TOO FAR"
-            const failText = this.scene.add.text(this.player.x, this.player.y - 50, 'TOO FAR!', {
-                fontSize: '24px',
-                fill: '#ff0000',
-                stroke: '#000',
-                strokeThickness: 4
-            }).setOrigin(0.5);
-            
-            this.scene.tweens.add({
-                targets: failText,
-                y: this.player.y - 100,
-                alpha: 0,
-                duration: 800,
-                onComplete: () => failText.destroy()
-            });
-            
-            return true;  // Skill utilisée mais pas d'effet
+        if (!this.isTargeting) {
+            if (!this.canUse()) return false;
+            this.startTargeting();
+            return true;
         }
-        
+
+        if (this.waitingForConfirmKeyRelease) {
+            return false;
+        }
+
+        this.confirmFromCursor();
+        return true;
+    }
+
+    startTargeting() {
+        this.isTargeting = true;
+        this.waitingForConfirmKeyRelease = true;
+        this.targetingGraphics = this.scene.add.graphics();
+        this.targetingGraphics.setDepth(95);
+        this.directionMarker = this.scene.add.circle(this.player.x, this.player.y, 8, 0xffaa00, 0.25)
+            .setStrokeStyle(2, 0xffaa00, 0.9)
+            .setDepth(96);
+    }
+
+    cancelTargeting() {
+        this.isTargeting = false;
+        this.waitingForConfirmKeyRelease = false;
+        if (this.targetingGraphics) {
+            this.targetingGraphics.destroy();
+            this.targetingGraphics = null;
+        }
+        if (this.directionMarker) {
+            this.directionMarker.destroy();
+            this.directionMarker = null;
+        }
+    }
+
+
+    confirmFromCursor() {
+        const pointer = this.scene.input.activePointer;
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        this.confirmTarget(worldPoint.x, worldPoint.y);
+    }
+
+    handleConfirmKeyUp() {
+        this.waitingForConfirmKeyRelease = false;
+    }
+
+    confirmTarget(targetX, targetY) {
+        const boss = this.scene.boss;
+        if (!boss) {
+            this.cancelTargeting();
+            return;
+        }
+
+        const dirX = targetX - this.player.x;
+        const dirY = targetY - this.player.y;
+        const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (dirLength <= 1) {
+            this.cancelTargeting();
+            return;
+        }
+
+        const normalizedDirX = dirX / dirLength;
+        const normalizedDirY = dirY / dirLength;
+
+        const toBossX = boss.x - this.player.x;
+        const toBossY = boss.y - this.player.y;
+        const distance = Math.sqrt(toBossX * toBossX + toBossY * toBossY);
+        const normalizedBossX = toBossX / Math.max(distance, 1);
+        const normalizedBossY = toBossY / Math.max(distance, 1);
+
+        const alignment = normalizedDirX * normalizedBossX + normalizedDirY * normalizedBossY;
+        const minAlignment = 0.92; // ~23° cone around cursor direction
+
+        if (distance > this.maxRange || alignment < minAlignment) {
+            this.showFailText(distance > this.maxRange ? 'TOO FAR!' : 'BAD DIRECTION!');
+            this.cancelTargeting();
+            return;
+        }
+
+        if (!super.use()) {
+            this.cancelTargeting();
+            return;
+        }
+
         console.log(`🪝 GRAPPLING! Distance: ${Math.floor(distance)}px`);
-        
-        // ✅ Afficher la portée visuellement
-        const rangeCircle = this.scene.add.circle(this.player.x, this.player.y, maxRange, 0xffaa00, 0);
-        rangeCircle.setStrokeStyle(2, 0xffaa00, 0.3);
-        
-        this.scene.tweens.add({
-            targets: rangeCircle,
-            alpha: 0,
-            duration: 300,
-            onComplete: () => rangeCircle.destroy()
-        });
-        
+        this.cancelTargeting();
         // ✅ Créer la corde du grappin
         const rope = this.scene.add.graphics();
         rope.setDepth(100);
@@ -105,6 +149,45 @@ export class GrapplingHookSkill extends SkillBase {
         });
         
         return true;
+    }
+
+    showFailText(text) {
+        const failText = this.scene.add.text(this.player.x, this.player.y - 50, text, {
+            fontSize: '24px',
+            fill: '#ff0000',
+            stroke: '#000',
+            strokeThickness: 4
+        }).setOrigin(0.5);
+
+        this.scene.tweens.add({
+            targets: failText,
+            y: this.player.y - 100,
+            alpha: 0,
+            duration: 800,
+            onComplete: () => failText.destroy()
+        });
+    }
+
+    update() {
+        if (!this.isTargeting || !this.targetingGraphics) return;
+
+        const pointer = this.scene.input.activePointer;
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+        const dx = worldPoint.x - this.player.x;
+        const dy = worldPoint.y - this.player.y;
+        const length = Math.sqrt(dx * dx + dy * dy) || 1;
+        const clampedLength = Math.min(length, this.maxRange);
+        const endX = this.player.x + (dx / length) * clampedLength;
+        const endY = this.player.y + (dy / length) * clampedLength;
+
+        this.targetingGraphics.clear();
+        this.targetingGraphics.lineStyle(2, 0xffaa00, 0.35);
+        this.targetingGraphics.strokeCircle(this.player.x, this.player.y, this.maxRange);
+        this.targetingGraphics.lineStyle(3, 0xffaa00, 0.7);
+        this.targetingGraphics.lineBetween(this.player.x, this.player.y, endX, endY);
+
+        this.directionMarker.setPosition(endX, endY);
     }
     
     pullPlayerToBoss(startX, startY, boss, rope) {
