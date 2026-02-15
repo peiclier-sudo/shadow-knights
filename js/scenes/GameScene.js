@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (FIXED - projectiles hit only once + Skills)
+// GameScene.js - Main gameplay scene (FIXED - Skills corrected)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -7,9 +7,9 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
-import { BattleCrySkill } from '../skills/BattleCrySkill.js';
-import { IronWillSkill } from '../skills/IronWillSkill.js';
-import { ExecutionSkill } from '../skills/ExecutionSkill.js';
+import { BattleCrySkill } from '../skills/skills/BattleCrySkill.js';
+import { IronWillSkill } from '../skills/skills/IronWillSkill.js';
+import { ExecutionSkill } from '../skills/skills/ExecutionSkill.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -75,7 +75,9 @@ export class GameScene extends Phaser.Scene {
         
         // UI
         this.createUI(width, height);
-        this.createSkillButtons();
+        
+        // ✅ Create skill UI
+        this.skillUI = new SkillUI(this);
         
         // Input
         this.setupInput();
@@ -203,41 +205,6 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0);
     }
     
-    createSkillButtons() {
-        // ✅ Créer l'UI des compétences avec indicateurs circulaires
-        this.skillUI = new SkillUI(this);
-    }
-    
-    showSkillTooltip(skill, x, y) {
-        if (this.tooltip) this.tooltip.destroy();
-        
-        this.tooltip = this.add.container(x, y);
-        
-        const bg = this.add.rectangle(0, 0, 200, 80, 0x000000, 0.9);
-        bg.setStrokeStyle(2, 0x00d4ff);
-        
-        const nameText = this.add.text(0, -25, skill.name, {
-            fontSize: '16px',
-            fill: '#fff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
-        const descText = this.add.text(0, 5, skill.data.description, {
-            fontSize: '12px',
-            fill: '#aaa',
-            wordWrap: { width: 180 },
-            align: 'center'
-        }).setOrigin(0.5);
-        
-        const costText = this.add.text(0, 25, `COÛT: ${skill.staminaCost}`, {
-            fontSize: '12px',
-            fill: '#ffaa00'
-        }).setOrigin(0.5);
-        
-        this.tooltip.add([bg, nameText, descText, costText]);
-        this.tooltip.setDepth(1000);
-    }
-    
     setupInput() {
         this.input.mouse.disableContextMenu();
         
@@ -257,7 +224,7 @@ export class GameScene extends Phaser.Scene {
                 
                 this.weapon.startCharge();
                 this.chargeGraphics = this.add.graphics();
-                this.chargeFlashShown = false;  // ✅ Reset flash flag
+                this.chargeFlashShown = false;
             }
         });
         
@@ -285,18 +252,15 @@ export class GameScene extends Phaser.Scene {
             }
             
             if (pointer.button === 2) {
-                // ✅ FIX: Calculer l'angle depuis la position ACTUELLE du joueur
                 const angle = Math.atan2(
                     this.aimCurrentY - this.player.y,
                     this.aimCurrentX - this.player.x
                 );
                 
-                // Tenter l'attaque chargée, sinon attaque normale
                 if (!this.weapon.releaseCharge(angle)) {
                     this.weapon.attack(angle);
                 }
                 
-                // Nettoyer l'indicateur de charge
                 if (this.chargeGraphics) {
                     this.chargeGraphics.destroy();
                     this.chargeGraphics = null;
@@ -309,7 +273,7 @@ export class GameScene extends Phaser.Scene {
             this.performDash();
         });
         
-        // ✅ COMPÉTENCES avec Q, E, R (nouveau système)
+        // ✅ COMPÉTENCES avec Q, E, R
         this.input.keyboard.on('keydown-Q', () => {
             if (this.skills?.q) {
                 this.skills.q.use();
@@ -400,9 +364,8 @@ export class GameScene extends Phaser.Scene {
                 const radius = 30 + this.weapon.chargeLevel * 50;
                 const alpha = 0.3 + this.weapon.chargeLevel * 0.5;
                 
-                // ✅ FIX: Couleur change quand charge complète
                 const isFullyCharged = this.weapon.chargeLevel >= 1.0;
-                const color = isFullyCharged ? 0x00ff88 : 0xffaa00;  // Vert si chargé !
+                const color = isFullyCharged ? 0x00ff88 : 0xffaa00;
                 
                 this.chargeGraphics.lineStyle(2, color, alpha * 0.5);
                 this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
@@ -416,7 +379,6 @@ export class GameScene extends Phaser.Scene {
                 );
                 this.chargeGraphics.fillPath();
                 
-                // ✅ BONUS: Flash quand charge complète
                 if (isFullyCharged && !this.chargeFlashShown) {
                     this.chargeFlashShown = true;
                     const flash = this.add.circle(this.player.x, this.player.y, 60, 0x00ff88, 0.3);
@@ -464,13 +426,7 @@ export class GameScene extends Phaser.Scene {
             this.aimLine.strokeCircle(aimX, aimY, 8);
         }
         
-        // Update skill buttons (cooldowns)
-        this.skillButtons?.forEach(btn => {
-            const cooldownProgress = btn.skill.getCooldownProgress?.() || 0;
-            btn.cooldownOverlay.fillAlpha = 0.5 * (1 - cooldownProgress);
-        });
-        
-        // ✅ PROJECTILES JOUEUR - FIXED VERSION
+        // ✅ PROJECTILES JOUEUR
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const proj = this.projectiles[i];
             if (proj.update) proj.update();
@@ -478,35 +434,32 @@ export class GameScene extends Phaser.Scene {
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             
-            // ✅ Check 1: Range
+            // Check range
             if (proj.range) {
                 const distTraveled = Phaser.Math.Distance.Between(proj.startX, proj.startY, proj.x, proj.y);
                 if (distTraveled > proj.range) {
                     proj.destroy();
                     this.projectiles.splice(i, 1);
-                    continue; // ✅ FIXED - Skip to next projectile immediately
+                    continue;
                 }
             }
             
-            // ✅ Check 2: Boss collision
+            // Boss collision
             if (this.boss) {
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
                 if (dist < 50) {
-                    // ✅ FIX: Vérifier si le projectile a déjà touché
                     if (proj.hasHit !== undefined && proj.hasHit) {
-                        continue; // Skip si déjà touché
+                        continue;
                     }
                     
-                    // Marquer comme ayant touché
                     if (proj.hasHit !== undefined) {
                         proj.hasHit = true;
                     }
                     
-                    // ✅ FIX: Appliquer le multiplicateur de dégâts (Battle Cry)
+                    // ✅ Appliquer le multiplicateur de dégâts
                     const finalDamage = proj.damage * (this.player.damageMultiplier || 1.0);
                     this.boss.takeDamage(finalDamage);
                     
-                    // Knockback
                     if (proj.knockback) {
                         const angle = Math.atan2(proj.vy, proj.vx);
                         this.tweens.add({
@@ -518,7 +471,6 @@ export class GameScene extends Phaser.Scene {
                         });
                     }
                     
-                    // Impact effect
                     const impact = this.add.circle(proj.x, proj.y, 12, 0xffaa00, 0.4);
                     this.tweens.add({
                         targets: impact,
@@ -528,23 +480,21 @@ export class GameScene extends Phaser.Scene {
                         onComplete: () => impact.destroy()
                     });
                     
-                    // ✅ CRITICAL FIX: Destroy projectile immediately
                     if (!proj.piercing) {
                         proj.destroy();
                         this.projectiles.splice(i, 1);
-                        continue; // ✅ FIXED - Skip rest of loop for this projectile
+                        continue;
                     }
-                    // If piercing, projectile continues through
-                    continue; // ✅ FIXED - Also skip for piercing projectiles after hit
+                    continue;
                 }
             }
             
-            // ✅ Check 3: Out of bounds
+            // Out of bounds
             if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
                 proj.y < -50 || proj.y > this.cameras.main.height + 50) {
                 proj.destroy();
                 this.projectiles.splice(i, 1);
-                continue; // ✅ FIXED - Clean exit from loop
+                continue;
             }
         }
         
@@ -600,12 +550,12 @@ export class GameScene extends Phaser.Scene {
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
         }
         
-        // ✅ Update skills UI (cooldown circulaire)
+        // ✅ Update skills UI
         if (this.skillUI && this.skills) {
             this.skillUI.update(this.skills);
         }
         
-        // ✅ Update active skills (orbites Battle Cry, bouclier Iron Will, etc.)
+        // ✅ Update active skills
         if (this.skills) {
             if (this.skills.q) this.skills.q.update();
             if (this.skills.e) this.skills.e.update();
