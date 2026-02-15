@@ -7,9 +7,6 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
-import { BattleCrySkill } from '../skills/skills/BattleCrySkill.js';
-import { IronWillSkill } from '../skills/skills/IronWillSkill.js';
-import { GrapplingHookSkill } from '../skills/skills/GrapplingHookSkill.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -45,14 +42,13 @@ export class GameScene extends Phaser.Scene {
         // Créer l'arme
         this.createWeapon();
         
-        // ✅ Initialize skills (avec Grappling Hook)
-        if (this.playerConfig.class === 'WARRIOR') {
-            this.skills = {
-                q: new BattleCrySkill(this, this.player),
-                e: new IronWillSkill(this, this.player),
-                r: new GrapplingHookSkill(this, this.player)  // ✅ CHANGÉ
-            };
-        }
+        // Initialize class skills (Q/E/R)
+        const classSkills = this.player.classData?.skills || [];
+        this.skills = {
+            q: classSkills[0] || null,
+            e: classSkills[1] || null,
+            r: classSkills[2] || null
+        };
         
         // ✅ Initialize player combat modifiers
         this.player.damageMultiplier = 1.0;
@@ -221,9 +217,12 @@ export class GameScene extends Phaser.Scene {
         
         // CLIC GAUCHE - Déplacement
         this.input.on('pointerdown', (pointer) => {
+            if (this.skillUI?.isPointerOnSkillButton(pointer.x, pointer.y)) {
+                return;
+            }
+
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-            
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
                 this.setMoveTarget(worldPoint.x, worldPoint.y);

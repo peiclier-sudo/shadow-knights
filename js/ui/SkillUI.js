@@ -1,4 +1,4 @@
-// SkillUI.js - Affichage des compétences avec cooldown circulaire (UPDATED - Grappling Hook)
+// SkillUI.js - Affichage des compétences avec cooldown circulaire
 export class SkillUI {
     constructor(scene) {
         this.scene = scene;
@@ -15,9 +15,12 @@ export class SkillUI {
         const spacing = 90;
         
         const keys = ['Q', 'E', 'R'];
-        const icons = ['📢', '🛡️', '🪝'];  // ✅ CHANGÉ: 🪝 au lieu de ⚔️
         
         keys.forEach((key, index) => {
+            const skillKey = key.toLowerCase();
+            const skill = this.scene.skills?.[skillKey];
+            const iconText = skill?.data?.icon || '❔';
+
             const x = startX + index * spacing;
             const y = startY;
             
@@ -25,12 +28,14 @@ export class SkillUI {
             bg.setStrokeStyle(2, 0x666666);
             bg.setScrollFactor(0);
             bg.setDepth(200);
+            bg.setInteractive({ useHandCursor: true });
             
-            const icon = this.scene.add.text(x, y - 5, icons[index], {
+            const icon = this.scene.add.text(x, y - 5, iconText, {
                 fontSize: '30px'
             }).setOrigin(0.5);
             icon.setScrollFactor(0);
             icon.setDepth(201);
+            icon.setInteractive({ useHandCursor: true });
             
             const keyText = this.scene.add.text(x, y + 25, key, {
                 fontSize: '14px',
@@ -43,16 +48,34 @@ export class SkillUI {
             cooldownOverlay.setStrokeStyle(2, 0xff0000);
             cooldownOverlay.setScrollFactor(0);
             cooldownOverlay.setDepth(202);
+
+            const useSkill = () => {
+                const mappedSkill = this.scene.skills?.[skillKey];
+                if (mappedSkill) {
+                    mappedSkill.use();
+                }
+            };
+
+            bg.on('pointerdown', useSkill);
+            icon.on('pointerdown', useSkill);
             
             this.skillButtons.push({
                 bg,
                 icon,
                 keyText,
                 cooldownOverlay,
-                skillKey: key.toLowerCase(),
+                skillKey,
                 x,
-                y
+                y,
+                radius: 35
             });
+        });
+    }
+
+    isPointerOnSkillButton(pointerX, pointerY) {
+        return this.skillButtons.some((btn) => {
+            const dist = Phaser.Math.Distance.Between(pointerX, pointerY, btn.x, btn.y);
+            return dist <= btn.radius;
         });
     }
     
@@ -64,6 +87,10 @@ export class SkillUI {
             const skill = skills[skillKey];
             
             if (!skill) return;
+
+            if (btn.icon.text !== (skill.data?.icon || btn.icon.text)) {
+                btn.icon.setText(skill.data?.icon || btn.icon.text);
+            }
             
             const cooldownProgress = skill.getCooldownProgress ? skill.getCooldownProgress() : 1;
             
