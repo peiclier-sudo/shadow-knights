@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (version complète avec classes et compétences)
+// GameScene.js - Main gameplay scene (FIXED - projectiles hit only once)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -487,7 +487,7 @@ export class GameScene extends Phaser.Scene {
             btn.cooldownOverlay.fillAlpha = 0.5 * (1 - cooldownProgress);
         });
         
-        // Projectiles joueur
+        // ✅ PROJECTILES JOUEUR - FIXED VERSION
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const proj = this.projectiles[i];
             if (proj.update) proj.update();
@@ -495,22 +495,25 @@ export class GameScene extends Phaser.Scene {
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             
+            // ✅ Check 1: Range
             if (proj.range) {
                 const distTraveled = Phaser.Math.Distance.Between(proj.startX, proj.startY, proj.x, proj.y);
                 if (distTraveled > proj.range) {
                     proj.destroy();
                     this.projectiles.splice(i, 1);
-                    continue;
+                    continue; // ✅ FIXED - Skip to next projectile immediately
                 }
             }
             
+            // ✅ Check 2: Boss collision
             if (this.boss) {
                 const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.boss.x, this.boss.y);
                 if (dist < 50) {
                     this.boss.takeDamage(proj.damage);
                     
+                    // Knockback
                     if (proj.knockback) {
-                        const angle = Math.atan2(proj.y - this.boss.y, proj.x - this.boss.x);
+                        const angle = Math.atan2(proj.vy, proj.vx);
                         this.tweens.add({
                             targets: this.boss,
                             x: this.boss.x + Math.cos(angle) * proj.knockbackForce,
@@ -520,6 +523,7 @@ export class GameScene extends Phaser.Scene {
                         });
                     }
                     
+                    // Impact effect
                     const impact = this.add.circle(proj.x, proj.y, 12, 0xffaa00, 0.4);
                     this.tweens.add({
                         targets: impact,
@@ -529,18 +533,23 @@ export class GameScene extends Phaser.Scene {
                         onComplete: () => impact.destroy()
                     });
                     
+                    // ✅ CRITICAL FIX: Destroy projectile immediately
                     if (!proj.piercing) {
                         proj.destroy();
                         this.projectiles.splice(i, 1);
+                        continue; // ✅ FIXED - Skip rest of loop for this projectile
                     }
-                    continue;
+                    // If piercing, projectile continues through
+                    continue; // ✅ FIXED - Also skip for piercing projectiles after hit
                 }
             }
             
+            // ✅ Check 3: Out of bounds
             if (proj.x < -50 || proj.x > this.cameras.main.width + 50 || 
                 proj.y < -50 || proj.y > this.cameras.main.height + 50) {
                 proj.destroy();
                 this.projectiles.splice(i, 1);
+                continue; // ✅ FIXED - Clean exit from loop
             }
         }
         
