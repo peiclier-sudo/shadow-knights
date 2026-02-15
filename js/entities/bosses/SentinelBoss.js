@@ -1,4 +1,4 @@
-// SentinelBoss.js - First boss
+// SentinelBoss.js - First boss (FIXED - no damage multipliers)
 import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 

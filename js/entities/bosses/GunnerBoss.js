@@ -1,4 +1,4 @@
-// GunnerBoss.js - Second boss
+// GunnerBoss.js - Second boss (FIXED - no damage multipliers)
 import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 

@@ -18,9 +18,6 @@ export class Boss extends Phaser.GameObjects.Container {
         this.stunned = false;
         this.slowed = false;
         
-        // Defense multiplier (pour debug)
-        this.defenseMultiplier = 1.0;
-        
         // Create visuals
         this.createVisuals();
         
@@ -104,28 +101,14 @@ export class Boss extends Phaser.GameObjects.Container {
     }
     
     takeDamage(amount) {
-        // Appliquer les multiplicateurs
-        let finalDamage = amount;
-        
-        if (this.frozen) {
-            finalDamage *= 1.5; // Bonus dégâts quand gelé
-        }
-        
-        if (this.stunned) {
-            finalDamage *= 1.3; // Bonus dégâts quand étourdi
-        }
-        
-        // Appliquer la défense (si jamais)
-        finalDamage *= this.defenseMultiplier;
-        
-        // Arrondir pour éviter les décimales
-        finalDamage = Math.round(finalDamage);
+        // ✅ FIX: Appliquer les dégâts directement sans multiplicateurs
+        const finalDamage = Math.round(amount);
         
         // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
         
         // Debug
-        console.log(`Boss took ${finalDamage} damage (original: ${amount}). Health: ${this.health}/${this.maxHealth}`);
+        console.log(`Boss took ${finalDamage} damage. Health: ${this.health}/${this.maxHealth}`);
         
         // Visual feedback
         this.scene.tweens.add({

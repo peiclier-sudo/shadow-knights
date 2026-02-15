@@ -1,4 +1,4 @@
-// DasherBoss.js - Third boss
+// DasherBoss.js - Third boss (FIXED - no damage multipliers)
 import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 
