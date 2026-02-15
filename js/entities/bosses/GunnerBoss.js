@@ -22,6 +22,11 @@ export class GunnerBoss extends Boss {
             duration: 600,
             onComplete: () => {
                 warning.destroy();
+
+                if (this.frozen) {
+                    this.isAttacking = false;
+                    return;
+                }
                 
                 const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
                 
@@ -48,7 +53,7 @@ export class GunnerBoss extends Boss {
     update(time, player) {
         super.update(time, player);
         
-        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen) {
+        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
             this.nextAttackTime = time + 2500;
         }

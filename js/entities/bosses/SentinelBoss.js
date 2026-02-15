@@ -23,12 +23,19 @@ export class SentinelBoss extends Boss {
             yoyo: true,
             onComplete: () => {
                 warning.destroy();
+
+                if (this.frozen) {
+                    this.isAttacking = false;
+                    return;
+                }
                 
                 const slashZone = this.scene.add.rectangle(this.x - 100, this.y, 180, 150, 0xff6666, 0.7);
                 
-                const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
-                if (dist < 120 && !player.isInvulnerable) {
-                    player.takeDamage(15);
+                if (!this.frozen) {
+                    const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+                    if (dist < 120 && !player.isInvulnerable) {
+                        player.takeDamage(15);
+                    }
                 }
                 
                 this.scene.tweens.add({
@@ -48,7 +55,7 @@ export class SentinelBoss extends Boss {
         super.update(time, player);
         
         // Attack cooldown
-        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen) {
+        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
             this.nextAttackTime = time + 2000;
         }

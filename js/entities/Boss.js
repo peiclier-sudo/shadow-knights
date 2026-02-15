@@ -278,6 +278,12 @@ export class Boss extends Phaser.GameObjects.Container {
     }
     
     update(time, player) {
+        // Smoke Bomb: boss cannot target player while untargetable
+        if (player?.untargetable) {
+            this.isAttacking = false;
+            return;
+        }
+
         // Update glow positions
         if (this.glow1) {
             this.glow1.x = this.x;

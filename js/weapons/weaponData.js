@@ -4,7 +4,7 @@ export const WEAPONS = {
         name: 'SWORD',
         icon: '⚔️',
         color: 0xffaa00,
-        description: 'Épée - Slash rapide / Laser perçant',
+        description: 'Sword - Fast slash / Piercing laser',
         projectile: {
             type: 'slash',
             size: 14,
@@ -36,7 +36,7 @@ export const WEAPONS = {
         name: 'BOW',
         icon: '🏹',
         color: 0x88dd88,
-        description: 'Arc long - Tir précis / Pluie de flèches',
+        description: 'Bow - Precise shot / Cataclysm rain',
         projectile: {
             type: 'arrow',
             size: 8,
@@ -50,11 +50,11 @@ export const WEAPONS = {
         },
         charged: {
             name: 'RAIN OF ARROWS',
-            chargeTime: 1500,
+            chargeTime: 2200,
             staminaCost: 35,
-            damage: 120,
-            arrows: 8,
-            radius: 150,
+            damage: 240,
+            arrows: 12,
+            radius: 170,
             targeting: 'ground',
             maxRange: 550,
             aoe: true,
@@ -66,31 +66,31 @@ export const WEAPONS = {
         name: 'STAFF',
         icon: '🔮',
         color: 0x8888ff,
-        description: 'Bâton - Orbes téléguidés / Boule de feu',
+        description: 'Staff - Piercing arcane orbs / Inferno lance',
         projectile: {
             type: 'orb',
             size: 12,
             speed: 900,
-            damage: 16,
+            damage: 24,
             color: 0x8888ff,
             count: 1,
             range: 400,
             cooldown: 200,
             homing: true,
             homingStrength: 0.03,
-            piercing: false
+            piercing: true
         },
         charged: {
             name: 'FIREBALL',
             chargeTime: 1400,
             staminaCost: 40,
-            damage: 40,
-            targeting: 'ground',
+            damage: 90,
+            targeting: 'line',
             maxRange: 500,
             fullChargeRequired: true,
-            radius: 120,
+            radius: 130,
             explosion: true,
-            dotDamage: 5,
+            dotDamage: 9,
             dotTicks: 4,
             dotInterval: 500
         }
@@ -100,7 +100,7 @@ export const WEAPONS = {
         name: 'DAGGERS',
         icon: '🗡️',
         color: 0xcc88cc,
-        description: 'Dagues - Tir en éventail / Nuage de poison',
+        description: 'Daggers - Spread throw / Poison cloud',
         projectile: {
             type: 'spread',
             size: 6,
@@ -132,31 +132,31 @@ export const WEAPONS = {
         name: 'GREATSWORD',
         icon: '⚔️',
         color: 0xcc6600,
-        description: 'Espadon - Onde de choc / Ground slam',
+        description: 'Greatsword - Crushing wave / Colossus breaker',
         projectile: {
             type: 'shockwave',
             size: 24,
             speed: 600,
-            damage: 32,
+            damage: 38,
             color: 0xcc6600,
             count: 1,
             range: 300,
             cooldown: 500,
             knockback: true,
-            knockbackForce: 200,
+            knockbackForce: 360,
             piercing: false  // ✅ Aussi fixé ici
         },
         charged: {
-            name: 'GROUND SLAM',
-            chargeTime: 1600,
+            name: 'COLOSSUS BREAKER',
+            chargeTime: 1350,
             staminaCost: 45,
-            damage: 55,
-            targeting: 'self',
-            maxRange: 0,
+            damage: 150,
+            targeting: 'line',
+            maxRange: 360,
             fullChargeRequired: true,
-            radius: 130,
+            radius: 95,
             stun: true,
-            stunDuration: 1000
+            stunDuration: 1400
         }
     }
 };

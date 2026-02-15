@@ -32,69 +32,73 @@ export class GreatswordWeapon extends WeaponBase {
         wave.startY = startY;
         wave.knockback = data.knockback;
         wave.knockbackForce = data.knockbackForce;
+        wave.heavyKnockback = true;
         
         this.scene.projectiles.push(wave);
         this.addTrail(wave, data.color, data.size);
     }
     
-    // Attaque chargée - Ground Slam (centré sur le joueur)
+    // Charged attack - Colossus Breaker (directional meta finisher)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
-        
-        this.scene.cameras.main.shake(200, 0.01);
-        
-        const slamWave = this.scene.add.circle(this.player.x, this.player.y, 30, 0xcc6600, 0.7);
-        
+
+        const targetPoint = this.getClampedChargedTarget(
+            this.player.x + Math.cos(angle) * charged.maxRange,
+            this.player.y + Math.sin(angle) * charged.maxRange
+        );
+
+        const slash = this.scene.add.rectangle(this.player.x, this.player.y, charged.maxRange, charged.radius * 2, 0xffaa55, 0.2);
+        slash.setRotation(angle);
+        slash.setDepth(145);
+
         this.scene.tweens.add({
-            targets: slamWave,
-            radius: charged.radius,
+            targets: slash,
             alpha: 0,
-            duration: 300,
-            onComplete: () => slamWave.destroy()
+            duration: 220,
+            onComplete: () => slash.destroy()
         });
-        
+
+        this.scene.tweens.add({
+            targets: this.player,
+            x: targetPoint.x,
+            y: targetPoint.y,
+            duration: 180,
+            ease: 'Power2'
+        });
+
+        this.scene.cameras.main.shake(220, 0.012);
+
         const boss = this.scene.boss;
         if (boss) {
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, boss.x, boss.y);
-            if (dist < charged.radius) {
-                // ✅ FIX: Appliquer le multiplicateur de dégâts
+            const distToPath = Phaser.Math.Distance.BetweenPoints(
+                { x: boss.x, y: boss.y },
+                Phaser.Geom.Line.GetNearestPoint(new Phaser.Geom.Line(this.player.x, this.player.y, targetPoint.x, targetPoint.y), { x: boss.x, y: boss.y })
+            );
+
+            if (distToPath <= charged.radius) {
                 const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(finalDamage);
-                
-                console.log(`💥 Ground Slam damage: ${Math.floor(finalDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
-                
+
                 if (charged.stun) {
                     boss.stunned = true;
-                    boss.setTint(0xcccccc);
-                    
+                    boss.setTint(0xffc266);
                     this.scene.time.delayedCall(charged.stunDuration, () => {
+                        if (!boss.scene) return;
                         boss.stunned = false;
                         boss.clearTint();
                     });
                 }
+
+                // Big knockback from the slash direction
+                const push = 140;
+                this.scene.tweens.add({
+                    targets: boss,
+                    x: boss.x + Math.cos(angle) * push,
+                    y: boss.y + Math.sin(angle) * push,
+                    duration: 180,
+                    ease: 'Power2'
+                });
             }
-        }
-        
-        // Particules de poussière
-        for (let i = 0; i < 20; i++) {
-            const particleAngle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * charged.radius;
-            const particle = this.scene.add.circle(
-                this.player.x + Math.cos(particleAngle) * distance,
-                this.player.y + Math.sin(particleAngle) * distance,
-                3 + Math.random() * 5,
-                0xaa8866,
-                0.5
-            );
-            
-            this.scene.tweens.add({
-                targets: particle,
-                y: particle.y - 50,
-                alpha: 0,
-                scale: 1.5,
-                duration: 500,
-                onComplete: () => particle.destroy()
-            });
         }
     }
 }

@@ -40,43 +40,53 @@ export class BowWeapon extends WeaponBase {
         this.addTrail(arrow, data.color, data.size);
     }
     
-    // Attaque chargée - Pluie de flèches (directionnelle)
+    // Charged attack - Cataclysm Rain (heavier charge, guaranteed area damage)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
-        
-        // Utiliser la position de la souris comme centre (avec portée max fixe)
+
         const targetPoint = this.getClampedChargedTarget(this.scene.worldMouseX, this.scene.worldMouseY);
         const centerX = targetPoint.x;
         const centerY = targetPoint.y;
-        
-        for (let i = 0; i < charged.arrows; i++) {
-            this.scene.time.delayedCall(i * 100, () => {
-                const x = centerX + (Math.random() - 0.5) * charged.radius * 2;
-                const y = centerY + (Math.random() - 0.5) * charged.radius * 2;
-                
-                const arrow = this.scene.add.rectangle(x, y - 50, 4, 15, 0x88dd88);
-                
+
+        const waves = 6;
+        const perWaveDamage = (charged.damage / waves) * (this.player.damageMultiplier || 1.0);
+
+        for (let wave = 0; wave < waves; wave++) {
+            this.scene.time.delayedCall(wave * 180, () => {
+                // Visual rainfall per wave
+                for (let i = 0; i < Math.ceil(charged.arrows / waves); i++) {
+                    const x = centerX + (Math.random() - 0.5) * charged.radius * 2;
+                    const y = centerY + (Math.random() - 0.5) * charged.radius * 2;
+                    const arrow = this.scene.add.rectangle(x, y - 70, 4, 18, 0x88dd88).setDepth(155);
+
+                    this.scene.tweens.add({
+                        targets: arrow,
+                        y,
+                        duration: 220,
+                        onComplete: () => arrow.destroy()
+                    });
+                }
+
+                const impactRing = this.scene.add.circle(centerX, centerY, charged.radius, 0x88dd88, 0.1);
+                impactRing.setDepth(120);
                 this.scene.tweens.add({
-                    targets: arrow,
-                    y: y,
-                    duration: 200,
-                    onComplete: () => {
-                        const boss = this.scene.boss;
-                        if (boss) {
-                            const distToBoss = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
-                            if (distToBoss < 30) {
-                                // ✅ FIX: Appliquer le multiplicateur de dégâts
-                                const arrowDamage = (charged.damage / charged.arrows) * (this.player.damageMultiplier || 1.0);
-                                boss.takeDamage(arrowDamage);
-                                
-                                if (i === 0) {
-                                    console.log(`🏹 Rain of Arrows damage per arrow: ${Math.floor(arrowDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
-                                }
-                            }
-                        }
-                        arrow.destroy();
-                    }
+                    targets: impactRing,
+                    alpha: 0,
+                    scale: 1.08,
+                    duration: 180,
+                    onComplete: () => impactRing.destroy()
                 });
+
+                const boss = this.scene.boss;
+                if (!boss) return;
+
+                const distToBoss = Phaser.Math.Distance.Between(centerX, centerY, boss.x, boss.y);
+                if (distToBoss <= charged.radius) {
+                    boss.takeDamage(perWaveDamage);
+                    if (wave === 0) {
+                        console.log(`🏹 Cataclysm Rain: ${Math.floor(perWaveDamage)} per wave x${waves}`);
+                    }
+                }
             });
         }
     }

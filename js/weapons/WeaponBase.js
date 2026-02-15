@@ -18,8 +18,20 @@ export class WeaponBase {
         this.player.stamina -= 7;
         this.player.canAttack = false;
         
-        // Chaque arme implémente sa propre logique de tir
+        // Tir principal
         this.fire(angle);
+
+        // Arcane Surge: next 3 shots fire 3 projectiles each (1 main + 2 side shots)
+        if ((this.player.multishotCount || 0) > 0) {
+            const spread = Phaser.Math.DegToRad(12);
+            this.fire(angle - spread);
+            this.fire(angle + spread);
+
+            this.player.multishotCount--;
+            if (this.player.multishotCount <= 0) {
+                this.player.multishot = 0;
+            }
+        }
         
         // Reset cooldown
         this.scene.time.delayedCall(this.data.projectile.cooldown, () => {
