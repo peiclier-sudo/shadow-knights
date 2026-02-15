@@ -46,6 +46,9 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
         const endX = startX + Math.cos(angle) * charged.length;
         const endY = startY + Math.sin(angle) * charged.length;
         
+        // ✅ FIX: Flag pour éviter les dégâts multiples
+        let hasHit = false;
+        
         // Laser principal
         const laser = this.scene.add.graphics();
         laser.lineStyle(charged.width, 0xffaa00, 0.9);
@@ -64,7 +67,11 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
             alpha: 1,
             duration: 50,
             onComplete: () => {
-                this.checkLaserHit(startX, startY, endX, endY, angle, charged);
+                // ✅ FIX: Ne faire les dégâts qu'UNE SEULE FOIS
+                if (!hasHit) {
+                    this.checkLaserHit(startX, startY, endX, endY, angle, charged);
+                    hasHit = true;
+                }
                 
                 this.scene.tweens.add({
                     targets: [laser, glow],
