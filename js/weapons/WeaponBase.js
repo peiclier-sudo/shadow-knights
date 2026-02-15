@@ -1,4 +1,4 @@
-// WeaponBase.js - Classe de base pour toutes les armes
+// WeaponBase.js - Classe de base pour toutes les armes (FIXED - charge minimale requise)
 export class WeaponBase {
     constructor(scene, player, weaponData) {
         this.scene = scene;
@@ -62,11 +62,23 @@ export class WeaponBase {
         
         this.isCharging = false;
         
-        if (this.chargeLevel < 0.3) return false;
-        if (this.player.stamina < this.data.charged.staminaCost) return false;
+        // ✅ FIX: Vérifier la charge minimale (30% par défaut, 100% si fullChargeRequired)
+        const minCharge = this.data.charged.fullChargeRequired ? 1.0 : 0.3;
+        
+        if (this.chargeLevel < minCharge) {
+            console.log(`⚠️ Charge insuffisante: ${Math.floor(this.chargeLevel * 100)}% (min: ${Math.floor(minCharge * 100)}%)`);
+            return false;
+        }
+        
+        if (this.player.stamina < this.data.charged.staminaCost) {
+            console.log(`⚠️ Pas assez de stamina: ${Math.floor(this.player.stamina)}/${this.data.charged.staminaCost}`);
+            return false;
+        }
         
         this.player.stamina -= this.data.charged.staminaCost;
         this.executeChargedAttack(angle);
+        
+        console.log(`✅ Charged attack! Level: ${Math.floor(this.chargeLevel * 100)}%`);
         
         return true;
     }

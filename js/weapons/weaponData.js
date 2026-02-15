@@ -25,7 +25,8 @@ export const WEAPONS = {
             length: 2000,
             speed: 2000,
             piercing: true,
-            knockback: true
+            knockback: true,
+            fullChargeRequired: true  // ✅ NOUVEAU - Nécessite charge complète (100%)
         }
     },
     

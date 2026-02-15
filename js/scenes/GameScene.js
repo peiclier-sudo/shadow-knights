@@ -294,6 +294,7 @@ export class GameScene extends Phaser.Scene {
                 
                 this.weapon.startCharge();
                 this.chargeGraphics = this.add.graphics();
+                this.chargeFlashShown = false;  // ✅ Reset flash flag
             }
         });
         
@@ -430,10 +431,14 @@ export class GameScene extends Phaser.Scene {
                 const radius = 30 + this.weapon.chargeLevel * 50;
                 const alpha = 0.3 + this.weapon.chargeLevel * 0.5;
                 
-                this.chargeGraphics.lineStyle(2, 0xffaa00, alpha * 0.5);
+                // ✅ FIX: Couleur change quand charge complète
+                const isFullyCharged = this.weapon.chargeLevel >= 1.0;
+                const color = isFullyCharged ? 0x00ff88 : 0xffaa00;  // Vert si chargé !
+                
+                this.chargeGraphics.lineStyle(2, color, alpha * 0.5);
                 this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
                 
-                this.chargeGraphics.fillStyle(0xffaa00, alpha * 0.2);
+                this.chargeGraphics.fillStyle(color, alpha * 0.2);
                 this.chargeGraphics.slice(
                     this.player.x, this.player.y,
                     radius - 5,
@@ -441,6 +446,19 @@ export class GameScene extends Phaser.Scene {
                     false
                 );
                 this.chargeGraphics.fillPath();
+                
+                // ✅ BONUS: Flash quand charge complète
+                if (isFullyCharged && !this.chargeFlashShown) {
+                    this.chargeFlashShown = true;
+                    const flash = this.add.circle(this.player.x, this.player.y, 60, 0x00ff88, 0.3);
+                    this.tweens.add({
+                        targets: flash,
+                        scale: 1.5,
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => flash.destroy()
+                    });
+                }
             }
         }
         
