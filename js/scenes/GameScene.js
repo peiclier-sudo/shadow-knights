@@ -46,8 +46,6 @@ export class GameScene extends Phaser.Scene {
         this.leftMouseDown = false;
         this.worldMouseX = 0;
         this.worldMouseY = 0;
-        this.aimStartX = 0;
-        this.aimStartY = 0;
         this.aimCurrentX = 0;
         this.aimCurrentY = 0;
         
@@ -291,8 +289,6 @@ export class GameScene extends Phaser.Scene {
             
             // CLIC DROIT - Tirer ou charger
             if (pointer.rightButtonDown()) {
-                this.aimStartX = this.player.x;
-                this.aimStartY = this.player.y;
                 this.aimCurrentX = worldPoint.x;
                 this.aimCurrentY = worldPoint.y;
                 
@@ -325,10 +321,10 @@ export class GameScene extends Phaser.Scene {
             }
             
             if (pointer.button === 2) {
-                // Calculer l'angle avec la position actuelle de la souris
+                // ✅ FIX: Calculer l'angle depuis la position ACTUELLE du joueur
                 const angle = Math.atan2(
-                    this.aimCurrentY - this.aimStartY,
-                    this.aimCurrentX - this.aimStartX
+                    this.aimCurrentY - this.player.y,
+                    this.aimCurrentX - this.player.x
                 );
                 
                 // Tenter l'attaque chargée, sinon attaque normale
