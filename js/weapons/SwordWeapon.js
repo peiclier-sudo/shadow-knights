@@ -1,14 +1,18 @@
-// SwordWeapon.js - Épée avec slash et laser
+// SwordWeapon.js - DEBUG VERSION
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
 export class SwordWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.SWORD);
+        this.fireCount = 0; // ← DEBUG
     }
     
     // Tir normal - Slash
     fire(angle) {
+        this.fireCount++;
+        console.log(`🗡️ SWORD fire() called #${this.fireCount}`); // ← DEBUG
+        
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
@@ -33,13 +37,18 @@ export class SwordWeapon extends WeaponBase {
         slash.startY = startY;
         slash.piercing = data.piercing;
         
+        console.log(`📦 Projectile created: damage=${slash.damage}, piercing=${slash.piercing}`); // ← DEBUG
+        console.log(`📍 Total projectiles in array: ${this.scene.projectiles.length + 1}`); // ← DEBUG
+        
         this.scene.projectiles.push(slash);
         this.addTrail(slash, data.color, data.size);
     }
     
-    // Attaque chargée - Laser perforant
+    // ... reste du code identique
     executeChargedAttack(angle) {
         const charged = this.data.charged;
+        
+        console.log(`⚡ LASER charged attack: ${charged.damage} damage`); // ← DEBUG
         
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
@@ -123,6 +132,7 @@ export class SwordWeapon extends WeaponBase {
         const perpDist = Phaser.Math.Distance.Between(boss.x, boss.y, projX, projY);
         
         if (perpDist < 50) {
+            console.log(`🎯 LASER HIT! Damage: ${charged.damage}`); // ← DEBUG
             boss.takeDamage(charged.damage);
             
             if (charged.knockback) {
