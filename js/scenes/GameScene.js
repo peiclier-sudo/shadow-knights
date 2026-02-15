@@ -197,7 +197,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | Q/E/R: COMPÉTENCES', {
+            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -212,9 +212,6 @@ export class GameScene extends Phaser.Scene {
         this.input.on('pointerdown', (pointer) => {
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-            if (this.skills?.r?.handlePointerDown?.(pointer, worldPoint)) {
-                return;
-            }
             
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
@@ -251,7 +248,6 @@ export class GameScene extends Phaser.Scene {
         
         // Relâchement des clics
         this.input.on('pointerup', (pointer) => {
-            this.skills?.r?.handlePointerUp?.(pointer);
 
             if (pointer.button === 0) {
                 this.leftMouseDown = false;
