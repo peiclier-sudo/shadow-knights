@@ -1,4 +1,4 @@
-// BowWeapon.js - Arc avec flèches et pluie de flèches
+// BowWeapon.js - Arc avec flèches et pluie de flèches (FIXED - damage multiplier)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -64,7 +64,13 @@ export class BowWeapon extends WeaponBase {
                         if (boss) {
                             const distToBoss = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
                             if (distToBoss < 30) {
-                                boss.takeDamage(charged.damage / charged.arrows);
+                                // ✅ FIX: Appliquer le multiplicateur de dégâts
+                                const arrowDamage = (charged.damage / charged.arrows) * (this.player.damageMultiplier || 1.0);
+                                boss.takeDamage(arrowDamage);
+                                
+                                if (i === 0) {
+                                    console.log(`🏹 Rain of Arrows damage per arrow: ${Math.floor(arrowDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
+                                }
                             }
                         }
                         arrow.destroy();

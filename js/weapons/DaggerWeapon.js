@@ -1,4 +1,4 @@
-// DaggerWeapon.js - Dagues avec tir en éventail et nuage de poison
+// DaggerWeapon.js - Dagues avec tir en éventail et nuage de poison (FIXED - damage multiplier)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -64,7 +64,10 @@ export class DaggerWeapon extends WeaponBase {
             
             const distToBoss = Phaser.Math.Distance.Between(cloudX, cloudY, boss.x, boss.y);
             if (distToBoss < charged.radius) {
-                boss.takeDamage(charged.damage / charged.ticks);
+                // ✅ FIX: Appliquer le multiplicateur de dégâts
+                const tickDamage = (charged.damage / charged.ticks) * (this.player.damageMultiplier || 1.0);
+                boss.takeDamage(tickDamage);
+                
                 boss.setTint(0x88aa88);
                 
                 if (charged.slow) {
@@ -75,6 +78,10 @@ export class DaggerWeapon extends WeaponBase {
                     boss.clearTint();
                     boss.slowed = false;
                 });
+                
+                if (tickCount === 0) {
+                    console.log(`☠️ Poison Cloud damage per tick: ${Math.floor(tickDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
+                }
             }
             
             tickCount++;

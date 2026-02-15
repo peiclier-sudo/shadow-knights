@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (FIXED - Skills corrected)
+// GameScene.js - Main gameplay scene (UPDATED - Grappling Hook)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -9,7 +9,7 @@ import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
 import { BattleCrySkill } from '../skills/skills/BattleCrySkill.js';
 import { IronWillSkill } from '../skills/skills/IronWillSkill.js';
-import { ExecutionSkill } from '../skills/skills/ExecutionSkill.js';
+import { GrapplingHookSkill } from '../skills/skills/GrapplingHookSkill.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -45,12 +45,12 @@ export class GameScene extends Phaser.Scene {
         // Créer l'arme
         this.createWeapon();
         
-        // ✅ Initialize skills
+        // ✅ Initialize skills (avec Grappling Hook)
         if (this.playerConfig.class === 'WARRIOR') {
             this.skills = {
                 q: new BattleCrySkill(this, this.player),
                 e: new IronWillSkill(this, this.player),
-                r: new ExecutionSkill(this, this.player)
+                r: new GrapplingHookSkill(this, this.player)  // ✅ CHANGÉ
             };
         }
         

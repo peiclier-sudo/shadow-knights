@@ -1,8 +1,8 @@
-// SwordWeapon.js - Épée avec slash et laser
+// SwordWeapon.js - Épée avec slash et laser (FIXED - damage multiplier)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
-export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
+export class SwordWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.SWORD);
     }
@@ -32,7 +32,7 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
         slash.startX = startX;
         slash.startY = startY;
         slash.piercing = data.piercing;
-        slash.hasHit = false;  // ✅ FIX: Flag pour éviter multi-hit
+        slash.hasHit = false;
         
         this.scene.projectiles.push(slash);
         this.addTrail(slash, data.color, data.size);
@@ -47,7 +47,6 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
         const endX = startX + Math.cos(angle) * charged.length;
         const endY = startY + Math.sin(angle) * charged.length;
         
-        // ✅ FIX: Flag pour éviter les dégâts multiples
         let hasHit = false;
         
         // Laser principal
@@ -68,7 +67,6 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
             alpha: 1,
             duration: 50,
             onComplete: () => {
-                // ✅ FIX: Ne faire les dégâts qu'UNE SEULE FOIS
                 if (!hasHit) {
                     this.checkLaserHit(startX, startY, endX, endY, angle, charged);
                     hasHit = true;
@@ -131,7 +129,11 @@ export class SwordWeapon extends WeaponBase {  // ✅ FIXED - Added 'export'
         const perpDist = Phaser.Math.Distance.Between(boss.x, boss.y, projX, projY);
         
         if (perpDist < 50) {
-            boss.takeDamage(charged.damage);
+            // ✅ FIX: Appliquer le multiplicateur de dégâts
+            const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+            boss.takeDamage(finalDamage);
+            
+            console.log(`⚔️ Laser damage: ${Math.floor(finalDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
             
             if (charged.knockback) {
                 this.scene.tweens.add({

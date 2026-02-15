@@ -1,4 +1,4 @@
-// StaffWeapon.js - Bâton avec orbes et boule de feu
+// StaffWeapon.js - Bâton avec orbes et boule de feu (FIXED - damage multiplier)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -80,7 +80,11 @@ export class StaffWeapon extends WeaponBase {
                 if (boss) {
                     const distToBoss = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
                     if (distToBoss < charged.radius) {
-                        boss.takeDamage(charged.damage);
+                        // ✅ FIX: Appliquer le multiplicateur de dégâts
+                        const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+                        boss.takeDamage(finalDamage);
+                        
+                        console.log(`🔥 Fireball damage: ${Math.floor(finalDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
                         
                         // Dégâts sur la durée
                         if (charged.dotDamage) {
@@ -90,9 +94,18 @@ export class StaffWeapon extends WeaponBase {
                                     clearInterval(dotInterval);
                                     return;
                                 }
-                                boss.takeDamage(charged.dotDamage);
+                                
+                                // ✅ FIX: Appliquer le multiplicateur aussi au DoT
+                                const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
+                                boss.takeDamage(dotDamage);
+                                
                                 boss.setTint(0xff6600);
                                 this.scene.time.delayedCall(100, () => boss.clearTint());
+                                
+                                if (tickCount === 0) {
+                                    console.log(`🔥 Fireball DoT: ${Math.floor(dotDamage)} per tick (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
+                                }
+                                
                                 tickCount++;
                             }, charged.dotInterval);
                         }

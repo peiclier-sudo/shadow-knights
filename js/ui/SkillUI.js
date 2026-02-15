@@ -1,4 +1,4 @@
-// SkillUI.js - Affichage des compétences avec cooldown circulaire
+// SkillUI.js - Affichage des compétences avec cooldown circulaire (UPDATED - Grappling Hook)
 export class SkillUI {
     constructor(scene) {
         this.scene = scene;
@@ -15,7 +15,7 @@ export class SkillUI {
         const spacing = 90;
         
         const keys = ['Q', 'E', 'R'];
-        const icons = ['📢', '🛡️', '⚔️'];
+        const icons = ['📢', '🛡️', '🪝'];  // ✅ CHANGÉ: 🪝 au lieu de ⚔️
         
         keys.forEach((key, index) => {
             const x = startX + index * spacing;

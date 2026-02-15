@@ -1,13 +1,13 @@
-// skillData.js - Skill definitions (FIXED - correct cooldowns)
+// skillData.js - Skill definitions (UPDATED - Grappling Hook replaces Execution)
 export const SKILL_DATA = {
     battleCry: {
         id: 'battleCry',
         name: 'BATTLE CRY',
         class: 'WARRIOR',
         icon: '📢',
-        description: '+30% damage for 8 seconds',  // ✅ Corrigé
+        description: '+30% damage for 8 seconds',
         staminaCost: 30,
-        cooldown: 20000,  // ✅ FIXED - 20s au lieu de 8s
+        cooldown: 20000,
         color: 0xff5500
     },
     ironWill: {
@@ -17,18 +17,18 @@ export const SKILL_DATA = {
         icon: '🛡️',
         description: '50% damage reduction for 4 seconds',
         staminaCost: 25,
-        cooldown: 20000,  // ✅ FIXED - 20s au lieu de 6s
+        cooldown: 20000,
         color: 0xffaa00
     },
-    execution: {
-        id: 'execution',
-        name: 'EXECUTION',
+    grapplingHook: {
+        id: 'grapplingHook',
+        name: 'GRAPPLING HOOK',
         class: 'WARRIOR',
-        icon: '⚔️',
-        description: 'Kill enemies below 20% health (250px range)',  // ✅ Précisé
-        staminaCost: 40,
-        cooldown: 30000,  // ✅ Déjà 30s - correct
-        color: 0xff0000
+        icon: '🪝',
+        description: 'Launch hook and pull yourself to target (500px range)',
+        staminaCost: 35,
+        cooldown: 12000,
+        color: 0xffaa00
     },
     frostNova: {
         id: 'frostNova',

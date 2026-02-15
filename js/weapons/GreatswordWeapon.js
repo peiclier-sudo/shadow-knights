@@ -1,4 +1,4 @@
-// GreatswordWeapon.js - Espadon avec onde de choc et ground slam
+// GreatswordWeapon.js - Espadon avec onde de choc et ground slam (FIXED - damage multiplier)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -57,7 +57,11 @@ export class GreatswordWeapon extends WeaponBase {
         if (boss) {
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, boss.x, boss.y);
             if (dist < charged.radius) {
-                boss.takeDamage(charged.damage);
+                // ✅ FIX: Appliquer le multiplicateur de dégâts
+                const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+                boss.takeDamage(finalDamage);
+                
+                console.log(`💥 Ground Slam damage: ${Math.floor(finalDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
                 
                 if (charged.stun) {
                     boss.stunned = true;
