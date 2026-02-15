@@ -215,87 +215,109 @@ export class GameScene extends Phaser.Scene {
     }
     
     createWeaponHelpButtons(width, height) {
-        const baseX = 20;
-        const buttonWidth = 270;
-        const buttonHeight = 34;
-        const gap = 10;
-        const startY = height - 100;
+        const x = 58;
+        const y = height - 70;
 
-        const normalDamage = this.weapon?.data?.projectile?.damage ?? '?';
-        const chargedName = this.weapon?.data?.charged?.name || 'CHARGED';
-        const chargedDamage = this.weapon?.data?.charged?.damage ?? '?';
+        const weaponIcon = this.weapon?.data?.icon || '⚔️';
 
-        const makeButton = (x, y, label, tooltipText, color) => {
-            const bg = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x000000, 0.68)
-                .setOrigin(0, 0)
-                .setScrollFactor(0)
-                .setDepth(210)
-                .setStrokeStyle(2, color, 0.95)
-                .setInteractive({ useHandCursor: true });
+        const ring = this.add.circle(x, y, 34, 0x000000, 0.68)
+            .setScrollFactor(0)
+            .setDepth(210)
+            .setStrokeStyle(2, 0x55aaff, 0.95)
+            .setInteractive({ useHandCursor: true });
 
-            const text = this.add.text(x + 10, y + 8, label, {
-                fontSize: '12px',
-                fill: '#ffffff'
-            }).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
+        const icon = this.add.text(x, y - 2, weaponIcon, {
+            fontSize: '28px'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
 
-            const showHelp = () => this.showWeaponHelpTooltip(x + buttonWidth / 2, y - 46, tooltipText);
-            const hideHelp = () => this.hideWeaponHelpTooltip();
+        const label = this.add.text(x + 50, y - 8, 'WEAPON HELP', {
+            fontSize: '12px',
+            fill: '#ffffff',
+            backgroundColor: '#00000099',
+            padding: { x: 8, y: 4 }
+        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
 
-            bg.on('pointerover', showHelp);
-            bg.on('pointerout', hideHelp);
-            text.on('pointerover', showHelp);
-            text.on('pointerout', hideHelp);
+        const showHelp = () => this.showWeaponHelpTooltip(x + 170, y - 92);
+        const hideHelp = () => this.hideWeaponHelpTooltip();
 
-            return { bg, text, x, y, w: buttonWidth, h: buttonHeight };
-        };
+        [ring, icon, label].forEach((obj) => {
+            obj.on('pointerover', showHelp);
+            obj.on('pointerout', hideHelp);
+        });
 
         this.weaponHelpButtons = [
-            makeButton(
-                baseX,
-                startY,
-                `NORMAL ATTACK: Right click tap (${normalDamage} dmg)` ,
-                this.weapon?.data?.description || 'Base weapon attack.',
-                0x55aaff
-            ),
-            makeButton(
-                baseX,
-                startY + buttonHeight + gap,
-                `CHARGED ATTACK: Hold + release (${chargedName}, ${chargedDamage} dmg)` ,
-                `${chargedName}: hold right click to charge, release when full charge is ready.`,
-                0xffaa55
-            )
+            { shape: 'circle', x, y, radius: 34 },
+            { shape: 'rect', x: x + 50, y: y - 8, w: 120, h: 26 }
         ];
     }
 
-    showWeaponHelpTooltip(x, y, text) {
+    showWeaponHelpTooltip(x, y) {
         this.hideWeaponHelpTooltip();
 
-        const width = Math.max(260, text.length * 6 + 20);
-        const bg = this.add.rectangle(x, y, width, 42, 0x000000, 0.92)
+        const projectile = this.weapon?.data?.projectile || {};
+        const charged = this.weapon?.data?.charged || {};
+        const chargedExtras = [];
+
+        if (charged.dotDamage) chargedExtras.push(`DoT: ${charged.dotDamage} x${charged.dotTicks || '?'}`);
+        if (charged.radius) chargedExtras.push(`Radius: ${charged.radius}`);
+        if (charged.arrows) chargedExtras.push(`Arrows: ${charged.arrows}`);
+        if (charged.slow) chargedExtras.push('Slow effect');
+        if (charged.stun) chargedExtras.push('Stun effect');
+
+        const line1 = `${this.weapon?.data?.name || 'WEAPON'} ${this.weapon?.data?.icon || ''}`;
+        const line2 = `Basic: ${projectile.type || 'shot'} | dmg ${projectile.damage ?? '?'} | cd ${projectile.cooldown ?? '?'}ms`;
+        const line3 = `Charged: ${charged.name || 'CHARGED'} | dmg ${charged.damage ?? '?'} | stamina ${charged.staminaCost ?? '?'}`;
+        const line4 = chargedExtras.length ? chargedExtras.join(' • ') : 'No extra charged effects';
+
+        const lines = [line1, line2, line3, line4];
+        const width = 460;
+        const height = 102;
+
+        const bg = this.add.rectangle(x, y, width, height, 0x000000, 0.92)
             .setScrollFactor(0)
             .setDepth(320)
             .setStrokeStyle(2, 0xffffff, 0.85);
 
-        const info = this.add.text(x, y, text, {
+        const title = this.add.text(x, y - 34, line1, {
+            fontSize: '14px',
+            fill: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const basic = this.add.text(x, y - 10, line2, {
             fontSize: '12px',
+            fill: '#9fd7ff'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const chargedText = this.add.text(x, y + 14, line3, {
+            fontSize: '12px',
+            fill: '#ffc98f'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const extra = this.add.text(x, y + 36, line4, {
+            fontSize: '11px',
             fill: '#d9ecff',
             align: 'center',
             wordWrap: { width: width - 16 }
         }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
 
-        this.weaponHelpTooltip = { bg, info };
+        this.weaponHelpTooltip = { bg, title, basic, chargedText, extra };
     }
 
     hideWeaponHelpTooltip() {
         if (!this.weaponHelpTooltip) return;
-        this.weaponHelpTooltip.bg?.destroy();
-        this.weaponHelpTooltip.info?.destroy();
+        Object.values(this.weaponHelpTooltip).forEach((obj) => obj?.destroy());
         this.weaponHelpTooltip = null;
     }
 
     isPointerOnWeaponHelpButton(pointerX, pointerY) {
         if (!this.weaponHelpButtons) return false;
         return this.weaponHelpButtons.some((btn) => {
+            if (btn.shape === 'circle') {
+                const dist = Phaser.Math.Distance.Between(pointerX, pointerY, btn.x, btn.y);
+                return dist <= btn.radius;
+            }
+
             return pointerX >= btn.x && pointerX <= (btn.x + btn.w) &&
                 pointerY >= btn.y && pointerY <= (btn.y + btn.h);
         });
