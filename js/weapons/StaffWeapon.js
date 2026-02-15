@@ -70,7 +70,7 @@ export class StaffWeapon extends WeaponBase {
             targets: [fireball, glow],
             x: targetX,
             y: targetY,
-            duration: 400,
+            duration: 420,
             ease: 'Power2',
             onUpdate: () => {
                 glow.x = fireball.x;
@@ -78,19 +78,19 @@ export class StaffWeapon extends WeaponBase {
             },
             onComplete: () => {
                 const explosion = this.scene.add.circle(targetX, targetY, charged.radius, 0xff6600, 0.7);
-                
-                // Dégâts au boss s'il est dans l'explosion
+
                 const boss = this.scene.boss;
                 if (boss) {
-                    const distToBoss = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
-                    if (distToBoss < charged.radius) {
-                        // ✅ FIX: Appliquer le multiplicateur de dégâts
+                    const travelLine = new Phaser.Geom.Line(startX, startY, targetX, targetY);
+                    const nearest = Phaser.Geom.Line.GetNearestPoint(travelLine, { x: boss.x, y: boss.y });
+                    const distToLine = Phaser.Math.Distance.Between(nearest.x, nearest.y, boss.x, boss.y);
+                    const distToExplosion = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
+
+                    // Inferno lance can hit either while passing through or at explosion point.
+                    if (distToLine < charged.radius * 0.55 || distToExplosion < charged.radius) {
                         const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
                         boss.takeDamage(finalDamage);
-                        
-                        console.log(`🔥 Fireball damage: ${Math.floor(finalDamage)} (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
-                        
-                        // Dégâts sur la durée
+
                         if (charged.dotDamage) {
                             let tickCount = 0;
                             const dotInterval = setInterval(() => {
@@ -98,25 +98,17 @@ export class StaffWeapon extends WeaponBase {
                                     clearInterval(dotInterval);
                                     return;
                                 }
-                                
-                                // ✅ FIX: Appliquer le multiplicateur aussi au DoT
+
                                 const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
                                 boss.takeDamage(dotDamage);
-                                
                                 boss.setTint(0xff6600);
                                 this.scene.time.delayedCall(100, () => boss.clearTint());
-                                
-                                if (tickCount === 0) {
-                                    console.log(`🔥 Fireball DoT: ${Math.floor(dotDamage)} per tick (multiplier: ${this.player.damageMultiplier.toFixed(1)}x)`);
-                                }
-                                
                                 tickCount++;
                             }, charged.dotInterval);
                         }
                     }
                 }
-                
-                // Particules d'explosion
+
                 for (let i = 0; i < 12; i++) {
                     const particleAngle = (i / 12) * Math.PI * 2;
                     const particle = this.scene.add.circle(
@@ -125,7 +117,7 @@ export class StaffWeapon extends WeaponBase {
                         0xff6600,
                         0.6
                     );
-                    
+
                     this.scene.tweens.add({
                         targets: particle,
                         x: targetX + Math.cos(particleAngle) * 100,
@@ -135,7 +127,7 @@ export class StaffWeapon extends WeaponBase {
                         onComplete: () => particle.destroy()
                     });
                 }
-                
+
                 this.scene.tweens.add({
                     targets: [explosion, glow, fireball],
                     alpha: 0,
@@ -147,8 +139,8 @@ export class StaffWeapon extends WeaponBase {
                         fireball.destroy();
                     }
                 });
-                
-                this.scene.cameras.main.shake(150, 0.01);
+
+                this.scene.cameras.main.shake(170, 0.012);
             }
         });
     }

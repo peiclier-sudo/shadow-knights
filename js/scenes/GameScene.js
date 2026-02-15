@@ -801,11 +801,13 @@ export class GameScene extends Phaser.Scene {
                     
                     if (proj.knockback) {
                         const angle = Math.atan2(proj.vy, proj.vx);
+                        const force = proj.heavyKnockback ? (proj.knockbackForce * 1.2) : proj.knockbackForce;
+                        const duration = proj.heavyKnockback ? 220 : 150;
                         this.tweens.add({
                             targets: this.boss,
-                            x: this.boss.x + Math.cos(angle) * proj.knockbackForce,
-                            y: this.boss.y + Math.sin(angle) * proj.knockbackForce,
-                            duration: 150,
+                            x: this.boss.x + Math.cos(angle) * force,
+                            y: this.boss.y + Math.sin(angle) * force,
+                            duration,
                             ease: 'Power2'
                         });
                     }
