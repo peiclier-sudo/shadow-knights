@@ -65,9 +65,11 @@ export class GameScene extends Phaser.Scene {
         this.worldMouseY = 0;
         this.aimCurrentX = 0;
         this.aimCurrentY = 0;
-        
+        this.showAttackRangePreview = true;
+
         // Aim line
         this.aimLine = this.add.graphics();
+        this.rangePreviewGraphics = this.add.graphics();
         this.chargeGraphics = null;
         
         // Tooltip
@@ -194,10 +196,19 @@ export class GameScene extends Phaser.Scene {
             stroke: '#000',
             strokeThickness: 1
         }).setScrollFactor(0);
+
+        this.rangePreviewToggleText = this.add.text(width - 20, 70, '', {
+            fontSize: '14px',
+            fill: '#9ecbff',
+            backgroundColor: '#00000099',
+            padding: { x: 8, y: 4 }
+        }).setOrigin(1, 0.5).setScrollFactor(0).setInteractive({ useHandCursor: true });
+        this.rangePreviewToggleText.on('pointerdown', () => this.toggleAttackRangePreview());
+        this.refreshRangePreviewToggleText();
         
         // Instructions
         this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
+            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | T: APERÇU PORTÉE | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -275,6 +286,10 @@ export class GameScene extends Phaser.Scene {
             this.performDash();
         });
         
+        this.input.keyboard.on('keydown-T', () => {
+            this.toggleAttackRangePreview();
+        });
+
         // ✅ COMPÉTENCES avec Q, E, R
         this.input.keyboard.on('keydown-Q', () => {
             if (this.skills?.q) {
@@ -327,6 +342,131 @@ export class GameScene extends Phaser.Scene {
         this.player.dash(Math.cos(angle), Math.sin(angle));
     }
     
+
+
+    toggleAttackRangePreview() {
+        this.showAttackRangePreview = !this.showAttackRangePreview;
+        this.refreshRangePreviewToggleText();
+
+        if (!this.showAttackRangePreview && this.rangePreviewGraphics) {
+            this.rangePreviewGraphics.clear();
+        }
+    }
+
+    refreshRangePreviewToggleText() {
+        if (!this.rangePreviewToggleText) return;
+
+        const status = this.showAttackRangePreview ? 'ON' : 'OFF';
+        this.rangePreviewToggleText.setText(`APERCU PORTÉES [T]: ${status}`);
+        this.rangePreviewToggleText.setStyle({
+            fill: this.showAttackRangePreview ? '#b9f1ff' : '#888888',
+            backgroundColor: this.showAttackRangePreview ? '#0b1d3099' : '#1a1a1a99'
+        });
+    }
+
+    drawDashedCircle(graphics, centerX, centerY, radius, options = {}) {
+        const {
+            segments = 72,
+            dashRatio = 0.55,
+            offset = 0,
+            lineWidth = 1,
+            color = 0xffffff,
+            alpha = 0.5
+        } = options;
+
+        graphics.lineStyle(lineWidth, color, alpha);
+
+        for (let i = 0; i < segments; i++) {
+            const start = (i / segments) * Math.PI * 2 + offset;
+            const end = ((i + dashRatio) / segments) * Math.PI * 2 + offset;
+            graphics.beginPath();
+            graphics.arc(centerX, centerY, radius, start, end, false);
+            graphics.strokePath();
+        }
+    }
+
+    drawAttackRangePreview() {
+        if (!this.rangePreviewGraphics || !this.weapon || !this.player) return;
+
+        const graphics = this.rangePreviewGraphics;
+        graphics.clear();
+
+        const pulse = 0.75 + Math.sin(this.time.now * 0.01) * 0.25;
+        const spin = this.time.now * 0.002;
+
+        const normalRange = this.weapon.getNormalRange();
+        if (normalRange > 0) {
+            graphics.lineStyle(2, 0x55d8ff, 0.08 * pulse);
+            graphics.fillStyle(0x55d8ff, 0.03 * pulse);
+            graphics.fillCircle(this.player.x, this.player.y, normalRange);
+
+            this.drawDashedCircle(graphics, this.player.x, this.player.y, normalRange, {
+                segments: 84,
+                dashRatio: 0.45,
+                offset: spin,
+                lineWidth: 1.5,
+                color: 0x66ddff,
+                alpha: 0.55
+            });
+        }
+
+        const charged = this.weapon.getChargedPreviewConfig();
+        const targetPoint = this.weapon.getClampedChargedTarget(this.aimCurrentX, this.aimCurrentY);
+
+        if (charged.targeting === 'self') {
+            if (charged.aoeRadius > 0) {
+                graphics.fillStyle(0xffaa00, 0.06 * pulse);
+                graphics.fillCircle(this.player.x, this.player.y, charged.aoeRadius);
+                this.drawDashedCircle(graphics, this.player.x, this.player.y, charged.aoeRadius, {
+                    segments: 64,
+                    dashRatio: 0.52,
+                    offset: -spin,
+                    lineWidth: 2,
+                    color: 0xffb347,
+                    alpha: 0.8
+                });
+            }
+            return;
+        }
+
+        if (charged.maxRange > 0) {
+            this.drawDashedCircle(graphics, this.player.x, this.player.y, charged.maxRange, {
+                segments: 76,
+                dashRatio: 0.48,
+                offset: -spin,
+                lineWidth: 1.5,
+                color: 0xffc266,
+                alpha: 0.58
+            });
+        }
+
+        const glowColor = charged.targeting === 'ground' ? 0xff9b4d : 0xffb347;
+        graphics.lineStyle(4, glowColor, 0.12 * pulse);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+        graphics.lineStyle(1.5, glowColor, 0.7);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+
+        if (charged.targeting === 'ground' && charged.aoeRadius > 0) {
+            graphics.fillStyle(0xff8844, 0.09 * pulse);
+            graphics.fillCircle(targetPoint.x, targetPoint.y, charged.aoeRadius);
+
+            this.drawDashedCircle(graphics, targetPoint.x, targetPoint.y, charged.aoeRadius, {
+                segments: 48,
+                dashRatio: 0.55,
+                offset: spin * 1.2,
+                lineWidth: 2,
+                color: 0xff8844,
+                alpha: 0.85
+            });
+        } else {
+            const markerRadius = 8 + pulse * 3;
+            graphics.lineStyle(2, 0xff9f5a, 0.85);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius);
+            graphics.lineStyle(1, 0xffd1a4, 0.85);
+            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius + 6);
+        }
+    }
+
     update(time, delta) {
         // Mouvement
         if (this.moveTarget) {
@@ -403,7 +543,8 @@ export class GameScene extends Phaser.Scene {
         
         // Ligne de visée
         this.aimLine.clear();
-        if (this.input.activePointer.rightButtonDown()) {
+        const isChargingInput = this.input.activePointer.rightButtonDown();
+        if (isChargingInput) {
             const dx = this.aimCurrentX - this.player.x;
             const dy = this.aimCurrentY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -432,6 +573,12 @@ export class GameScene extends Phaser.Scene {
             
             this.aimLine.lineStyle(1, 0xff3333, 0.3);
             this.aimLine.strokeCircle(aimX, aimY, 8);
+        }
+
+        if (this.showAttackRangePreview && isChargingInput) {
+            this.drawAttackRangePreview();
+        } else if (this.rangePreviewGraphics) {
+            this.rangePreviewGraphics.clear();
         }
         
         // ✅ PROJECTILES JOUEUR

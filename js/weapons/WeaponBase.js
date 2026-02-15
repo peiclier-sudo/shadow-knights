@@ -125,4 +125,40 @@ export class WeaponBase {
         this.isCharging = false;
         this.chargeLevel = 0;
     }
+
+    getNormalRange() {
+        return this.data?.projectile?.range || 0;
+    }
+
+    getChargedPreviewConfig() {
+        const charged = this.data?.charged || {};
+        return {
+            targeting: charged.targeting || 'line',
+            maxRange: charged.maxRange || charged.length || 0,
+            aoeRadius: charged.radius || 0
+        };
+    }
+
+    getClampedChargedTarget(targetX, targetY) {
+        const config = this.getChargedPreviewConfig();
+        const maxRange = config.maxRange;
+
+        if (!maxRange || config.targeting === 'self') {
+            return { x: targetX, y: targetY };
+        }
+
+        const dx = targetX - this.player.x;
+        const dy = targetY - this.player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= maxRange || dist === 0) {
+            return { x: targetX, y: targetY };
+        }
+
+        const ratio = maxRange / dist;
+        return {
+            x: this.player.x + dx * ratio,
+            y: this.player.y + dy * ratio
+        };
+    }
 }

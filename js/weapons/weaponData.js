@@ -23,6 +23,8 @@ export const WEAPONS = {
             damage: 60,
             width: 8,
             length: 2000,
+            targeting: 'line',
+            maxRange: 2000,
             speed: 2000,
             piercing: true,
             knockback: true,
@@ -53,7 +55,10 @@ export const WEAPONS = {
             damage: 120,
             arrows: 8,
             radius: 150,
-            aoe: true
+            targeting: 'ground',
+            maxRange: 550,
+            aoe: true,
+            fullChargeRequired: true
         }
     },
     
@@ -80,6 +85,9 @@ export const WEAPONS = {
             chargeTime: 1400,
             staminaCost: 40,
             damage: 40,
+            targeting: 'ground',
+            maxRange: 500,
+            fullChargeRequired: true,
             radius: 120,
             explosion: true,
             dotDamage: 5,
@@ -110,6 +118,9 @@ export const WEAPONS = {
             chargeTime: 1000,
             staminaCost: 25,
             damage: 40,
+            targeting: 'ground',
+            maxRange: 350,
+            fullChargeRequired: true,
             radius: 80,
             ticks: 5,
             tickRate: 500,
@@ -140,6 +151,9 @@ export const WEAPONS = {
             chargeTime: 1600,
             staminaCost: 45,
             damage: 55,
+            targeting: 'self',
+            maxRange: 0,
+            fullChargeRequired: true,
             radius: 130,
             stun: true,
             stunDuration: 1000

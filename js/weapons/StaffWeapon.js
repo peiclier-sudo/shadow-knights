@@ -59,8 +59,12 @@ export class StaffWeapon extends WeaponBase {
         const fireball = this.scene.add.circle(startX, startY, 20, 0xff6600);
         const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
         
-        const targetX = this.player.x + Math.cos(angle) * 500;
-        const targetY = this.player.y + Math.sin(angle) * 500;
+        const targetPoint = this.getClampedChargedTarget(
+            this.player.x + Math.cos(angle) * this.data.charged.maxRange,
+            this.player.y + Math.sin(angle) * this.data.charged.maxRange
+        );
+        const targetX = targetPoint.x;
+        const targetY = targetPoint.y;
         
         this.scene.tweens.add({
             targets: [fireball, glow],
