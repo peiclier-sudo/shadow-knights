@@ -53,6 +53,11 @@ export class GameScene extends Phaser.Scene {
         // ✅ Initialize player combat modifiers
         this.player.damageMultiplier = 1.0;
         this.player.damageReduction = 0;
+
+        // Smoothed HUD values for crisper, less jittery UI updates
+        this.displayHealthRatio = 1;
+        this.displayStaminaRatio = 1;
+        this.displayBossHealthRatio = 1;
         
         // Input state
         this.moveTarget = null;
@@ -81,35 +86,71 @@ export class GameScene extends Phaser.Scene {
         this.setupInput();
         
         // Camera
-        this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
+        this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
+        this.cameras.main.setDeadzone(120, 80);
+        this.cameras.main.setZoom(1.02);
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
     createBackground(width, height) {
-        // Dégradé
+        // Deep gradient backdrop
         const gradient = this.add.graphics();
-        gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
+        gradient.fillGradientStyle(0x070711, 0x151b2f, 0x090d1a, 0x1a2238, 1);
         gradient.fillRect(0, 0, width, height);
-        
-        // Étoiles
-        for (let i = 0; i < 100; i++) {
-            const x = Phaser.Math.Between(0, width);
-            const y = Phaser.Math.Between(0, height);
-            const size = Phaser.Math.Between(1, 2);
-            const alpha = Math.random() * 0.3;
-            
-            const star = this.add.circle(x, y, size, 0xffffff, alpha);
-            
-            this.tweens.add({
-                targets: star,
-                alpha: alpha * 0.3,
-                duration: Phaser.Math.Between(2000, 4000),
-                yoyo: true,
-                repeat: -1
-            });
+
+        // Subtle radial glow to focus center combat area
+        const centerGlow = this.add.circle(width * 0.52, height * 0.5, Math.max(width, height) * 0.45, 0x2a4e8c, 0.08)
+            .setBlendMode(Phaser.BlendModes.SCREEN);
+
+        // Faint grid lines for a cleaner arena feel
+        const grid = this.add.graphics();
+        grid.lineStyle(1, 0x9ecbff, 0.045);
+        const spacing = 64;
+        for (let x = 0; x <= width; x += spacing) {
+            grid.lineBetween(x, 0, x, height);
         }
+        for (let y = 0; y <= height; y += spacing) {
+            grid.lineBetween(0, y, width, y);
+        }
+
+        // Layered star particles with gentle parallax drift
+        const makeStarLayer = (count, alphaMin, alphaMax, speedMin, speedMax, sizeMin, sizeMax) => {
+            for (let i = 0; i < count; i++) {
+                const x = Phaser.Math.Between(0, width);
+                const y = Phaser.Math.Between(0, height);
+                const size = Phaser.Math.FloatBetween(sizeMin, sizeMax);
+                const alpha = Phaser.Math.FloatBetween(alphaMin, alphaMax);
+
+                const star = this.add.circle(x, y, size, 0xffffff, alpha);
+
+                this.tweens.add({
+                    targets: star,
+                    alpha: alpha * 0.35,
+                    duration: Phaser.Math.Between(1600, 3200),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+
+                this.tweens.add({
+                    targets: star,
+                    x: x + Phaser.Math.Between(-18, 18),
+                    y: y + Phaser.Math.Between(-12, 12),
+                    duration: Phaser.Math.Between(speedMin, speedMax),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        };
+
+        makeStarLayer(80, 0.05, 0.22, 5000, 9000, 0.8, 1.6);
+        makeStarLayer(30, 0.08, 0.28, 3500, 6500, 1.2, 2.3);
+
+        // Keep references if we want to tune/destroy later
+        this.backgroundDecor = { gradient, centerGlow, grid };
     }
-    
+
     createWeapon() {
         switch(this.playerConfig.weapon) {
             case 'SWORD':
@@ -845,17 +886,26 @@ export class GameScene extends Phaser.Scene {
             }
         }
         
-        // Update UI
+        // Update UI (smoothed ratios for better visual polish)
         if (this.player) {
-            this.healthBar.width = 300 * (this.player.health / this.player.maxHealth);
+            const healthRatio = this.player.health / this.player.maxHealth;
+            const staminaRatio = this.player.stamina / this.player.maxStamina;
+
+            this.displayHealthRatio = Phaser.Math.Linear(this.displayHealthRatio, healthRatio, 0.22);
+            this.displayStaminaRatio = Phaser.Math.Linear(this.displayStaminaRatio, staminaRatio, 0.25);
+
+            this.healthBar.width = 300 * this.displayHealthRatio;
             this.healthText.setText(`${Math.floor(this.player.health)}/${this.player.maxHealth}`);
-            
-            this.staminaBar.width = 250 * (this.player.stamina / this.player.maxStamina);
+
+            this.staminaBar.width = 250 * this.displayStaminaRatio;
             this.staminaText.setText(`${Math.floor(this.player.stamina)}`);
         }
-        
+
         if (this.boss) {
-            this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
+            const bossHealthRatio = this.boss.health / this.boss.maxHealth;
+            this.displayBossHealthRatio = Phaser.Math.Linear(this.displayBossHealthRatio, bossHealthRatio, 0.18);
+
+            this.bossHealthBar.width = 300 * this.displayBossHealthRatio;
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
         }
         
