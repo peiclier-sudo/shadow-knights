@@ -1,4 +1,4 @@
-// BowWeapon.js - Bow weapon implementation
+// BowWeapon.js - Arc avec flèches et pluie de flèches
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,66 +7,66 @@ export class BowWeapon extends WeaponBase {
         super(scene, player, WEAPONS.BOW);
     }
     
-    createProjectile(angle, data) {
-        const proj = super.createProjectile(angle, data);
-        
-        // Arrow shape (rectangle)
-        proj.destroy();
-        
+    // Tir normal - Flèche
+    fire(angle) {
+        const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
         
-        const arrow = this.scene.add.rectangle(startX, startY, data.size * 2, data.size, data.color);
+        this.createMuzzleFlash(startX, startY, this.data.color);
+        
+        // Créer la flèche
+        const arrow = this.scene.add.container(startX, startY);
+        const shaft = this.scene.add.rectangle(0, 0, data.size * 2, data.size * 0.8, data.color);
+        shaft.rotation = angle;
+        const tip = this.scene.add.triangle(
+            data.size, 0,
+            0, -3,
+            0, 3,
+            data.color
+        );
+        tip.rotation = angle;
+        arrow.add([shaft, tip]);
         arrow.setDepth(150);
+        
         arrow.vx = Math.cos(angle) * data.speed;
         arrow.vy = Math.sin(angle) * data.speed;
         arrow.damage = data.damage;
-        arrow.rotation = angle;
+        arrow.range = data.range;
+        arrow.startX = startX;
+        arrow.startY = startY;
         
         this.scene.projectiles.push(arrow);
-        return arrow;
+        this.addTrail(arrow, data.color, data.size);
     }
     
+    // Attaque chargée - Pluie de flèches (directionnelle)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
         
-        // Rain of arrows
+        // Utiliser la position de la souris comme centre
+        const centerX = this.scene.worldMouseX;
+        const centerY = this.scene.worldMouseY;
+        
         for (let i = 0; i < charged.arrows; i++) {
             this.scene.time.delayedCall(i * 100, () => {
-                const boss = this.scene.boss;
-                if (!boss) return;
+                const x = centerX + (Math.random() - 0.5) * charged.radius * 2;
+                const y = centerY + (Math.random() - 0.5) * charged.radius * 2;
                 
-                const offsetX = (Math.random() - 0.5) * charged.radius * 2;
-                const offsetY = (Math.random() - 0.5) * charged.radius * 2;
-                const targetX = boss.x + offsetX;
-                const targetY = boss.y + offsetY;
-                
-                // Arrow falling from top
-                const arrow = this.scene.add.rectangle(targetX, -50, 4, 20, 0x88dd88);
-                arrow.setDepth(150);
+                const arrow = this.scene.add.rectangle(x, y - 50, 4, 15, 0x88dd88);
                 
                 this.scene.tweens.add({
                     targets: arrow,
-                    y: targetY,
-                    duration: 300,
-                    ease: 'Bounce.easeOut',
+                    y: y,
+                    duration: 200,
                     onComplete: () => {
-                        // Check if hit boss
-                        const dist = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
-                        if (dist < 40) {
-                            boss.takeDamage(charged.damage);
-                            
-                            // Hit effect
-                            const hit = this.scene.add.circle(targetX, targetY, 10, 0x88dd88, 0.6);
-                            this.scene.tweens.add({
-                                targets: hit,
-                                alpha: 0,
-                                scale: 1.5,
-                                duration: 200,
-                                onComplete: () => hit.destroy()
-                            });
+                        const boss = this.scene.boss;
+                        if (boss) {
+                            const distToBoss = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
+                            if (distToBoss < 30) {
+                                boss.takeDamage(charged.damage / charged.arrows);
+                            }
                         }
-                        
                         arrow.destroy();
                     }
                 });

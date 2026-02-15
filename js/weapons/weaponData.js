@@ -4,7 +4,7 @@ export const WEAPONS = {
         name: 'SWORD',
         icon: '⚔️',
         color: 0xffaa00,
-        description: 'Épée équilibrée - Slash en croissant',
+        description: 'Épée - Slash rapide / Laser perçant',
         projectile: {
             type: 'slash',
             size: 14,
@@ -17,12 +17,14 @@ export const WEAPONS = {
             piercing: true
         },
         charged: {
-            name: 'WHIRLWIND',
+            name: 'PIERCING LASER',
             chargeTime: 1200,
-            staminaCost: 30,
-            damage: 45,
-            radius: 100,
-            hits: 3,
+            staminaCost: 35,
+            damage: 60,
+            width: 8,           // Largeur du laser
+            length: 2000,        // Longueur (traverse l'écran)
+            speed: 2000,         // Vitesse d'apparition
+            piercing: true,      // Traverse tout
             knockback: true
         }
     },
@@ -31,7 +33,7 @@ export const WEAPONS = {
         name: 'BOW',
         icon: '🏹',
         color: 0x88dd88,
-        description: 'Arc long - Tir précis à longue portée',
+        description: 'Arc long - Tir précis / Pluie de flèches',
         projectile: {
             type: 'arrow',
             size: 8,
@@ -58,7 +60,7 @@ export const WEAPONS = {
         name: 'STAFF',
         icon: '🔮',
         color: 0x8888ff,
-        description: 'Bâton magique - Orbes téléguidés',
+        description: 'Bâton - Orbes téléguidés / Boule de feu',
         projectile: {
             type: 'orb',
             size: 12,
@@ -88,7 +90,7 @@ export const WEAPONS = {
         name: 'DAGGERS',
         icon: '🗡️',
         color: 0xcc88cc,
-        description: 'Dagues - Tir en éventail rapide',
+        description: 'Dagues - Tir en éventail / Nuage de poison',
         projectile: {
             type: 'spread',
             size: 6,
@@ -117,7 +119,7 @@ export const WEAPONS = {
         name: 'GREATSWORD',
         icon: '⚔️',
         color: 0xcc6600,
-        description: 'Espadon lent - Onde de choc repoussante',
+        description: 'Espadon - Onde de choc / Ground slam',
         projectile: {
             type: 'shockwave',
             size: 24,

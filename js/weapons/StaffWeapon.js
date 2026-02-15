@@ -1,4 +1,4 @@
-// StaffWeapon.js - Staff weapon implementation
+// StaffWeapon.js - Bâton avec orbes et boule de feu
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,61 +7,65 @@ export class StaffWeapon extends WeaponBase {
         super(scene, player, WEAPONS.STAFF);
     }
     
-    createProjectile(angle, data) {
-        const proj = super.createProjectile(angle, data);
+    // Tir normal - Orbe téléguidé
+    fire(angle) {
+        const data = this.data.projectile;
+        const startX = this.player.x + Math.cos(angle) * 30;
+        const startY = this.player.y + Math.sin(angle) * 30;
         
-        // Add homing behavior
-        proj.update = () => {
+        this.createMuzzleFlash(startX, startY, this.data.color);
+        
+        // Créer l'orbe
+        const orb = this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
+        orb.setDepth(150);
+        
+        orb.vx = Math.cos(angle) * data.speed;
+        orb.vy = Math.sin(angle) * data.speed;
+        orb.damage = data.damage;
+        orb.range = data.range;
+        orb.startX = startX;
+        orb.startY = startY;
+        
+        // Comportement de homing
+        orb.update = () => {
             const boss = this.scene.boss;
             if (!boss) return;
             
-            const dx = boss.x - proj.x;
-            const dy = boss.y - proj.y;
+            const dx = boss.x - orb.x;
+            const dy = boss.y - orb.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist < 300) {
-                // Homing strength
-                const homing = 0.05;
-                proj.vx += dx * homing;
-                proj.vy += dy * homing;
+                orb.vx += dx * 0.03;
+                orb.vy += dy * 0.03;
                 
-                // Normalize speed
-                const speed = Math.sqrt(proj.vx * proj.vx + proj.vy * proj.vy);
-                proj.vx = (proj.vx / speed) * data.speed;
-                proj.vy = (proj.vy / speed) * data.speed;
+                const speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+                orb.vx = (orb.vx / speed) * data.speed;
+                orb.vy = (orb.vy / speed) * data.speed;
             }
         };
         
-        return proj;
+        this.scene.projectiles.push(orb);
+        this.addTrail(orb, data.color, data.size);
     }
     
+    // Attaque chargée - Boule de feu (directionnelle)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
-        const boss = this.scene.boss;
         
-        if (!boss) return;
+        const startX = this.player.x + Math.cos(angle) * 40;
+        const startY = this.player.y + Math.sin(angle) * 40;
         
-        // Create fireball
-        const fireball = this.scene.add.circle(
-            this.player.x + Math.cos(angle) * 40,
-            this.player.y + Math.sin(angle) * 40,
-            20,
-            0xff6600
-        );
+        const fireball = this.scene.add.circle(startX, startY, 20, 0xff6600);
+        const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
         
-        // Add glow
-        const glow = this.scene.add.circle(
-            fireball.x, fireball.y,
-            35,
-            0xff6600,
-            0.4
-        );
+        const targetX = this.player.x + Math.cos(angle) * 500;
+        const targetY = this.player.y + Math.sin(angle) * 500;
         
-        // Animate fireball to boss
         this.scene.tweens.add({
             targets: [fireball, glow],
-            x: boss.x,
-            y: boss.y,
+            x: targetX,
+            y: targetY,
             duration: 400,
             ease: 'Power2',
             onUpdate: () => {
@@ -69,24 +73,37 @@ export class StaffWeapon extends WeaponBase {
                 glow.y = fireball.y;
             },
             onComplete: () => {
-                // Explosion
-                const explosion = this.scene.add.circle(
-                    boss.x,
-                    boss.y,
-                    charged.radius,
-                    0xff6600,
-                    0.7
-                );
+                const explosion = this.scene.add.circle(targetX, targetY, charged.radius, 0xff6600, 0.7);
                 
-                // Damage boss
-                boss.takeDamage(charged.damage);
+                // Dégâts au boss s'il est dans l'explosion
+                const boss = this.scene.boss;
+                if (boss) {
+                    const distToBoss = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
+                    if (distToBoss < charged.radius) {
+                        boss.takeDamage(charged.damage);
+                        
+                        // Dégâts sur la durée
+                        if (charged.dotDamage) {
+                            let tickCount = 0;
+                            const dotInterval = setInterval(() => {
+                                if (!boss.scene || tickCount >= charged.dotTicks) {
+                                    clearInterval(dotInterval);
+                                    return;
+                                }
+                                boss.takeDamage(charged.dotDamage);
+                                boss.setTint(0xff6600);
+                                this.scene.time.delayedCall(100, () => boss.clearTint());
+                                tickCount++;
+                            }, charged.dotInterval);
+                        }
+                    }
+                }
                 
-                // Explosion particles
+                // Particules d'explosion
                 for (let i = 0; i < 12; i++) {
                     const particleAngle = (i / 12) * Math.PI * 2;
                     const particle = this.scene.add.circle(
-                        boss.x,
-                        boss.y,
+                        targetX, targetY,
                         5 + Math.random() * 5,
                         0xff6600,
                         0.6
@@ -94,15 +111,14 @@ export class StaffWeapon extends WeaponBase {
                     
                     this.scene.tweens.add({
                         targets: particle,
-                        x: boss.x + Math.cos(particleAngle) * 100,
-                        y: boss.y + Math.sin(particleAngle) * 100,
+                        x: targetX + Math.cos(particleAngle) * 100,
+                        y: targetY + Math.sin(particleAngle) * 100,
                         alpha: 0,
                         duration: 300,
                         onComplete: () => particle.destroy()
                     });
                 }
                 
-                // Fade explosion
                 this.scene.tweens.add({
                     targets: [explosion, glow, fireball],
                     alpha: 0,
@@ -115,7 +131,6 @@ export class StaffWeapon extends WeaponBase {
                     }
                 });
                 
-                // Screen shake
                 this.scene.cameras.main.shake(150, 0.01);
             }
         });

@@ -1,4 +1,4 @@
-// DaggerWeapon.js - Dagger weapon implementation
+// DaggerWeapon.js - Dagues avec tir en éventail et nuage de poison
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,71 +7,77 @@ export class DaggerWeapon extends WeaponBase {
         super(scene, player, WEAPONS.DAGGERS);
     }
     
-    executeChargedAttack(angle) {
-        const charged = this.data.charged;
-        const boss = this.scene.boss;
+    // Tir normal - 3 dagues en éventail
+    fire(angle) {
+        const data = this.data.projectile;
         
-        if (!boss) return;
-        
-        // Poison cloud at boss location
-        const cloud = this.scene.add.circle(boss.x, boss.y, charged.radius, 0x88aa88, 0.3);
-        
-        // Add poison particles
-        for (let i = 0; i < 20; i++) {
-            const particleAngle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * charged.radius;
-            const particle = this.scene.add.circle(
-                boss.x + Math.cos(particleAngle) * distance,
-                boss.y + Math.sin(particleAngle) * distance,
-                5 + Math.random() * 10,
-                0x88aa88,
-                0.4
-            );
-            cloud.add(particle);
+        for (let i = 0; i < data.count; i++) {
+            const offset = (i - (data.count - 1) / 2) * data.spread;
+            this.createDagger(angle + offset, data);
         }
         
-        // Poison ticks
+        this.createMuzzleFlash(this.player.x, this.player.y, this.data.color);
+    }
+    
+    createDagger(angle, data) {
+        const startX = this.player.x + Math.cos(angle) * 30;
+        const startY = this.player.y + Math.sin(angle) * 30;
+        
+        const dagger = this.scene.add.triangle(
+            startX, startY,
+            -data.size, -data.size,
+            data.size, 0,
+            -data.size, data.size,
+            data.color
+        );
+        dagger.rotation = angle;
+        dagger.setDepth(150);
+        
+        dagger.vx = Math.cos(angle) * data.speed;
+        dagger.vy = Math.sin(angle) * data.speed;
+        dagger.damage = data.damage;
+        dagger.range = data.range;
+        dagger.startX = startX;
+        dagger.startY = startY;
+        
+        this.scene.projectiles.push(dagger);
+        this.addTrail(dagger, data.color, data.size);
+    }
+    
+    // Attaque chargée - Nuage de poison (directionnel)
+    executeChargedAttack(angle) {
+        const charged = this.data.charged;
+        
+        const cloudX = this.scene.worldMouseX;
+        const cloudY = this.scene.worldMouseY;
+        
+        const cloud = this.scene.add.circle(cloudX, cloudY, charged.radius, 0x88aa88, 0.3);
+        
         let tickCount = 0;
-        const tickInterval = setInterval(() => {
-            if (!boss.scene || tickCount >= charged.ticks) {
-                clearInterval(tickInterval);
+        const interval = setInterval(() => {
+            const boss = this.scene.boss;
+            if (!boss?.scene || tickCount >= charged.ticks) {
+                clearInterval(interval);
+                cloud.destroy();
                 return;
             }
             
-            boss.takeDamage(charged.damage);
-            
-            // Poison effect on boss
-            boss.setTint(0x88aa88);
-            this.scene.time.delayedCall(100, () => boss.clearTint());
-            
-            // Poison text
-            const poisonText = this.scene.add.text(boss.x, boss.y - 30, 'POISON', {
-                fontSize: '16px',
-                fill: '#88aa88',
-                stroke: '#000',
-                strokeThickness: 2
-            }).setOrigin(0.5);
-            
-            this.scene.tweens.add({
-                targets: poisonText,
-                y: boss.y - 60,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => poisonText.destroy()
-            });
+            const distToBoss = Phaser.Math.Distance.Between(cloudX, cloudY, boss.x, boss.y);
+            if (distToBoss < charged.radius) {
+                boss.takeDamage(charged.damage / charged.ticks);
+                boss.setTint(0x88aa88);
+                
+                if (charged.slow) {
+                    boss.slowed = true;
+                }
+                
+                this.scene.time.delayedCall(100, () => {
+                    boss.clearTint();
+                    boss.slowed = false;
+                });
+            }
             
             tickCount++;
-        }, 500);
-        
-        // Cloud disappears after duration
-        this.scene.time.delayedCall(3000, () => {
-            clearInterval(tickInterval);
-            this.scene.tweens.add({
-                targets: cloud,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => cloud.destroy()
-            });
-        });
+        }, charged.tickRate);
     }
 }

@@ -1,4 +1,4 @@
-// GreatswordWeapon.js - Greatsword weapon implementation
+// GreatswordWeapon.js - Espadon avec onde de choc et ground slam
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,100 +7,71 @@ export class GreatswordWeapon extends WeaponBase {
         super(scene, player, WEAPONS.GREATSWORD);
     }
     
+    // Tir normal - Onde de choc
+    fire(angle) {
+        const data = this.data.projectile;
+        const startX = this.player.x + Math.cos(angle) * 30;
+        const startY = this.player.y + Math.sin(angle) * 30;
+        
+        this.createMuzzleFlash(startX, startY, this.data.color);
+        
+        // Créer l'onde
+        const wave = this.scene.add.container(startX, startY);
+        const mainWave = this.scene.add.ellipse(0, 0, data.size * 4, data.size * 2, data.color, 0.6);
+        mainWave.rotation = angle;
+        const outline = this.scene.add.ellipse(0, 0, data.size * 4, data.size * 2, data.color * 0.7, 0.3);
+        outline.rotation = angle;
+        wave.add([mainWave, outline]);
+        wave.setDepth(150);
+        
+        wave.vx = Math.cos(angle) * data.speed;
+        wave.vy = Math.sin(angle) * data.speed;
+        wave.damage = data.damage;
+        wave.range = data.range;
+        wave.startX = startX;
+        wave.startY = startY;
+        wave.knockback = data.knockback;
+        wave.knockbackForce = data.knockbackForce;
+        
+        this.scene.projectiles.push(wave);
+        this.addTrail(wave, data.color, data.size);
+    }
+    
+    // Attaque chargée - Ground Slam (centré sur le joueur)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
         
-        // Ground slam effect
-        this.scene.cameras.main.shake(300, 0.02);
+        this.scene.cameras.main.shake(200, 0.01);
         
-        // Shockwave ring
-        const ring = this.scene.add.circle(
-            this.player.x,
-            this.player.y,
-            20,
-            0xcc6600,
-            0.8
-        );
+        const slamWave = this.scene.add.circle(this.player.x, this.player.y, 30, 0xcc6600, 0.7);
         
         this.scene.tweens.add({
-            targets: ring,
+            targets: slamWave,
             radius: charged.radius,
             alpha: 0,
             duration: 300,
-            ease: 'Power2',
-            onComplete: () => ring.destroy()
+            onComplete: () => slamWave.destroy()
         });
         
-        // Ground crack lines
-        for (let i = 0; i < 8; i++) {
-            const lineAngle = (i / 8) * Math.PI * 2;
-            const line = this.scene.add.rectangle(
-                this.player.x,
-                this.player.y,
-                5,
-                charged.radius * 2,
-                0xcc6600,
-                0.5
-            );
-            line.setRotation(lineAngle);
-            
-            this.scene.tweens.add({
-                targets: line,
-                alpha: 0,
-                scaleX: 1.5,
-                duration: 400,
-                onComplete: () => line.destroy()
-            });
-        }
-        
-        // Damage boss if in range
         const boss = this.scene.boss;
         if (boss) {
-            const dist = Phaser.Math.Distance.Between(
-                this.player.x, this.player.y,
-                boss.x, boss.y
-            );
-            
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, boss.x, boss.y);
             if (dist < charged.radius) {
                 boss.takeDamage(charged.damage);
                 
-                // Stun effect
-                boss.setTint(0xcccccc);
-                this.scene.time.delayedCall(1000, () => boss.clearTint());
-                
-                // Knockback
-                const knockbackAngle = Math.atan2(
-                    boss.y - this.player.y,
-                    boss.x - this.player.x
-                );
-                
-                this.scene.tweens.add({
-                    targets: boss,
-                    x: boss.x + Math.cos(knockbackAngle) * 100,
-                    y: boss.y + Math.sin(knockbackAngle) * 100,
-                    duration: 200,
-                    ease: 'Power2'
-                });
-                
-                // Stun indicator
-                const stunText = this.scene.add.text(boss.x, boss.y - 50, 'STUNNED!', {
-                    fontSize: '24px',
-                    fill: '#ffff00',
-                    stroke: '#000',
-                    strokeThickness: 4
-                }).setOrigin(0.5);
-                
-                this.scene.tweens.add({
-                    targets: stunText,
-                    y: boss.y - 100,
-                    alpha: 0,
-                    duration: 1000,
-                    onComplete: () => stunText.destroy()
-                });
+                if (charged.stun) {
+                    boss.stunned = true;
+                    boss.setTint(0xcccccc);
+                    
+                    this.scene.time.delayedCall(charged.stunDuration, () => {
+                        boss.stunned = false;
+                        boss.clearTint();
+                    });
+                }
             }
         }
         
-        // Raise dust particles
+        // Particules de poussière
         for (let i = 0; i < 20; i++) {
             const particleAngle = Math.random() * Math.PI * 2;
             const distance = Math.random() * charged.radius;

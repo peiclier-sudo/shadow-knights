@@ -1,138 +1,54 @@
-// WeaponBase.js - Base class for all weapons
+// WeaponBase.js - Classe de base pour toutes les armes
 export class WeaponBase {
     constructor(scene, player, weaponData) {
         this.scene = scene;
         this.player = player;
         this.data = weaponData;
-        this.lastShot = 0;
+        this.lastShotTime = 0;
         this.isCharging = false;
         this.chargeLevel = 0;
         this.chargeStartTime = 0;
     }
     
-    // Basic attack
+    // Méthode appelée pour tirer
     attack(angle) {
-        const now = Date.now();
-        const cooldown = 250; // ms between shots
+        if (!this.canAttack()) return false;
         
-        if (now - this.lastShot < cooldown) return false;
-        if (this.player.stamina < 7) return false;
-        
-        this.lastShot = now;
+        this.lastShotTime = Date.now();
         this.player.stamina -= 7;
         this.player.canAttack = false;
         
-        // Create projectile(s)
-        if (this.data.projectile.count > 1) {
-            this.fireSpread(angle);
-        } else {
-            this.fireSingle(angle);
-        }
+        // Chaque arme implémente sa propre logique de tir
+        this.fire(angle);
         
-        // Reset attack cooldown
-        this.scene.time.delayedCall(cooldown, () => {
+        // Reset cooldown
+        this.scene.time.delayedCall(this.data.projectile.cooldown, () => {
             this.player.canAttack = true;
         });
         
-        // Muzzle flash
-        this.createMuzzleFlash(angle);
-        
         return true;
     }
     
-    fireSingle(angle) {
-        const projData = this.data.projectile;
-        this.createProjectile(angle, projData);
+    // Vérifie si on peut attaquer
+    canAttack() {
+        const now = Date.now();
+        const cooldownOk = now - this.lastShotTime >= this.data.projectile.cooldown;
+        return cooldownOk && this.player.stamina >= 7 && this.player.canAttack;
     }
     
-    fireSpread(angle) {
-        const projData = this.data.projectile;
-        const spread = projData.spread || 0.2;
-        const count = projData.count || 3;
-        
-        for (let i = 0; i < count; i++) {
-            const offset = (i - (count - 1) / 2) * spread;
-            this.createProjectile(angle + offset, projData);
-        }
+    // À surcharger par chaque arme
+    fire(angle) {
+        console.warn('fire() must be implemented by weapon');
     }
     
-    createProjectile(angle, data) {
-        const startX = this.player.x + Math.cos(angle) * 30;
-        const startY = this.player.y + Math.sin(angle) * 30;
-        
-        // Base projectile
-        const proj = this.scene.add.circle(startX, startY, data.size, data.color);
-        proj.setDepth(150);
-        proj.vx = Math.cos(angle) * data.speed;
-        proj.vy = Math.sin(angle) * data.speed;
-        proj.damage = data.damage;
-        
-        // Add trail
-        this.addTrail(proj, data);
-        
-        this.scene.projectiles.push(proj);
-        return proj;
-    }
-    
-    addTrail(proj, data) {
-        let trailCount = 0;
-        const trailInterval = setInterval(() => {
-            if (!proj.scene || trailCount > 20) {
-                clearInterval(trailInterval);
-                return;
-            }
-            
-            const trail = this.scene.add.circle(
-                proj.x, proj.y,
-                data.size * 0.6,
-                data.color,
-                0.5
-            );
-            trail.setDepth(148);
-            
-            this.scene.tweens.add({
-                targets: trail,
-                alpha: 0,
-                scale: 0.5,
-                duration: 200,
-                onComplete: () => trail.destroy()
-            });
-            
-            trailCount++;
-        }, 30);
-    }
-    
-    createMuzzleFlash(angle) {
-        const flashX = this.player.x + Math.cos(angle) * 30;
-        const flashY = this.player.y + Math.sin(angle) * 30;
-        
-        const flash = this.scene.add.circle(flashX, flashY, 15, 0xffffff, 0.8);
-        
-        this.scene.tweens.add({
-            targets: flash,
-            scale: 2,
-            alpha: 0,
-            duration: 100,
-            onComplete: () => flash.destroy()
-        });
-    }
-    
-    // Charged attack
+    // Démarrer la charge
     startCharge() {
-        if (this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0) {
-            return false; // Can't charge while moving
-        }
-        
         this.isCharging = true;
         this.chargeStartTime = Date.now();
         this.chargeLevel = 0;
-        
-        // Visual feedback
-        this.showChargeEffect();
-        
-        return true;
     }
     
+    // Mettre à jour la charge
     updateCharge() {
         if (!this.isCharging) return;
         
@@ -140,47 +56,61 @@ export class WeaponBase {
         this.chargeLevel = Math.min(1, elapsed / this.data.charged.chargeTime);
     }
     
+    // Libérer la charge
     releaseCharge(angle) {
         if (!this.isCharging) return false;
         
         this.isCharging = false;
         
-        if (this.chargeLevel < 0.3) {
-            return false; // Not enough charge, do normal attack instead
-        }
-        
+        if (this.chargeLevel < 0.3) return false;
         if (this.player.stamina < this.data.charged.staminaCost) return false;
         
         this.player.stamina -= this.data.charged.staminaCost;
-        
-        // Execute charged attack (to be overridden)
         this.executeChargedAttack(angle);
         
         return true;
     }
     
+    // À surcharger par chaque arme
     executeChargedAttack(angle) {
-        // Override in child classes
-        console.warn('executeChargedAttack must be implemented by child class');
+        console.warn('executeChargedAttack() must be implemented by weapon');
     }
     
-    showChargeEffect() {
-        this.chargeGraphics = this.scene.add.graphics();
+    // Créer un effet de flash (utilitaire)
+    createMuzzleFlash(x, y, color) {
+        const flash = this.scene.add.circle(x, y, 12, color, 0.5);
+        this.scene.tweens.add({
+            targets: flash,
+            scale: 1.5,
+            alpha: 0,
+            duration: 100,
+            onComplete: () => flash.destroy()
+        });
     }
     
-    update() {
-        if (this.isCharging) {
-            this.updateCharge();
-            
-            if (this.chargeGraphics) {
-                this.chargeGraphics.clear();
-                const radius = 30 + this.chargeLevel * 40;
-                this.chargeGraphics.lineStyle(4, 0xffaa00, 0.8);
-                this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
+    // Ajouter un trail (utilitaire)
+    addTrail(proj, color, size) {
+        let trailCount = 0;
+        const trailInterval = setInterval(() => {
+            if (!proj.scene || trailCount > 6) {
+                clearInterval(trailInterval);
+                return;
             }
-        } else if (this.chargeGraphics) {
-            this.chargeGraphics.destroy();
-            this.chargeGraphics = null;
-        }
+            const trail = this.scene.add.circle(proj.x, proj.y, size * 0.6, color, 0.1);
+            this.scene.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.5,
+                duration: 200,
+                onComplete: () => trail.destroy()
+            });
+            trailCount++;
+        }, 50);
+    }
+    
+    // Réinitialiser la charge (quand annulée)
+    resetCharge() {
+        this.isCharging = false;
+        this.chargeLevel = 0;
     }
 }
