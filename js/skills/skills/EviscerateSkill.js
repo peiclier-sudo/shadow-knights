@@ -15,8 +15,13 @@ export class EviscerateSkill extends SkillBase {
         
         // Teleport behind boss
         const angleToBoss = Math.atan2(boss.y - this.player.y, boss.x - this.player.x);
-        const behindX = boss.x - Math.cos(angleToBoss) * 100;
-        const behindY = boss.y - Math.sin(angleToBoss) * 100;
+        const rawBehindX = boss.x - Math.cos(angleToBoss) * 100;
+        const rawBehindY = boss.y - Math.sin(angleToBoss) * 100;
+
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        const behindX = Phaser.Math.Clamp(rawBehindX, 50, width - 50);
+        const behindY = Phaser.Math.Clamp(rawBehindY, 50, height - 50);
         
         // Teleport effect
         this.scene.tweens.add({
@@ -49,7 +54,8 @@ export class EviscerateSkill extends SkillBase {
                 }
                 
                 // Damage boss
-                boss.takeDamage(60);
+                const finalDamage = 60 * (this.player.damageMultiplier || 1.0);
+                boss.takeDamage(finalDamage);
                 
                 // Screen effects
                 this.scene.cameras.main.flash(200, 255, 0, 0);

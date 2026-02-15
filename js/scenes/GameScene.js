@@ -610,8 +610,35 @@ export class GameScene extends Phaser.Scene {
                         proj.hasHit = true;
                     }
                     
-                    // ✅ Appliquer le multiplicateur de dégâts
-                    const finalDamage = proj.damage * (this.player.damageMultiplier || 1.0);
+                    // Apply damage modifiers
+                    let damageMultiplier = (this.player.damageMultiplier || 1.0);
+
+                    // Rogue Backstab: consume buff on first valid hit from behind.
+                    if (this.player.backstabReady) {
+                        const isBehind = this.player.x > this.boss.x;
+                        if (isBehind) {
+                            damageMultiplier *= 3;
+                            this.player.backstabReady = false;
+
+                            const backstabText = this.add.text(this.boss.x, this.boss.y - 90, 'BACKSTAB!', {
+                                fontSize: '24px',
+                                fill: '#ff66ff',
+                                stroke: '#000',
+                                strokeThickness: 4,
+                                fontStyle: 'bold'
+                            }).setOrigin(0.5);
+
+                            this.tweens.add({
+                                targets: backstabText,
+                                y: this.boss.y - 130,
+                                alpha: 0,
+                                duration: 450,
+                                onComplete: () => backstabText.destroy()
+                            });
+                        }
+                    }
+
+                    const finalDamage = proj.damage * damageMultiplier;
                     this.boss.takeDamage(finalDamage);
                     
                     if (proj.knockback) {
@@ -674,7 +701,7 @@ export class GameScene extends Phaser.Scene {
             }
             
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
-            if (dist < 25 && !this.player.isInvulnerable) {
+            if (dist < 25 && !this.player.isInvulnerable && !this.player.untargetable) {
                 this.player.takeDamage(10);
                 
                 const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);

@@ -55,7 +55,7 @@ export class SentinelBoss extends Boss {
         super.update(time, player);
         
         // Attack cooldown
-        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen) {
+        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
             this.nextAttackTime = time + 2000;
         }

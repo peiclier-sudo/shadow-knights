@@ -79,7 +79,7 @@ export class DasherBoss extends Boss {
     update(time, player) {
         super.update(time, player);
         
-        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen) {
+        if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
             this.nextAttackTime = time + 3000;
         }

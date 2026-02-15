@@ -29,6 +29,8 @@ export class Player extends Phaser.GameObjects.Container {
         this.manaShieldFx = null;
         this.multishot = 0;
         this.multishotCount = 0;
+        this.backstabReady = false;
+        this.untargetable = false;
         
         // Créer la classe
         this.createClass();
