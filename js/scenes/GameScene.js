@@ -293,6 +293,12 @@ export class GameScene extends Phaser.Scene {
                 this.skills.r.use();
             }
         });
+
+        this.input.keyboard.on('keyup-R', () => {
+            if (this.skills?.r?.handleConfirmKeyUp) {
+                this.skills.r.handleConfirmKeyUp();
+            }
+        });
     }
     
     setMoveTarget(x, y) {
