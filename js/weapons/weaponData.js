@@ -57,7 +57,8 @@ export const WEAPONS = {
             radius: 150,
             targeting: 'ground',
             maxRange: 550,
-            aoe: true
+            aoe: true,
+            fullChargeRequired: true
         }
     },
     
@@ -86,6 +87,7 @@ export const WEAPONS = {
             damage: 40,
             targeting: 'ground',
             maxRange: 500,
+            fullChargeRequired: true,
             radius: 120,
             explosion: true,
             dotDamage: 5,
@@ -118,6 +120,7 @@ export const WEAPONS = {
             damage: 40,
             targeting: 'ground',
             maxRange: 350,
+            fullChargeRequired: true,
             radius: 80,
             ticks: 5,
             tickRate: 500,
@@ -150,6 +153,7 @@ export const WEAPONS = {
             damage: 55,
             targeting: 'self',
             maxRange: 0,
+            fullChargeRequired: true,
             radius: 130,
             stun: true,
             stunDuration: 1000
