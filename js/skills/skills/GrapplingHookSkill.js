@@ -9,6 +9,7 @@ export class GrapplingHookSkill extends SkillBase {
         this.isTargeting = false;
         this.targetingGraphics = null;
         this.directionMarker = null;
+        this.waitingForConfirmRelease = false;
     }
     
     use() {
@@ -25,6 +26,7 @@ export class GrapplingHookSkill extends SkillBase {
 
     startTargeting() {
         this.isTargeting = true;
+        this.waitingForConfirmRelease = true;
         this.targetingGraphics = this.scene.add.graphics();
         this.targetingGraphics.setDepth(95);
         this.directionMarker = this.scene.add.circle(this.player.x, this.player.y, 8, 0xffaa00, 0.25)
@@ -34,6 +36,7 @@ export class GrapplingHookSkill extends SkillBase {
 
     cancelTargeting() {
         this.isTargeting = false;
+        this.waitingForConfirmRelease = false;
         if (this.targetingGraphics) {
             this.targetingGraphics.destroy();
             this.targetingGraphics = null;
@@ -46,9 +49,17 @@ export class GrapplingHookSkill extends SkillBase {
 
     handlePointerDown(pointer, worldPoint) {
         if (!this.isTargeting || !pointer.leftButtonDown()) return false;
+        if (this.waitingForConfirmRelease) return true;
 
         this.confirmTarget(worldPoint.x, worldPoint.y);
         return true;
+    }
+
+    handlePointerUp(pointer) {
+        if (!this.isTargeting) return;
+        if (pointer.button === 0) {
+            this.waitingForConfirmRelease = false;
+        }
     }
 
     confirmTarget(targetX, targetY) {

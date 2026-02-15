@@ -251,6 +251,8 @@ export class GameScene extends Phaser.Scene {
         
         // Relâchement des clics
         this.input.on('pointerup', (pointer) => {
+            this.skills?.r?.handlePointerUp?.(pointer);
+
             if (pointer.button === 0) {
                 this.leftMouseDown = false;
             }
