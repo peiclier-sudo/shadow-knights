@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (version finale allégée)
+// GameScene.js - Main gameplay scene (version corrigée)
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -41,13 +41,15 @@ export class GameScene extends Phaser.Scene {
         // Créer l'arme
         this.createWeapon();
         
-        // Input state
-        this.moveTarget = { x: null, y: null };
+        // Input state - IMPORTANT: moveTarget doit être null au départ
+        this.moveTarget = null;  // ← Changé de { x: null, y: null } à null
         this.leftMouseDown = false;
         this.worldMouseX = 0;
         this.worldMouseY = 0;
         this.aimStartX = 0;
         this.aimStartY = 0;
+        this.aimCurrentX = 0;    // ← Nouveau : position actuelle de la souris pendant la charge
+        this.aimCurrentY = 0;
         
         // Aim line
         this.aimLine = this.add.graphics();
@@ -129,10 +131,15 @@ export class GameScene extends Phaser.Scene {
             }
             
             if (pointer.rightButtonDown()) {
+                // Sauvegarder la position de départ pour la ligne de visée
                 this.aimStartX = this.player.x;
                 this.aimStartY = this.player.y;
-                this.aimTargetX = worldPoint.x;
-                this.aimTargetY = worldPoint.y;
+                
+                // La position actuelle sera mise à jour dans pointermove
+                this.aimCurrentX = worldPoint.x;
+                this.aimCurrentY = worldPoint.y;
+                
+                // Démarrer la charge
                 this.weapon.startCharge();
                 this.chargeGraphics = this.add.graphics();
             }
@@ -143,24 +150,35 @@ export class GameScene extends Phaser.Scene {
             this.worldMouseX = worldPoint.x;
             this.worldMouseY = worldPoint.y;
             
+            // Mettre à jour la position actuelle pour la visée
+            if (this.input.activePointer.rightButtonDown()) {
+                this.aimCurrentX = worldPoint.x;
+                this.aimCurrentY = worldPoint.y;
+            }
+            
             if (this.leftMouseDown) {
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
             }
         });
         
         this.input.on('pointerup', (pointer) => {
-            if (pointer.button === 0) this.leftMouseDown = false;
+            if (pointer.button === 0) {
+                this.leftMouseDown = false;
+            }
             
             if (pointer.button === 2) {
+                // Calculer l'angle avec la position actuelle de la souris (au moment du relâchement)
                 const angle = Math.atan2(
-                    this.aimTargetY - this.aimStartY,
-                    this.aimTargetX - this.aimStartX
+                    this.aimCurrentY - this.aimStartY,
+                    this.aimCurrentX - this.aimStartX
                 );
                 
+                // Tenter l'attaque chargée, sinon attaque normale
                 if (!this.weapon.releaseCharge(angle)) {
                     this.weapon.attack(angle);
                 }
                 
+                // Nettoyer l'indicateur de charge
                 if (this.chargeGraphics) {
                     this.chargeGraphics.destroy();
                     this.chargeGraphics = null;
@@ -184,7 +202,7 @@ export class GameScene extends Phaser.Scene {
     }
     
     update(time, delta) {
-        // Mouvement
+        // Mouvement - Vérifier que moveTarget existe avant de l'utiliser
         if (this.moveTarget) {
             const dx = this.moveTarget.x - this.player.x;
             const dy = this.moveTarget.y - this.player.y;
@@ -194,7 +212,7 @@ export class GameScene extends Phaser.Scene {
                 this.player.move((dx / dist) * this.player.speed, (dy / dist) * this.player.speed);
             } else {
                 this.player.move(0, 0);
-                this.moveTarget = null;
+                this.moveTarget = null; // Arrivé à destination
             }
         } else {
             this.player.move(0, 0);
@@ -229,15 +247,15 @@ export class GameScene extends Phaser.Scene {
             }
         }
         
-        // Aim line
+        // Aim line - Utiliser aimCurrentX/Y pour la ligne de visée
         this.aimLine.clear();
         if (this.input.activePointer.rightButtonDown()) {
-            const dx = this.worldMouseX - this.player.x;
-            const dy = this.worldMouseY - this.player.y;
+            const dx = this.aimCurrentX - this.player.x;
+            const dy = this.aimCurrentY - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             const maxDist = 300;
             
-            let aimX = this.worldMouseX, aimY = this.worldMouseY;
+            let aimX = this.aimCurrentX, aimY = this.aimCurrentY;
             if (dist > maxDist) {
                 const ratio = maxDist / dist;
                 aimX = this.player.x + dx * ratio;
