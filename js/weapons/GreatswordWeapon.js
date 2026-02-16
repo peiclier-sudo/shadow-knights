@@ -1,4 +1,4 @@
-// GreatswordWeapon.js - Espadon with smoother slash-style animations
+// GreatswordWeapon.js - Espadon avec identité visuelle raffinée et nuancée
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,7 +7,7 @@ export class GreatswordWeapon extends WeaponBase {
         super(scene, player, WEAPONS.GREATSWORD);
     }
 
-    // Basic attack - animated crescent shockwave
+    // Basic attack - vague de lame en croissant, plus fine et plus lisible
     fire(angle) {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
@@ -33,56 +33,60 @@ export class GreatswordWeapon extends WeaponBase {
     }
 
     createSmoothWaveVisual(wave, angle, data) {
-        const arc = this.scene.add.graphics();
-        arc.lineStyle(5, data.color, 0.85);
-        arc.beginPath();
-        arc.arc(0, 0, data.size * 2.6, -0.85, 0.85);
-        arc.strokePath();
-        arc.rotation = angle;
+        const outerArc = this.scene.add.graphics();
+        outerArc.lineStyle(2.8, 0xffb56a, 0.56);
+        outerArc.beginPath();
+        outerArc.arc(0, 0, data.size * 2.8, -0.92, 0.92);
+        outerArc.strokePath();
+        outerArc.rotation = angle;
 
-        const innerGlow = this.scene.add.graphics();
-        innerGlow.lineStyle(9, 0xffc47a, 0.28);
-        innerGlow.beginPath();
-        innerGlow.arc(0, 0, data.size * 2.1, -0.7, 0.7);
-        innerGlow.strokePath();
-        innerGlow.rotation = angle;
+        const midArc = this.scene.add.graphics();
+        midArc.lineStyle(1.8, 0xffd7ac, 0.7);
+        midArc.beginPath();
+        midArc.arc(0, 0, data.size * 2.35, -0.82, 0.82);
+        midArc.strokePath();
+        midArc.rotation = angle;
 
-        const bladeShard = this.scene.add.triangle(
-            Math.cos(angle) * data.size * 2.25,
-            Math.sin(angle) * data.size * 2.25,
-            0, -6,
-            22, 0,
-            0, 6,
-            0xffd299,
-            0.75
+        const innerArc = this.scene.add.graphics();
+        innerArc.lineStyle(1.1, 0xfff0dd, 0.9);
+        innerArc.beginPath();
+        innerArc.arc(0, 0, data.size * 1.9, -0.72, 0.72);
+        innerArc.strokePath();
+        innerArc.rotation = angle;
+
+        const spark = this.scene.add.circle(
+            Math.cos(angle) * data.size * 2.35,
+            Math.sin(angle) * data.size * 2.35,
+            3.2,
+            0xfff4e4,
+            0.82
         );
-        bladeShard.rotation = angle;
 
-        wave.add([innerGlow, arc, bladeShard]);
+        wave.add([outerArc, midArc, innerArc, spark]);
 
-        // Breathing animation for smoother feel
         this.scene.tweens.add({
-            targets: [arc, innerGlow],
-            alpha: { from: 0.9, to: 0.55 },
-            duration: 120,
+            targets: [outerArc, midArc, innerArc],
+            alpha: { from: 0.95, to: 0.42 },
+            scaleX: { from: 0.95, to: 1.08 },
+            scaleY: { from: 0.95, to: 1.08 },
+            duration: 135,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
 
         this.scene.tweens.add({
-            targets: bladeShard,
-            scaleX: 1.25,
-            scaleY: 0.88,
-            alpha: { from: 0.8, to: 0.45 },
-            duration: 150,
+            targets: spark,
+            alpha: { from: 0.9, to: 0.2 },
+            scale: { from: 0.95, to: 1.65 },
+            duration: 120,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
     }
 
-    // Charged attack - Colossus Breaker (directional finisher)
+    // Charged attack - Colossus Breaker
     executeChargedAttack(angle) {
         const charged = this.data.charged;
 
@@ -104,7 +108,7 @@ export class GreatswordWeapon extends WeaponBase {
             ease: 'Power2'
         });
 
-        this.scene.cameras.main.shake(220, 0.012);
+        this.scene.cameras.main.shake(220, 0.01);
 
         const boss = this.scene.boss;
         if (boss) {
@@ -143,41 +147,44 @@ export class GreatswordWeapon extends WeaponBase {
         const cx = (pathLine.x1 + pathLine.x2) * 0.5;
         const cy = (pathLine.y1 + pathLine.y2) * 0.5;
 
-        const trailCore = this.scene.add.rectangle(cx, cy, length, width * 0.72, 0xffb566, 0.2)
+        const laneSoft = this.scene.add.rectangle(cx, cy, length, width * 0.84, 0xffb566, 0.12)
+            .setRotation(angle)
+            .setDepth(144);
+        const laneCore = this.scene.add.rectangle(cx, cy, length, width * 0.5, 0xffd7a6, 0.2)
             .setRotation(angle)
             .setDepth(145);
 
-        const trailEdge = this.scene.add.rectangle(cx, cy, length, width * 1.05, 0xffa13d, 0)
-            .setStrokeStyle(3, 0xffd9a3, 0.65)
-            .setRotation(angle)
-            .setDepth(144);
+        const edgeLine = this.scene.add.graphics().setDepth(146);
+        edgeLine.lineStyle(1.4, 0xffefd7, 0.68);
+        edgeLine.lineBetween(pathLine.x1, pathLine.y1, pathLine.x2, pathLine.y2);
 
-        const sweep = this.scene.add.graphics().setDepth(146);
-        sweep.lineStyle(7, 0xffe3be, 0.85);
+        const sweep = this.scene.add.graphics().setDepth(147);
+        sweep.lineStyle(3, 0xfff0d4, 0.72);
         sweep.beginPath();
-        sweep.arc(pathLine.x1, pathLine.y1, 34, angle - 0.9, angle + 0.9);
+        sweep.arc(pathLine.x1, pathLine.y1, 36, angle - 0.88, angle + 0.88);
         sweep.strokePath();
 
-        const impactRing = this.scene.add.circle(pathLine.x2, pathLine.y2, 28, 0xffc680, 0)
-            .setStrokeStyle(3, 0xffe4c0, 0.9)
-            .setDepth(146);
+        const impactRing = this.scene.add.circle(pathLine.x2, pathLine.y2, 26, 0xffd8a8, 0)
+            .setStrokeStyle(2, 0xffefd7, 0.86)
+            .setDepth(147);
 
         this.scene.tweens.add({
-            targets: [trailCore, trailEdge],
+            targets: [laneSoft, laneCore, edgeLine],
             alpha: 0,
-            scaleY: 1.22,
+            scaleY: 1.2,
             duration: 240,
             ease: 'Cubic.easeOut',
             onComplete: () => {
-                trailCore.destroy();
-                trailEdge.destroy();
+                laneSoft.destroy();
+                laneCore.destroy();
+                edgeLine.destroy();
             }
         });
 
         this.scene.tweens.add({
             targets: sweep,
             alpha: 0,
-            angle: 24,
+            angle: 18,
             duration: 230,
             ease: 'Sine.easeOut',
             onComplete: () => sweep.destroy()
@@ -186,23 +193,22 @@ export class GreatswordWeapon extends WeaponBase {
         this.scene.tweens.add({
             targets: impactRing,
             alpha: 0,
-            scale: 1.8,
+            scale: 1.9,
             duration: 280,
             ease: 'Cubic.easeOut',
             onComplete: () => impactRing.destroy()
         });
 
-        // Soft slash embers along path
-        for (let i = 0; i < 9; i++) {
-            const t = i / 8;
+        for (let i = 0; i < 12; i++) {
+            const t = i / 11;
             const px = Phaser.Math.Linear(pathLine.x1, pathLine.x2, t);
             const py = Phaser.Math.Linear(pathLine.y1, pathLine.y2, t);
-            const ember = this.scene.add.circle(px, py, Phaser.Math.FloatBetween(2, 4), 0xffca8a, 0.65).setDepth(147);
+            const ember = this.scene.add.circle(px, py, Phaser.Math.FloatBetween(1.7, 3.2), 0xffdfb6, 0.7).setDepth(148);
 
             this.scene.tweens.add({
                 targets: ember,
-                x: px + Math.cos(angle + Math.PI / 2) * Phaser.Math.Between(-12, 12),
-                y: py + Math.sin(angle + Math.PI / 2) * Phaser.Math.Between(-12, 12),
+                x: px + Math.cos(angle + Math.PI / 2) * Phaser.Math.Between(-10, 10),
+                y: py + Math.sin(angle + Math.PI / 2) * Phaser.Math.Between(-10, 10),
                 alpha: 0,
                 scale: 0.35,
                 duration: Phaser.Math.Between(140, 240),

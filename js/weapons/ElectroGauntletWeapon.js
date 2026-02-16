@@ -81,14 +81,14 @@ export class ElectroGauntletWeapon extends WeaponBase {
         const y = targetPoint.y;
 
         // Smooth plasma core with evolving animated storm shell.
-        const halo = this.scene.add.circle(x, y, charged.radius * 0.95, 0x53cfff, 0.08).setDepth(163);
-        const coreGlow = this.scene.add.circle(x, y, charged.radius * 0.26, 0x8ff3ff, 0.3).setDepth(166);
+        const halo = this.scene.add.circle(x, y, charged.radius * 0.95, 0x53cfff, 0.055).setDepth(163);
+        const coreGlow = this.scene.add.circle(x, y, charged.radius * 0.26, 0x8ff3ff, 0.22).setDepth(166);
         const core = this.scene.add.circle(x, y, charged.radius * 0.17, 0xe8ffff, 0.95).setDepth(167);
         const orbitRingA = this.scene.add.circle(x, y, charged.radius * 0.62, 0x66dfff, 0)
-            .setStrokeStyle(3, 0x7ce8ff, 0.8)
+            .setStrokeStyle(1.6, 0x7ce8ff, 0.58)
             .setDepth(165);
         const orbitRingB = this.scene.add.circle(x, y, charged.radius * 0.43, 0xc7f9ff, 0)
-            .setStrokeStyle(2, 0xc7f9ff, 0.75)
+            .setStrokeStyle(1.2, 0xc7f9ff, 0.52)
             .setDepth(165);
         const stormRibbon = this.scene.add.graphics().setDepth(168);
         const thunderLayer = this.scene.add.graphics().setDepth(169);
@@ -100,7 +100,7 @@ export class ElectroGauntletWeapon extends WeaponBase {
             stormRibbon.clear();
             const activeRadius = Phaser.Math.Linear(charged.radius * 0.35, charged.radius * 0.98, progress);
 
-            stormRibbon.lineStyle(2.5, 0x8cefff, 0.85);
+            stormRibbon.lineStyle(1.55, 0x8cefff, 0.5);
             for (let strand = 0; strand < 4; strand++) {
                 const base = elapsed * 0.015 + strand * (Math.PI * 0.5);
                 let prevX = x + Math.cos(base) * activeRadius * 0.2;
@@ -119,7 +119,7 @@ export class ElectroGauntletWeapon extends WeaponBase {
                 }
             }
 
-            stormRibbon.lineStyle(1.4, 0xe8feff, 0.9);
+            stormRibbon.lineStyle(0.95, 0xe8feff, 0.62);
             for (let i = 0; i < 7; i++) {
                 const a = elapsed * 0.018 + i * (Math.PI * 2 / 7);
                 const r0 = charged.radius * 0.16;
@@ -143,10 +143,10 @@ export class ElectroGauntletWeapon extends WeaponBase {
                 const pulse = 1 + Math.sin(elapsed * 0.025) * 0.06;
                 core.setScale(Phaser.Math.Linear(0.72, 1.32, progress) * pulse);
                 coreGlow.setScale(Phaser.Math.Linear(0.82, 1.5, progress) * (1 + Math.sin(elapsed * 0.018) * 0.08));
-                coreGlow.alpha = 0.2 + progress * 0.24 + Math.sin(elapsed * 0.017) * 0.05;
+                coreGlow.alpha = 0.14 + progress * 0.18 + Math.sin(elapsed * 0.017) * 0.04;
 
                 halo.setScale(Phaser.Math.Linear(0.8, 1.34, progress));
-                halo.alpha = 0.06 + progress * 0.1;
+                halo.alpha = 0.045 + progress * 0.075;
 
                 orbitRingA.rotation += 0.02 + progress * 0.01;
                 orbitRingB.rotation -= 0.026 + progress * 0.012;
@@ -187,7 +187,7 @@ export class ElectroGauntletWeapon extends WeaponBase {
                 if (!core.scene) return;
 
                 thunderLayer.clear();
-                thunderLayer.lineStyle(3.4, 0xedffff, 0.96);
+                thunderLayer.lineStyle(2.05, 0xedffff, 0.68);
                 const startA = elapsed * 0.013 + wave * 0.9;
                 const sx = x + Math.cos(startA) * charged.radius * 0.9;
                 const sy = y + Math.sin(startA) * charged.radius * 0.9;
@@ -219,7 +219,7 @@ export class ElectroGauntletWeapon extends WeaponBase {
                     onComplete: () => shock.destroy()
                 });
 
-                this.scene.cameras.main.shake(65, 0.0015 + wave * 0.0002);
+                this.scene.cameras.main.shake(60, 0.0011 + wave * 0.00015);
 
                 const boss = this.scene.boss;
                 if (!boss) return;
