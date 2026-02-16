@@ -7,9 +7,6 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
-import { BattleCrySkill } from '../skills/skills/BattleCrySkill.js';
-import { IronWillSkill } from '../skills/skills/IronWillSkill.js';
-import { GrapplingHookSkill } from '../skills/skills/GrapplingHookSkill.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -45,18 +42,22 @@ export class GameScene extends Phaser.Scene {
         // Créer l'arme
         this.createWeapon();
         
-        // ✅ Initialize skills (avec Grappling Hook)
-        if (this.playerConfig.class === 'WARRIOR') {
-            this.skills = {
-                q: new BattleCrySkill(this, this.player),
-                e: new IronWillSkill(this, this.player),
-                r: new GrapplingHookSkill(this, this.player)  // ✅ CHANGÉ
-            };
-        }
+        // Initialize class skills (Q/E/R)
+        const classSkills = this.player.classData?.skills || [];
+        this.skills = {
+            q: classSkills[0] || null,
+            e: classSkills[1] || null,
+            r: classSkills[2] || null
+        };
         
         // ✅ Initialize player combat modifiers
         this.player.damageMultiplier = 1.0;
         this.player.damageReduction = 0;
+
+        // Smoothed HUD values for crisper, less jittery UI updates
+        this.displayHealthRatio = 1;
+        this.displayStaminaRatio = 1;
+        this.displayBossHealthRatio = 1;
         
         // Input state
         this.moveTarget = null;
@@ -85,35 +86,73 @@ export class GameScene extends Phaser.Scene {
         this.setupInput();
         
         // Camera
-        this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        this.cameras.main.setDeadzone(90, 60);
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
     createBackground(width, height) {
-        // Dégradé
+        // Deep gradient backdrop
         const gradient = this.add.graphics();
-        gradient.fillGradientStyle(0x0a0a14, 0x1a1a2e, 0x0a0a14, 0x1a1a2e, 1);
+        gradient.fillGradientStyle(0x040409, 0x0d1222, 0x050810, 0x111a2f, 1);
         gradient.fillRect(0, 0, width, height);
-        
-        // Étoiles
-        for (let i = 0; i < 100; i++) {
-            const x = Phaser.Math.Between(0, width);
-            const y = Phaser.Math.Between(0, height);
-            const size = Phaser.Math.Between(1, 2);
-            const alpha = Math.random() * 0.3;
-            
-            const star = this.add.circle(x, y, size, 0xffffff, alpha);
-            
-            this.tweens.add({
-                targets: star,
-                alpha: alpha * 0.3,
-                duration: Phaser.Math.Between(2000, 4000),
-                yoyo: true,
-                repeat: -1
-            });
+
+        // Subtle radial glow to focus center combat area
+        const centerGlow = this.add.circle(width * 0.52, height * 0.5, Math.max(width, height) * 0.45, 0x21406f, 0.06)
+            .setBlendMode(Phaser.BlendModes.SCREEN);
+
+        // Faint grid lines for a cleaner arena feel
+        const grid = this.add.graphics();
+        grid.lineStyle(1, 0x9ecbff, 0.03);
+        const spacing = 64;
+        for (let x = 0; x <= width; x += spacing) {
+            grid.lineBetween(x, 0, x, height);
         }
+        for (let y = 0; y <= height; y += spacing) {
+            grid.lineBetween(0, y, width, y);
+        }
+
+        // Layered star particles with gentle parallax drift
+        const makeStarLayer = (count, alphaMin, alphaMax, speedMin, speedMax, sizeMin, sizeMax) => {
+            for (let i = 0; i < count; i++) {
+                const x = Phaser.Math.Between(0, width);
+                const y = Phaser.Math.Between(0, height);
+                const size = Phaser.Math.FloatBetween(sizeMin, sizeMax);
+                const alpha = Phaser.Math.FloatBetween(alphaMin, alphaMax);
+
+                const star = this.add.circle(x, y, size, 0xffffff, alpha);
+
+                this.tweens.add({
+                    targets: star,
+                    alpha: alpha * 0.35,
+                    duration: Phaser.Math.Between(1600, 3200),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+
+                this.tweens.add({
+                    targets: star,
+                    x: x + Phaser.Math.Between(-18, 18),
+                    y: y + Phaser.Math.Between(-12, 12),
+                    duration: Phaser.Math.Between(speedMin, speedMax),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        };
+
+        makeStarLayer(80, 0.05, 0.22, 5000, 9000, 0.8, 1.6);
+        makeStarLayer(30, 0.08, 0.28, 3500, 6500, 1.2, 2.3);
+
+        const vignette = this.add.circle(width * 0.5, height * 0.5, Math.max(width, height) * 0.78, 0x000000, 0.22)
+            .setBlendMode(Phaser.BlendModes.MULTIPLY);
+
+        // Keep references if we want to tune/destroy later
+        this.backgroundDecor = { gradient, centerGlow, grid, vignette };
     }
-    
+
     createWeapon() {
         switch(this.playerConfig.weapon) {
             case 'SWORD':
@@ -170,11 +209,11 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 2
         }).setScrollFactor(0).setOrigin(0.5);
         
-        this.bossHealthBarBg = this.add.rectangle(width - 350, 40, 300, 25, 0x333333)
+        this.bossHealthBarBg = this.add.rectangle(width - 370, 44, 300, 25, 0x333333)
             .setScrollFactor(0).setOrigin(0, 0.5);
-        this.bossHealthBar = this.add.rectangle(width - 350, 40, 300, 25, 0xff5555)
+        this.bossHealthBar = this.add.rectangle(width - 370, 44, 300, 25, 0xff5555)
             .setScrollFactor(0).setOrigin(0, 0.5);
-        this.bossHealthText = this.add.text(width - 40, 40, '400/400', {
+        this.bossHealthText = this.add.text(width - 60, 44, '400/400', {
             fontSize: '18px',
             fill: '#fff',
             stroke: '#000',
@@ -197,7 +236,9 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 1
         }).setScrollFactor(0);
 
-        this.rangePreviewToggleText = this.add.text(width - 20, 70, '', {
+        this.createWeaponHelpButtons(width, height);
+
+        this.rangePreviewToggleText = this.add.text(width - 28, 80, '', {
             fontSize: '14px',
             fill: '#9ecbff',
             backgroundColor: '#00000099',
@@ -207,8 +248,8 @@ export class GameScene extends Phaser.Scene {
         this.refreshRangePreviewToggleText();
         
         // Instructions
-        this.add.text(width/2, height - 30, 
-            'CLIC GAUCHE: DÉPLACEMENT | CLIC DROIT: TIRER/CHARGER | T: APERÇU PORTÉE | ESPACE: DASH | Q/E/R: COMPÉTENCES (GRAPPIN: R puis R)', {
+        this.add.text(width/2, height - 46, 
+            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS (HOOK: R then R)', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -216,14 +257,133 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0);
     }
     
+    createWeaponHelpButtons(width, height) {
+        const x = 72;
+        const y = height - 92;
+
+        const weaponIcon = this.weapon?.data?.icon || '⚔️';
+
+        const ring = this.add.circle(x, y, 34, 0x000000, 0.68)
+            .setScrollFactor(0)
+            .setDepth(210)
+            .setStrokeStyle(2, 0x55aaff, 0.95)
+            .setInteractive({ useHandCursor: true });
+
+        const icon = this.add.text(x, y - 2, weaponIcon, {
+            fontSize: '28px'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
+
+        const label = this.add.text(x + 50, y - 8, 'WEAPON HELP', {
+            fontSize: '12px',
+            fill: '#ffffff',
+            backgroundColor: '#00000099',
+            padding: { x: 8, y: 4 }
+        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
+
+        const showHelp = () => this.showWeaponHelpTooltip(x + 170, y - 92);
+        const hideHelp = () => this.hideWeaponHelpTooltip();
+
+        [ring, icon, label].forEach((obj) => {
+            obj.on('pointerover', showHelp);
+            obj.on('pointerout', hideHelp);
+        });
+
+        this.weaponHelpButtons = [
+            { shape: 'circle', x, y, radius: 34 },
+            { shape: 'rect', x: x + 50, y: y - 8, w: 120, h: 26 }
+        ];
+    }
+
+    showWeaponHelpTooltip(x, y) {
+        this.hideWeaponHelpTooltip();
+
+        const camera = this.cameras.main;
+        const margin = 14;
+
+        const projectile = this.weapon?.data?.projectile || {};
+        const charged = this.weapon?.data?.charged || {};
+        const chargedExtras = [];
+
+        if (charged.dotDamage) chargedExtras.push(`DoT: ${charged.dotDamage} x${charged.dotTicks || '?'}`);
+        if (charged.radius) chargedExtras.push(`Radius: ${charged.radius}`);
+        if (charged.arrows) chargedExtras.push(`Arrows: ${charged.arrows}`);
+        if (charged.slow) chargedExtras.push('Slow effect');
+        if (charged.stun) chargedExtras.push('Stun effect');
+
+        const line1 = `${this.weapon?.data?.name || 'WEAPON'} ${this.weapon?.data?.icon || ''}`;
+        const line2 = `Basic: ${projectile.type || 'shot'} | dmg ${projectile.damage ?? '?'} | cd ${projectile.cooldown ?? '?'}ms`;
+        const line3 = `Charged: ${charged.name || 'CHARGED'} | dmg ${charged.damage ?? '?'} | stamina ${charged.staminaCost ?? '?'}`;
+        const line4 = chargedExtras.length ? chargedExtras.join(' • ') : 'No extra charged effects';
+
+        const lines = [line1, line2, line3, line4];
+        const width = 460;
+        const height = 102;
+
+        const clampedX = Phaser.Math.Clamp(x, margin + width / 2, camera.width - margin - width / 2);
+        const clampedY = Phaser.Math.Clamp(y, margin + height / 2, camera.height - margin - height / 2);
+
+        const bg = this.add.rectangle(clampedX, clampedY, width, height, 0x000000, 0.92)
+            .setScrollFactor(0)
+            .setDepth(320)
+            .setStrokeStyle(2, 0xffffff, 0.85);
+
+        const title = this.add.text(clampedX, clampedY - 34, line1, {
+            fontSize: '14px',
+            fill: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const basic = this.add.text(clampedX, clampedY - 10, line2, {
+            fontSize: '12px',
+            fill: '#9fd7ff'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const chargedText = this.add.text(clampedX, clampedY + 14, line3, {
+            fontSize: '12px',
+            fill: '#ffc98f'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        const extra = this.add.text(clampedX, clampedY + 36, line4, {
+            fontSize: '11px',
+            fill: '#d9ecff',
+            align: 'center',
+            wordWrap: { width: width - 16 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(321);
+
+        this.weaponHelpTooltip = { bg, title, basic, chargedText, extra };
+    }
+
+    hideWeaponHelpTooltip() {
+        if (!this.weaponHelpTooltip) return;
+        Object.values(this.weaponHelpTooltip).forEach((obj) => obj?.destroy());
+        this.weaponHelpTooltip = null;
+    }
+
+    isPointerOnWeaponHelpButton(pointerX, pointerY) {
+        if (!this.weaponHelpButtons) return false;
+        return this.weaponHelpButtons.some((btn) => {
+            if (btn.shape === 'circle') {
+                const dist = Phaser.Math.Distance.Between(pointerX, pointerY, btn.x, btn.y);
+                return dist <= btn.radius;
+            }
+
+            return pointerX >= btn.x && pointerX <= (btn.x + btn.w) &&
+                pointerY >= btn.y && pointerY <= (btn.y + btn.h);
+        });
+    }
+
     setupInput() {
         this.input.mouse.disableContextMenu();
         
         // CLIC GAUCHE - Déplacement
         this.input.on('pointerdown', (pointer) => {
+            if (this.skillUI?.isPointerOnSkillButton(pointer.x, pointer.y) ||
+                this.isPointerOnWeaponHelpButton(pointer.x, pointer.y)) {
+                return;
+            }
+
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-            
             if (pointer.leftButtonDown()) {
                 this.leftMouseDown = true;
                 this.setMoveTarget(worldPoint.x, worldPoint.y);
@@ -357,7 +517,7 @@ export class GameScene extends Phaser.Scene {
         if (!this.rangePreviewToggleText) return;
 
         const status = this.showAttackRangePreview ? 'ON' : 'OFF';
-        this.rangePreviewToggleText.setText(`APERCU PORTÉES [T]: ${status}`);
+        this.rangePreviewToggleText.setText(`RANGE PREVIEW [T]: ${status}`);
         this.rangePreviewToggleText.setStyle({
             fill: this.showAttackRangePreview ? '#b9f1ff' : '#888888',
             backgroundColor: this.showAttackRangePreview ? '#0b1d3099' : '#1a1a1a99'
@@ -611,17 +771,46 @@ export class GameScene extends Phaser.Scene {
                         proj.hasHit = true;
                     }
                     
-                    // ✅ Appliquer le multiplicateur de dégâts
-                    const finalDamage = proj.damage * (this.player.damageMultiplier || 1.0);
+                    // Apply damage modifiers
+                    let damageMultiplier = (this.player.damageMultiplier || 1.0);
+
+                    // Rogue Backstab: consume buff on first valid hit from behind.
+                    if (this.player.backstabReady) {
+                        const isBehind = this.player.x > this.boss.x;
+                        if (isBehind) {
+                            damageMultiplier *= 3;
+                            this.player.backstabReady = false;
+
+                            const backstabText = this.add.text(this.boss.x, this.boss.y - 90, 'BACKSTAB!', {
+                                fontSize: '24px',
+                                fill: '#ff66ff',
+                                stroke: '#000',
+                                strokeThickness: 4,
+                                fontStyle: 'bold'
+                            }).setOrigin(0.5);
+
+                            this.tweens.add({
+                                targets: backstabText,
+                                y: this.boss.y - 130,
+                                alpha: 0,
+                                duration: 450,
+                                onComplete: () => backstabText.destroy()
+                            });
+                        }
+                    }
+
+                    const finalDamage = proj.damage * damageMultiplier;
                     this.boss.takeDamage(finalDamage);
                     
                     if (proj.knockback) {
                         const angle = Math.atan2(proj.vy, proj.vx);
+                        const force = proj.heavyKnockback ? (proj.knockbackForce * 1.2) : proj.knockbackForce;
+                        const duration = proj.heavyKnockback ? 220 : 150;
                         this.tweens.add({
                             targets: this.boss,
-                            x: this.boss.x + Math.cos(angle) * proj.knockbackForce,
-                            y: this.boss.y + Math.sin(angle) * proj.knockbackForce,
-                            duration: 150,
+                            x: this.boss.x + Math.cos(angle) * force,
+                            y: this.boss.y + Math.sin(angle) * force,
+                            duration,
                             ease: 'Power2'
                         });
                     }
@@ -656,6 +845,16 @@ export class GameScene extends Phaser.Scene {
         // Boss projectiles
         for (let i = this.bossProjectiles.length - 1; i >= 0; i--) {
             const proj = this.bossProjectiles[i];
+
+            // Frost Nova effect: enemy projectiles are suspended while boss is frozen.
+            if (this.boss?.frozen) {
+                if (proj.glow) {
+                    proj.glow.x = proj.x;
+                    proj.glow.y = proj.y;
+                }
+                continue;
+            }
+
             proj.x += proj.vx * (delta / 1000);
             proj.y += proj.vy * (delta / 1000);
             
@@ -665,7 +864,7 @@ export class GameScene extends Phaser.Scene {
             }
             
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
-            if (dist < 25 && !this.player.isInvulnerable) {
+            if (dist < 25 && !this.player.isInvulnerable && !this.player.untargetable) {
                 this.player.takeDamage(10);
                 
                 const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);
@@ -691,17 +890,26 @@ export class GameScene extends Phaser.Scene {
             }
         }
         
-        // Update UI
+        // Update UI (smoothed ratios for better visual polish)
         if (this.player) {
-            this.healthBar.width = 300 * (this.player.health / this.player.maxHealth);
+            const healthRatio = this.player.health / this.player.maxHealth;
+            const staminaRatio = this.player.stamina / this.player.maxStamina;
+
+            this.displayHealthRatio = Phaser.Math.Linear(this.displayHealthRatio, healthRatio, 0.22);
+            this.displayStaminaRatio = Phaser.Math.Linear(this.displayStaminaRatio, staminaRatio, 0.25);
+
+            this.healthBar.width = 300 * this.displayHealthRatio;
             this.healthText.setText(`${Math.floor(this.player.health)}/${this.player.maxHealth}`);
-            
-            this.staminaBar.width = 250 * (this.player.stamina / this.player.maxStamina);
+
+            this.staminaBar.width = 250 * this.displayStaminaRatio;
             this.staminaText.setText(`${Math.floor(this.player.stamina)}`);
         }
-        
+
         if (this.boss) {
-            this.bossHealthBar.width = 300 * (this.boss.health / this.boss.maxHealth);
+            const bossHealthRatio = this.boss.health / this.boss.maxHealth;
+            this.displayBossHealthRatio = Phaser.Math.Linear(this.displayBossHealthRatio, bossHealthRatio, 0.18);
+
+            this.bossHealthBar.width = 300 * this.displayBossHealthRatio;
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
         }
         
