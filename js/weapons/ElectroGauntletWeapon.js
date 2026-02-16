@@ -26,8 +26,8 @@ export class ElectroGauntletWeapon extends WeaponBase {
         bolt.range = data.range;
         bolt.startX = startX;
         bolt.startY = startY;
-        bolt.knockback = true;
-        bolt.knockbackForce = 70;
+        bolt.knockback = false;
+        bolt.knockbackForce = 0;
         bolt.heavyKnockback = false;
         bolt.phase = Math.random() * Math.PI * 2;
 
@@ -295,6 +295,5 @@ export class ElectroGauntletWeapon extends WeaponBase {
                 }
             });
         });
-    }
     }
 }
