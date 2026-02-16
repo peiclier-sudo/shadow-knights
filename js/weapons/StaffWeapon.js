@@ -5,39 +5,61 @@ import { WEAPONS } from './weaponData.js';
 export class StaffWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.STAFF);
+        this.fireFrameCount = 12;
         this.ensureFireTextures();
     }
 
     ensureFireTextures() {
-        const frameCount = 8;
+        const frameCount = this.fireFrameCount || 12;
         for (let i = 0; i < frameCount; i++) {
             const key = `staff_fireball_${i}`;
             if (this.scene.textures.exists(key)) continue;
 
             const g = this.scene.add.graphics();
             const phase = (i / frameCount) * Math.PI * 2;
-            const wobble = Math.sin(phase) * 3;
-            const tailWobble = Math.cos(phase * 1.35) * 4;
+            const pulse = (Math.sin(phase) + 1) * 0.5;
+            const sway = Math.sin(phase * 1.4) * 3.5;
+            const flick = Math.cos(phase * 2.1) * 2.4;
 
-            // Outer flame body (compatible primitives only)
-            g.fillStyle(0xff7a1a, 0.95);
-            g.fillEllipse(30, 24, 38 + wobble, 26 + Math.sin(phase * 0.7) * 2);
-            g.fillTriangle(4 + tailWobble, 24, 22, 15, 22, 33);
+            const cx = 38 + sway * 0.5;
+            const cy = 32 + flick * 0.2;
 
-            // Mid flame body
+            // Soft aura backdrop
+            g.fillStyle(0xff5a00, 0.2 + pulse * 0.14);
+            g.fillEllipse(cx, cy, 56 + pulse * 8, 34 + pulse * 4);
+
+            // Flame tail layers (back to front)
+            g.fillStyle(0xff6412, 0.92);
+            g.fillTriangle(6 + sway, cy, 28, cy - 14 - pulse * 2, 28, cy + 14 + pulse * 2);
+            g.fillTriangle(14 + sway * 0.7, cy - 2, 30, cy - 10, 30, cy + 8);
+
+            g.fillStyle(0xff8a1a, 0.96);
+            g.fillEllipse(cx, cy, 42 + pulse * 4, 25 + pulse * 2);
+
+            // Middle hot layer
             g.fillStyle(0xffb733, 0.96);
-            g.fillEllipse(31, 24, 26 + wobble * 0.7, 18);
-            g.fillTriangle(10 + tailWobble * 0.7, 24, 22, 18, 22, 30);
+            g.fillEllipse(cx + 2, cy, 30 + pulse * 3, 18 + pulse * 1.5);
 
-            // Core glow
-            g.fillStyle(0xffef88, 0.95);
-            g.fillEllipse(34, 24, 16, 10);
+            // Bright inner core
+            g.fillStyle(0xffef88, 0.97);
+            g.fillEllipse(cx + 5, cy - 1, 19 + pulse * 2, 11 + pulse);
 
-            // Small ember flick
-            g.fillStyle(0xffa21a, 0.55);
-            g.fillEllipse(8 + tailWobble * 0.55, 23, 6, 3);
+            // White-hot nucleus flicker
+            g.fillStyle(0xfff9d6, 0.78 + pulse * 0.16);
+            g.fillEllipse(cx + 9, cy - 1, 8 + pulse * 1.4, 5 + pulse * 0.8);
 
-            g.generateTexture(key, 56, 48);
+            // Edge tongues for higher detail
+            g.fillStyle(0xffa526, 0.78);
+            g.fillTriangle(cx - 2, cy - 11, cx + 8, cy - 7, cx + 2, cy - 2);
+            g.fillTriangle(cx - 1, cy + 10, cx + 8, cy + 6, cx + 1, cy + 2);
+
+            // Small embers around tail/head
+            g.fillStyle(0xffc06d, 0.62);
+            g.fillEllipse(12 + sway * 0.8, cy - 7, 4, 2);
+            g.fillEllipse(10 + sway * 0.6, cy + 6, 3.5, 2);
+            g.fillEllipse(cx + 20 + pulse * 2, cy - 3, 2.7, 1.8);
+
+            g.generateTexture(key, 72, 64);
             g.destroy();
         }
     }
@@ -52,7 +74,7 @@ export class StaffWeapon extends WeaponBase {
 
         const orb = this.scene.add.image(startX, startY, 'staff_fireball_0');
         orb.setDepth(150);
-        orb.setScale(0.78);
+        orb.setScale(0.68);
         orb.setRotation(angle);
 
         const glow = this.scene.add.circle(startX, startY, 20, 0xff7a1a, 0.22).setDepth(149);
@@ -88,7 +110,7 @@ export class StaffWeapon extends WeaponBase {
             const travelAngle = Math.atan2(orb.vy, orb.vx);
             orb.rotation = travelAngle;
             orb.animElapsed += dt;
-            const frame = Math.floor(orb.animElapsed / 45) % 8;
+            const frame = Math.floor(orb.animElapsed / 42) % this.fireFrameCount;
             orb.setTexture(`staff_fireball_${frame}`);
 
             if (orb.glow?.scene) {
@@ -195,7 +217,7 @@ export class StaffWeapon extends WeaponBase {
             ease: 'Power2',
             onUpdate: (_, target) => {
                 animElapsed += 16;
-                fireball.setTexture(`staff_fireball_${Math.floor(animElapsed / 40) % 8}`);
+                fireball.setTexture(`staff_fireball_${Math.floor(animElapsed / 36) % this.fireFrameCount}`);
                 fireball.setRotation(Math.atan2(targetY - fireball.y, targetX - fireball.x));
                 glow.x = fireball.x;
                 glow.y = fireball.y;
