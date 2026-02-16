@@ -19,9 +19,9 @@ export const GameConfig = {
         height: '100%'
     },
     render: {
-        antialias: false,
-        pixelArt: true,
-        roundPixels: true,
+        antialias: true,
+        pixelArt: false,
+        roundPixels: false,
         powerPreference: 'high-performance',
         transparent: false,
         clearBeforeRender: true

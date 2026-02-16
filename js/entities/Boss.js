@@ -17,6 +17,8 @@ export class Boss extends Phaser.GameObjects.Container {
         this.frozen = false;
         this.stunned = false;
         this.slowed = false;
+        this.damageTakenMultiplier = 1.0;
+        this.vulnerabilityTimer = null;
         
         // Create visuals
         this.createVisuals();
@@ -100,9 +102,28 @@ export class Boss extends Phaser.GameObjects.Container {
         });
     }
     
+
+    setTint(color) {
+        this.list.forEach((child) => {
+            if (child && typeof child.setTint === 'function') {
+                child.setTint(color);
+            }
+        });
+        return this;
+    }
+
+    clearTint() {
+        this.list.forEach((child) => {
+            if (child && typeof child.clearTint === 'function') {
+                child.clearTint();
+            }
+        });
+        return this;
+    }
+
     takeDamage(amount) {
         // ✅ FIX: Appliquer les dégâts directement sans multiplicateurs
-        const finalDamage = Math.round(amount);
+        const finalDamage = Math.round(amount * (this.damageTakenMultiplier || 1.0));
         
         // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
@@ -278,6 +299,12 @@ export class Boss extends Phaser.GameObjects.Container {
     }
     
     update(time, player) {
+        // Smoke Bomb: boss cannot target player while untargetable
+        if (player?.untargetable) {
+            this.isAttacking = false;
+            return;
+        }
+
         // Update glow positions
         if (this.glow1) {
             this.glow1.x = this.x;

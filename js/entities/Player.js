@@ -25,6 +25,12 @@ export class Player extends Phaser.GameObjects.Container {
         this.canAttack = true;
         this.damageMultiplier = 1.0;
         this.damageReduction = 0;
+        this.manaShield = false;
+        this.manaShieldFx = null;
+        this.multishot = 0;
+        this.multishotCount = 0;
+        this.backstabReady = false;
+        this.untargetable = false;
         
         // Créer la classe
         this.createClass();
@@ -102,6 +108,41 @@ export class Player extends Phaser.GameObjects.Container {
     
     takeDamage(amount) {
         if (this.isInvulnerable) return 0;
+
+        // Mana Shield: convert incoming damage to stamina loss first.
+        if (this.manaShield) {
+            const staminaDamage = amount;
+            const staminaBeforeHit = this.stamina;
+            this.stamina = Math.max(0, this.stamina - staminaDamage);
+
+            // Shield breaks when stamina is depleted; any overflow damages health.
+            if (this.stamina <= 0) {
+                this.manaShield = false;
+
+                if (this.manaShieldFx) {
+                    this.scene.events.off('update', this.manaShieldFx.followHandler);
+                    this.manaShieldFx.shield?.destroy();
+                    this.manaShieldFx.runes?.forEach(rune => rune.destroy());
+                    this.manaShieldFx = null;
+                }
+
+                const overflowDamage = Math.max(0, staminaDamage - staminaBeforeHit);
+                if (overflowDamage > 0) {
+                    const reducedOverflow = overflowDamage * (1 - this.damageReduction);
+                    this.health = Math.max(0, this.health - reducedOverflow);
+                }
+            }
+
+            this.scene.tweens.add({
+                targets: this,
+                alpha: 0.35,
+                duration: 70,
+                yoyo: true,
+                repeat: 1
+            });
+
+            return 0;
+        }
         
         const reducedAmount = amount * (1 - this.damageReduction);
         this.health = Math.max(0, this.health - reducedAmount);
