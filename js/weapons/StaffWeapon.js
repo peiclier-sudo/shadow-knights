@@ -15,9 +15,23 @@ export class StaffWeapon extends WeaponBase {
         
         this.createMuzzleFlash(startX, startY, this.data.color);
         
-        // Créer l'orbe
-        const orb = this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
+        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
+
+        // Créer l'orbe (spritesheet when available, star fallback otherwise)
+        const orb = hasFirestaffSprite
+            ? this.scene.add.sprite(startX, startY, 'firestaff', 5)
+                .setScale(0.35)
+                .setBlendMode(Phaser.BlendModes.ADD)
+            : this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
         orb.setDepth(150);
+
+        if (hasFirestaffSprite) {
+            if (this.scene.anims.exists('fire-comet')) {
+                orb.play('fire-comet');
+            } else if (this.scene.anims.exists('fireball-grow')) {
+                orb.play('fireball-grow');
+            }
+        }
         
         orb.vx = Math.cos(angle) * data.speed;
         orb.vy = Math.sin(angle) * data.speed;
@@ -28,6 +42,9 @@ export class StaffWeapon extends WeaponBase {
         
         // Comportement de homing
         orb.update = () => {
+            if (hasFirestaffSprite) {
+                orb.rotation = Math.atan2(orb.vy, orb.vx);
+            }
             const boss = this.scene.boss;
             if (!boss) return;
             
@@ -56,8 +73,28 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
         
-        const fireball = this.scene.add.circle(startX, startY, 20, 0xff6600);
+        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
+        const fireball = hasFirestaffSprite
+            ? this.scene.add.sprite(startX, startY, 'firestaff', 0)
+                .setScale(0.5)
+                .setBlendMode(Phaser.BlendModes.ADD)
+            : this.scene.add.circle(startX, startY, 20, 0xff6600);
         const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
+
+        if (hasFirestaffSprite) {
+            fireball.rotation = angle;
+
+            if (this.scene.anims.exists('fireball-grow')) {
+                fireball.play('fireball-grow');
+                fireball.once('animationcomplete-fireball-grow', () => {
+                    if (fireball.active && this.scene.anims.exists('fire-comet')) {
+                        fireball.play('fire-comet');
+                    }
+                });
+            } else if (this.scene.anims.exists('fire-comet')) {
+                fireball.play('fire-comet');
+            }
+        }
         
         const targetPoint = this.getClampedChargedTarget(
             this.player.x + Math.cos(angle) * this.data.charged.maxRange,
@@ -118,15 +155,29 @@ export class StaffWeapon extends WeaponBase {
                 });
             }
 
+            if (hasFirestaffSprite && this.scene.anims.exists('fire-explode')) {
+                fireball.play('fire-explode');
+                fireball.once('animationcomplete-fire-explode', () => {
+                    if (fireball.active) {
+                        fireball.destroy();
+                    }
+                });
+            } else if (fireball.active) {
+                fireball.destroy();
+            }
+
             this.scene.tweens.add({
-                targets: [explosion, glow, fireball],
+                targets: [explosion, glow],
                 alpha: 0,
                 scale: 1.5,
                 duration: 300,
                 onComplete: () => {
                     explosion.destroy();
                     glow.destroy();
-                    fireball.destroy();
+
+                    if (!hasFirestaffSprite && fireball.active) {
+                        fireball.destroy();
+                    }
                 }
             });
 
@@ -142,6 +193,15 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 glow.x = fireball.x;
                 glow.y = fireball.y;
+
+                if (hasFirestaffSprite) {
+                    fireball.rotation = Phaser.Math.Angle.Between(
+                        fireball.x,
+                        fireball.y,
+                        targetX,
+                        targetY
+                    );
+                }
 
                 const boss = this.scene.boss;
                 if (!boss || exploded) return;
