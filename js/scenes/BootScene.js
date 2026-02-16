@@ -39,9 +39,9 @@ export class BootScene extends Phaser.Scene {
         });
 
         // Firestaff spritesheet: 5x4 grid inside a 960x960 sheet => 192x240 frames.
-        // Keep repository binary-safe by loading from release URL at runtime.
+        // Uses the local repository asset "firestaff (2).jpg".
         this.load.spritesheet('firestaff',
-            'https://github.com/peiclier-sudo/shadow-knights/releases/download/v1.0.0/firestaff.jpg', {
+            'firestaff (2).jpg', {
                 frameWidth: 192,
                 frameHeight: 240
             }
