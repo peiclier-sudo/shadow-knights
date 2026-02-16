@@ -120,6 +120,11 @@ export class GrapplingHookSkill extends SkillBase {
                 
                 // Dessiner la corde
                 rope.lineStyle(3, 0xffaa00, 0.8);
+                if (!boss.scene) {
+                    rope.clear();
+                    return;
+                }
+
                 const currentX = startX + (boss.x - startX) * ropeProgress;
                 const currentY = startY + (boss.y - startY) * ropeProgress;
                 rope.lineBetween(startX, startY, currentX, currentY);
@@ -134,6 +139,13 @@ export class GrapplingHookSkill extends SkillBase {
             },
             onComplete: () => {
                 // ✅ Le grappin a atteint le boss, maintenant tirer le joueur
+                if (!boss.scene) {
+                    if (rope.scene) rope.destroy();
+                    this.player.isInvulnerable = false;
+                    this.player.isDashing = false;
+                    return;
+                }
+
                 this.pullPlayerToBoss(startX, startY, boss, rope);
             }
         });
@@ -202,32 +214,31 @@ export class GrapplingHookSkill extends SkillBase {
         this.player.isDashing = true;
         
         // ✅ Effet de trail pendant le mouvement
-        let trailCount = 0;
-        const trailInterval = setInterval(() => {
-            if (trailCount > 10) {
-                clearInterval(trailInterval);
-                return;
-            }
-            
-            const trail = this.scene.add.circle(
-                this.player.x, this.player.y,
-                15,
-                0xffaa00,
-                0.3
-            );
-            
-            this.scene.tweens.add({
-                targets: trail,
-                alpha: 0,
-                scale: 0.5,
-                duration: 300,
-                onComplete: () => trail.destroy()
-            });
-            
-            trailCount++;
-        }, 30);
-        
+        // Utilise un timer Phaser (au lieu de setInterval natif) pour éviter les crashs
+        // lors des transitions de scène / destruction d'objets.
+
         // ✅ Tirer le joueur vers le boss
+        const trailEvent = this.scene.time.addEvent({
+            delay: 30,
+            repeat: 10,
+            callback: () => {
+                const trail = this.scene.add.circle(
+                    this.player.x, this.player.y,
+                    15,
+                    0xffaa00,
+                    0.3
+                );
+
+                this.scene.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    scale: 0.5,
+                    duration: 300,
+                    onComplete: () => trail.destroy()
+                });
+            }
+        });
+
         this.scene.tweens.add({
             targets: this.player,
             x: targetX,
@@ -236,6 +247,12 @@ export class GrapplingHookSkill extends SkillBase {
             ease: 'Power2',
             onUpdate: () => {
                 // Mettre à jour la corde pendant le mouvement
+                if (!boss.scene) {
+                    if (rope.scene) rope.destroy();
+                    if (trailEvent && !trailEvent.hasDispatched) trailEvent.remove(false);
+                    return;
+                }
+
                 rope.clear();
                 rope.lineStyle(3, 0xffaa00, 0.8);
                 rope.lineBetween(this.player.x, this.player.y, boss.x, boss.y);
@@ -246,8 +263,13 @@ export class GrapplingHookSkill extends SkillBase {
                 this.player.isDashing = false;
                 
                 // Détruire la corde
-                rope.destroy();
-                clearInterval(trailInterval);
+                if (rope.scene) rope.destroy();
+                if (trailEvent && !trailEvent.hasDispatched) trailEvent.remove(false);
+
+                if (!boss.scene) {
+                    console.log('🎯 GRAPPLE finished but boss no longer exists.');
+                    return;
+                }
                 
                 // ✅ Effet d'impact
                 const impact = this.scene.add.circle(this.player.x, this.player.y, 30, 0xffaa00, 0.5);
