@@ -34,16 +34,18 @@ export class WeaponSelectScene extends Phaser.Scene {
             fill: '#aaa'
         }).setOrigin(0.5);
         
-        const weaponKeys = ['SWORD', 'BOW', 'STAFF', 'DAGGERS', 'GREATSWORD'];
-        const startX = width/2 - 450;
+        const weaponKeys = ['SWORD', 'BOW', 'STAFF', 'DAGGERS', 'GREATSWORD', 'ELECTRO_GAUNTLET'];
         const cardWidth = 200;
         const cardHeight = 250;
+        const cols = 3;
+        const spacingX = 30;
+        const startX = width / 2 - ((cols - 1) * (cardWidth + spacingX)) / 2;
         
         weaponKeys.forEach((key, index) => {
             const weaponData = WEAPONS[key];
             const row = Math.floor(index / 3);
-            const col = index % 3;
-            const x = startX + col * (cardWidth + 30);
+            const col = index % cols;
+            const x = startX + col * (cardWidth + spacingX);
             const y = height/2 - 50 + row * (cardHeight + 30);
             
             // Card

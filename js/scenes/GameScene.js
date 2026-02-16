@@ -7,6 +7,7 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
+import { ElectroGauntletWeapon } from '../weapons/ElectroGauntletWeapon.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -169,6 +170,9 @@ export class GameScene extends Phaser.Scene {
                 break;
             case 'GREATSWORD':
                 this.weapon = new GreatswordWeapon(this, this.player);
+                break;
+            case 'ELECTRO_GAUNTLET':
+                this.weapon = new ElectroGauntletWeapon(this, this.player);
                 break;
             default:
                 this.weapon = new SwordWeapon(this, this.player);

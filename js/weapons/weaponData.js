@@ -128,6 +128,36 @@ export const WEAPONS = {
         }
     },
     
+
+    ELECTRO_GAUNTLET: {
+        name: 'ELECTRO GAUNTLET',
+        icon: '⚡',
+        color: 0x66ddff,
+        description: 'Electro Gauntlet - Arc punch / Storm prison',
+        projectile: {
+            type: 'arc bolt',
+            size: 10,
+            speed: 980,
+            damage: 22,
+            color: 0x66ddff,
+            count: 1,
+            range: 280,
+            cooldown: 240,
+            piercing: false
+        },
+        charged: {
+            name: 'STORM PRISON',
+            chargeTime: 1450,
+            staminaCost: 40,
+            damage: 140,
+            targeting: 'ground',
+            maxRange: 460,
+            fullChargeRequired: true,
+            radius: 150,
+            waves: 4
+        }
+    },
+
     GREATSWORD: {
         name: 'GREATSWORD',
         icon: '⚔️',
