@@ -1,10 +1,58 @@
-// ElectroGauntletWeapon.js - Electric gauntlet with arc punch and storm prison
+// ElectroGauntletWeapon.js - Electric gauntlet with arc punch and zap-in/zap-out execution
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
 export class ElectroGauntletWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.ELECTRO_GAUNTLET);
+
+        this.maxRange = this.data?.charged?.maxRange || 460;
+        this.isTargeting = false;
+        this.targetingGraphics = null;
+        this.directionMarker = null;
+        this.waitingForConfirmRelease = false;
+        this.pendingCharged = false;
+
+        this.scene.events.on('update', this.update, this);
+        this.scene.events.once('shutdown', () => {
+            this.cancelTargeting();
+            this.scene.events.off('update', this.update, this);
+        });
+    }
+
+    startCharge() {
+        if (this.isTargeting) return;
+        super.startCharge();
+    }
+
+    updateCharge() {
+        if (this.isTargeting) return;
+        super.updateCharge();
+    }
+
+    releaseCharge(angle) {
+        if (this.isTargeting) {
+            if (this.waitingForConfirmRelease) return true;
+            this.confirmFromCursor();
+            return true;
+        }
+
+        if (!this.isCharging) return false;
+        this.isCharging = false;
+
+        const minCharge = this.data.charged.fullChargeRequired ? 1.0 : 0.3;
+        if (this.chargeLevel < minCharge) {
+            return false;
+        }
+
+        if (this.player.stamina < this.data.charged.staminaCost) {
+            return false;
+        }
+
+        this.pendingCharged = true;
+        this.createChargeReleaseBurst(angle);
+        this.startTargeting();
+        return true;
     }
 
     fire(angle) {
@@ -75,180 +123,258 @@ export class ElectroGauntletWeapon extends WeaponBase {
     }
 
     executeChargedAttack(angle) {
-        const charged = this.data.charged;
-        const targetPoint = this.getClampedChargedTarget(this.scene.worldMouseX, this.scene.worldMouseY);
-        const x = targetPoint.x;
-        const y = targetPoint.y;
+        // Kept for API compatibility: charged logic now runs in executeZapDash from confirmTarget.
+        const boss = this.scene.boss;
+        if (boss) {
+            this.executeZapDash(boss);
+        }
+    }
 
-        // Smooth plasma core with evolving animated storm shell.
-        const halo = this.scene.add.circle(x, y, charged.radius * 0.95, 0x53cfff, 0.055).setDepth(163);
-        const coreGlow = this.scene.add.circle(x, y, charged.radius * 0.26, 0x8ff3ff, 0.22).setDepth(166);
-        const core = this.scene.add.circle(x, y, charged.radius * 0.17, 0xe8ffff, 0.95).setDepth(167);
-        const orbitRingA = this.scene.add.circle(x, y, charged.radius * 0.62, 0x66dfff, 0)
-            .setStrokeStyle(1.6, 0x7ce8ff, 0.58)
-            .setDepth(165);
-        const orbitRingB = this.scene.add.circle(x, y, charged.radius * 0.43, 0xc7f9ff, 0)
-            .setStrokeStyle(1.2, 0xc7f9ff, 0.52)
-            .setDepth(165);
-        const stormRibbon = this.scene.add.graphics().setDepth(168);
-        const thunderLayer = this.scene.add.graphics().setDepth(169);
+    startTargeting() {
+        this.isTargeting = true;
+        this.waitingForConfirmRelease = true;
 
-        let elapsed = 0;
-        const totalDuration = 900;
+        this.targetingGraphics = this.scene.add.graphics().setDepth(120);
+        this.directionMarker = this.scene.add.circle(this.player.x, this.player.y, 9, 0x66ddff, 0.22)
+            .setStrokeStyle(2, 0xb7f6ff, 0.86)
+            .setDepth(121);
+    }
 
-        const renderRibbon = (progress) => {
-            stormRibbon.clear();
-            const activeRadius = Phaser.Math.Linear(charged.radius * 0.35, charged.radius * 0.98, progress);
+    cancelTargeting() {
+        this.isTargeting = false;
+        this.waitingForConfirmRelease = false;
 
-            stormRibbon.lineStyle(1.55, 0x8cefff, 0.5);
-            for (let strand = 0; strand < 4; strand++) {
-                const base = elapsed * 0.015 + strand * (Math.PI * 0.5);
-                let prevX = x + Math.cos(base) * activeRadius * 0.2;
-                let prevY = y + Math.sin(base) * activeRadius * 0.2;
-
-                for (let i = 1; i <= 10; i++) {
-                    const t = i / 10;
-                    const ang = base + t * Math.PI * (1.7 + strand * 0.14);
-                    const wobble = Math.sin(elapsed * 0.025 + t * 9 + strand) * (5 + 7 * progress);
-                    const radius = activeRadius * t;
-                    const nx = x + Math.cos(ang) * radius + Math.cos(ang + Math.PI * 0.5) * wobble;
-                    const ny = y + Math.sin(ang) * radius + Math.sin(ang + Math.PI * 0.5) * wobble;
-                    stormRibbon.lineBetween(prevX, prevY, nx, ny);
-                    prevX = nx;
-                    prevY = ny;
-                }
-            }
-
-            stormRibbon.lineStyle(0.95, 0xe8feff, 0.62);
-            for (let i = 0; i < 7; i++) {
-                const a = elapsed * 0.018 + i * (Math.PI * 2 / 7);
-                const r0 = charged.radius * 0.16;
-                const r1 = activeRadius * Phaser.Math.FloatBetween(0.72, 0.96);
-                stormRibbon.lineBetween(
-                    x + Math.cos(a) * r0,
-                    y + Math.sin(a) * r0,
-                    x + Math.cos(a + 0.24) * r1,
-                    y + Math.sin(a + 0.24) * r1
-                );
-            }
-        };
-
-        const ambientEvent = this.scene.time.addEvent({
-            delay: 16,
-            callback: () => {
-                if (!core.scene) return;
-                elapsed += 16;
-                const progress = Phaser.Math.Clamp(elapsed / totalDuration, 0, 1);
-
-                const pulse = 1 + Math.sin(elapsed * 0.025) * 0.06;
-                core.setScale(Phaser.Math.Linear(0.72, 1.32, progress) * pulse);
-                coreGlow.setScale(Phaser.Math.Linear(0.82, 1.5, progress) * (1 + Math.sin(elapsed * 0.018) * 0.08));
-                coreGlow.alpha = 0.14 + progress * 0.18 + Math.sin(elapsed * 0.017) * 0.04;
-
-                halo.setScale(Phaser.Math.Linear(0.8, 1.34, progress));
-                halo.alpha = 0.045 + progress * 0.075;
-
-                orbitRingA.rotation += 0.02 + progress * 0.01;
-                orbitRingB.rotation -= 0.026 + progress * 0.012;
-                orbitRingA.setScale(0.88 + progress * 0.34);
-                orbitRingB.setScale(0.93 + progress * 0.36);
-
-                renderRibbon(progress);
-
-                if (Math.random() > 0.62) {
-                    const a = Phaser.Math.FloatBetween(0, Math.PI * 2);
-                    const r = Phaser.Math.FloatBetween(charged.radius * 0.2, charged.radius * 0.92);
-                    const sparkle = this.scene.add.circle(
-                        x + Math.cos(a) * r,
-                        y + Math.sin(a) * r,
-                        Phaser.Math.FloatBetween(1.3, 2.7),
-                        0xd8feff,
-                        0.9
-                    ).setDepth(170);
-
-                    this.scene.tweens.add({
-                        targets: sparkle,
-                        x: sparkle.x + Math.cos(a + Math.PI * 0.5) * Phaser.Math.Between(8, 20),
-                        y: sparkle.y + Math.sin(a + Math.PI * 0.5) * Phaser.Math.Between(8, 20),
-                        alpha: 0,
-                        duration: Phaser.Math.Between(140, 240),
-                        onComplete: () => sparkle.destroy()
-                    });
-                }
-            },
-            loop: true
-        });
-
-        const waves = charged.waves || 4;
-        const perWaveDamage = (charged.damage / waves) * (this.player.damageMultiplier || 1.0);
-
-        for (let wave = 0; wave < waves; wave++) {
-            this.scene.time.delayedCall(230 + wave * 165, () => {
-                if (!core.scene) return;
-
-                thunderLayer.clear();
-                thunderLayer.lineStyle(2.05, 0xedffff, 0.68);
-                const startA = elapsed * 0.013 + wave * 0.9;
-                const sx = x + Math.cos(startA) * charged.radius * 0.9;
-                const sy = y + Math.sin(startA) * charged.radius * 0.9;
-
-                let px = sx;
-                let py = sy;
-                for (let i = 1; i <= 8; i++) {
-                    const t = i / 8;
-                    const nx = Phaser.Math.Linear(sx, x, t) + Phaser.Math.Between(-11, 11) * (1 - t);
-                    const ny = Phaser.Math.Linear(sy, y, t) + Phaser.Math.Between(-11, 11) * (1 - t);
-                    thunderLayer.lineBetween(px, py, nx, ny);
-                    px = nx;
-                    py = ny;
-                }
-
-                this.scene.tweens.add({
-                    targets: thunderLayer,
-                    alpha: 0.15,
-                    duration: 70,
-                    yoyo: true
-                });
-
-                const shock = this.scene.add.circle(x, y, charged.radius * 0.25, 0x8becff, 0.22).setDepth(169);
-                this.scene.tweens.add({
-                    targets: shock,
-                    alpha: 0,
-                    scale: 1.9,
-                    duration: 180,
-                    onComplete: () => shock.destroy()
-                });
-
-                this.scene.cameras.main.shake(60, 0.0011 + wave * 0.00015);
-
-                const boss = this.scene.boss;
-                if (!boss) return;
-                const dist = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
-                if (dist <= charged.radius) {
-                    boss.takeDamage(perWaveDamage);
-                    boss.setTint(0x9ff8ff);
-                    this.scene.time.delayedCall(80, () => boss.clearTint());
-                }
-            });
+        if (this.targetingGraphics) {
+            this.targetingGraphics.destroy();
+            this.targetingGraphics = null;
         }
 
-        this.scene.time.delayedCall(totalDuration + 220, () => {
-            ambientEvent.remove(false);
-            this.scene.tweens.add({
-                targets: [core, coreGlow, halo, orbitRingA, orbitRingB, stormRibbon, thunderLayer],
-                alpha: 0,
-                scale: 1.35,
-                duration: 220,
-                onComplete: () => {
-                    core.destroy();
-                    coreGlow.destroy();
-                    halo.destroy();
-                    orbitRingA.destroy();
-                    orbitRingB.destroy();
-                    stormRibbon.destroy();
-                    thunderLayer.destroy();
+        if (this.directionMarker) {
+            this.directionMarker.destroy();
+            this.directionMarker = null;
+        }
+    }
+
+    confirmFromCursor() {
+        const pointer = this.scene.input.activePointer;
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        this.confirmTarget(worldPoint.x, worldPoint.y);
+    }
+
+    confirmTarget(targetX, targetY) {
+        const boss = this.scene.boss;
+        if (!boss || !boss.scene || !this.pendingCharged) {
+            this.pendingCharged = false;
+            this.cancelTargeting();
+            return;
+        }
+
+        const dirX = targetX - this.player.x;
+        const dirY = targetY - this.player.y;
+        const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (dirLength <= 1) {
+            this.pendingCharged = false;
+            this.cancelTargeting();
+            return;
+        }
+
+        const normalizedDirX = dirX / dirLength;
+        const normalizedDirY = dirY / dirLength;
+
+        const toBossX = boss.x - this.player.x;
+        const toBossY = boss.y - this.player.y;
+        const distance = Math.sqrt(toBossX * toBossX + toBossY * toBossY);
+        const normalizedBossX = toBossX / Math.max(distance, 1);
+        const normalizedBossY = toBossY / Math.max(distance, 1);
+
+        const alignment = normalizedDirX * normalizedBossX + normalizedDirY * normalizedBossY;
+        const minAlignment = 0.9;
+
+        if (distance > this.maxRange || alignment < minAlignment) {
+            this.showFailText(distance > this.maxRange ? 'TOO FAR!' : 'BAD DIRECTION!');
+            this.pendingCharged = false;
+            this.cancelTargeting();
+            return;
+        }
+
+        if (this.player.stamina < this.data.charged.staminaCost) {
+            this.showFailText('NO STAMINA!');
+            this.pendingCharged = false;
+            this.cancelTargeting();
+            return;
+        }
+
+        this.player.stamina -= this.data.charged.staminaCost;
+        this.pendingCharged = false;
+        this.cancelTargeting();
+        this.executeZapDash(boss);
+    }
+
+    executeZapDash(boss) {
+        if (!boss?.scene) return;
+
+        const charged = this.data.charged;
+        const originalX = this.player.x;
+        const originalY = this.player.y;
+
+        const angleToBoss = Math.atan2(boss.y - originalY, boss.x - originalX);
+        const stopDistance = 76;
+        const dashX = boss.x - Math.cos(angleToBoss) * stopDistance;
+        const dashY = boss.y - Math.sin(angleToBoss) * stopDistance;
+
+        this.createZapPathFX(originalX, originalY, dashX, dashY, 0x75e8ff);
+        this.scene.cameras.main.shake(110, 0.0032);
+        this.player.isInvulnerable = true;
+
+        this.scene.tweens.add({
+            targets: this.player,
+            x: dashX,
+            y: dashY,
+            duration: 120,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                if (boss?.scene) {
+                    const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+                    boss.takeDamage(finalDamage);
+                    boss.damageTakenMultiplier = 1.2;
+                    boss.setTint(0x9beeff);
+
+                    if (boss.vulnerabilityTimer) {
+                        boss.vulnerabilityTimer.remove(false);
+                        boss.vulnerabilityTimer = null;
+                    }
+
+                    boss.vulnerabilityTimer = this.scene.time.delayedCall(8000, () => {
+                        if (!boss.scene) return;
+                        boss.damageTakenMultiplier = 1.0;
+                        boss.clearTint();
+                    });
                 }
-            });
+
+                const impact = this.scene.add.circle(this.player.x, this.player.y, 24, 0x9beeff, 0.52).setDepth(171);
+                this.scene.tweens.add({
+                    targets: impact,
+                    alpha: 0,
+                    scale: 1.9,
+                    duration: 220,
+                    onComplete: () => impact.destroy()
+                });
+
+                this.scene.time.delayedCall(100, () => {
+                    this.createZapPathFX(this.player.x, this.player.y, originalX, originalY, 0xb9f8ff);
+                    this.scene.tweens.add({
+                        targets: this.player,
+                        x: originalX,
+                        y: originalY,
+                        duration: 130,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            this.player.isInvulnerable = false;
+                        }
+                    });
+                });
+            }
         });
+    }
+
+    createZapPathFX(fromX, fromY, toX, toY, color) {
+        const line = this.scene.add.graphics().setDepth(170);
+        line.lineStyle(2.3, color, 0.72);
+
+        let px = fromX;
+        let py = fromY;
+        const segments = 9;
+
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            const nx = Phaser.Math.Linear(fromX, toX, t) + Phaser.Math.Between(-11, 11) * (1 - t);
+            const ny = Phaser.Math.Linear(fromY, toY, t) + Phaser.Math.Between(-11, 11) * (1 - t);
+            line.lineBetween(px, py, nx, ny);
+            px = nx;
+            py = ny;
+        }
+
+        const ring = this.scene.add.circle(fromX, fromY, 14, color, 0.3).setDepth(171);
+        const endRing = this.scene.add.circle(toX, toY, 11, color, 0.24).setDepth(171);
+
+        this.scene.tweens.add({
+            targets: [line, ring, endRing],
+            alpha: 0,
+            duration: 150,
+            onComplete: () => {
+                line.destroy();
+                ring.destroy();
+                endRing.destroy();
+            }
+        });
+
+        for (let i = 0; i < 12; i++) {
+            const t = i / 11;
+            const sx = Phaser.Math.Linear(fromX, toX, t);
+            const sy = Phaser.Math.Linear(fromY, toY, t);
+            const spark = this.scene.add.circle(sx, sy, Phaser.Math.FloatBetween(1.2, 2.3), 0xe9ffff, 0.85).setDepth(172);
+            this.scene.tweens.add({
+                targets: spark,
+                x: sx + Phaser.Math.Between(-8, 8),
+                y: sy + Phaser.Math.Between(-8, 8),
+                alpha: 0,
+                duration: Phaser.Math.Between(100, 180),
+                onComplete: () => spark.destroy()
+            });
+        }
+    }
+
+    showFailText(text) {
+        const failText = this.scene.add.text(this.player.x, this.player.y - 50, text, {
+            fontSize: '24px',
+            fill: '#66ddff',
+            stroke: '#000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(200);
+
+        this.scene.tweens.add({
+            targets: failText,
+            y: this.player.y - 100,
+            alpha: 0,
+            duration: 700,
+            onComplete: () => failText.destroy()
+        });
+    }
+
+    handleConfirmKeyUp() {
+        this.waitingForConfirmRelease = false;
+    }
+
+    update() {
+        if (!this.waitingForConfirmRelease) return;
+        if (!this.scene.input.activePointer.rightButtonDown()) {
+            this.waitingForConfirmRelease = false;
+        }
+
+        if (!this.isTargeting || !this.targetingGraphics) return;
+
+        const pointer = this.scene.input.activePointer;
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+        const dx = worldPoint.x - this.player.x;
+        const dy = worldPoint.y - this.player.y;
+        const length = Math.sqrt(dx * dx + dy * dy) || 1;
+        const clampedLength = Math.min(length, this.maxRange);
+        const endX = this.player.x + (dx / length) * clampedLength;
+        const endY = this.player.y + (dy / length) * clampedLength;
+
+        this.targetingGraphics.clear();
+        this.targetingGraphics.lineStyle(2, 0x66ddff, 0.3);
+        this.targetingGraphics.strokeCircle(this.player.x, this.player.y, this.maxRange);
+
+        this.targetingGraphics.lineStyle(2, 0x9ff3ff, 0.7);
+        this.targetingGraphics.lineBetween(this.player.x, this.player.y, endX, endY);
+
+        this.targetingGraphics.fillStyle(0x9ff3ff, 0.16);
+        this.targetingGraphics.fillCircle(endX, endY, 13);
+
+        if (this.directionMarker) {
+            this.directionMarker.setPosition(endX, endY);
+        }
     }
 }
