@@ -80,193 +80,146 @@ export class ElectroGauntletWeapon extends WeaponBase {
         const x = targetPoint.x;
         const y = targetPoint.y;
 
-        // Charge marker + high-voltage bloom
-        const preRing = this.scene.add.circle(x, y, charged.radius * 0.22, 0x7be9ff, 0)
-            .setStrokeStyle(2, 0xa5f6ff, 0.85)
+        // Smooth plasma core with evolving animated storm shell.
+        const halo = this.scene.add.circle(x, y, charged.radius * 0.95, 0x53cfff, 0.08).setDepth(163);
+        const coreGlow = this.scene.add.circle(x, y, charged.radius * 0.26, 0x8ff3ff, 0.3).setDepth(166);
+        const core = this.scene.add.circle(x, y, charged.radius * 0.17, 0xe8ffff, 0.95).setDepth(167);
+        const orbitRingA = this.scene.add.circle(x, y, charged.radius * 0.62, 0x66dfff, 0)
+            .setStrokeStyle(3, 0x7ce8ff, 0.8)
             .setDepth(165);
-        const preGlow = this.scene.add.circle(x, y, charged.radius * 0.5, 0x5bcfff, 0.12).setDepth(164);
-        this.scene.tweens.add({
-            targets: [preRing, preGlow],
-            alpha: 0,
-            scale: 2.9,
-            duration: 280,
-            ease: 'Cubic.easeOut',
-            onComplete: () => {
-                preRing.destroy();
-                preGlow.destroy();
-            }
-        });
+        const orbitRingB = this.scene.add.circle(x, y, charged.radius * 0.43, 0xc7f9ff, 0)
+            .setStrokeStyle(2, 0xc7f9ff, 0.75)
+            .setDepth(165);
+        const stormRibbon = this.scene.add.graphics().setDepth(168);
+        const thunderLayer = this.scene.add.graphics().setDepth(169);
 
-        // Storm layers
-        const cage = this.scene.add.graphics().setDepth(166);
-        const innerArcLayer = this.scene.add.graphics().setDepth(167);
-        const cloudLayer = this.scene.add.graphics().setDepth(163);
+        let elapsed = 0;
+        const totalDuration = 900;
 
-        const ringOuter = this.scene.add.circle(x, y, charged.radius, 0x74e7ff, 0)
-            .setStrokeStyle(3, 0x74e7ff, 0.82)
-            .setDepth(166);
-        const ringInner = this.scene.add.circle(x, y, charged.radius * 0.7, 0xa0f5ff, 0)
-            .setStrokeStyle(2, 0xa0f5ff, 0.68)
-            .setDepth(166);
+        const renderRibbon = (progress) => {
+            stormRibbon.clear();
+            const activeRadius = Phaser.Math.Linear(charged.radius * 0.35, charged.radius * 0.98, progress);
 
-        let phase = 0;
-        const redrawStorm = () => {
-            phase += 0.3;
+            stormRibbon.lineStyle(2.5, 0x8cefff, 0.85);
+            for (let strand = 0; strand < 4; strand++) {
+                const base = elapsed * 0.015 + strand * (Math.PI * 0.5);
+                let prevX = x + Math.cos(base) * activeRadius * 0.2;
+                let prevY = y + Math.sin(base) * activeRadius * 0.2;
 
-            cage.clear();
-            innerArcLayer.clear();
-            cloudLayer.clear();
-
-            // Electric cloud haze
-            cloudLayer.fillStyle(0x5bd8ff, 0.08);
-            cloudLayer.fillEllipse(x, y, charged.radius * 2.25, charged.radius * 1.45);
-            cloudLayer.fillStyle(0x9cefff, 0.06);
-            cloudLayer.fillEllipse(
-                x + Math.cos(phase * 0.8) * 10,
-                y + Math.sin(phase * 0.75) * 8,
-                charged.radius * 1.65,
-                charged.radius * 1.05
-            );
-
-            // Outer cage strands
-            cage.lineStyle(2, 0x8aefff, 0.84);
-            for (let i = 0; i < 8; i++) {
-                const a = phase + (i / 8) * Math.PI * 2;
-                const bx = x + Math.cos(a) * charged.radius;
-                const by = y + Math.sin(a) * charged.radius;
-                const cx = x + Math.cos(a + 0.42) * charged.radius * 0.72;
-                const cy = y + Math.sin(a + 0.42) * charged.radius * 0.72;
-                cage.lineBetween(bx, by, cx, cy);
+                for (let i = 1; i <= 10; i++) {
+                    const t = i / 10;
+                    const ang = base + t * Math.PI * (1.7 + strand * 0.14);
+                    const wobble = Math.sin(elapsed * 0.025 + t * 9 + strand) * (5 + 7 * progress);
+                    const radius = activeRadius * t;
+                    const nx = x + Math.cos(ang) * radius + Math.cos(ang + Math.PI * 0.5) * wobble;
+                    const ny = y + Math.sin(ang) * radius + Math.sin(ang + Math.PI * 0.5) * wobble;
+                    stormRibbon.lineBetween(prevX, prevY, nx, ny);
+                    prevX = nx;
+                    prevY = ny;
+                }
             }
 
-            // Inner rotating arc lattice
-            innerArcLayer.lineStyle(1.6, 0xc9fbff, 0.8);
-            for (let i = 0; i < 6; i++) {
-                const a = -phase * 1.2 + (i / 6) * Math.PI * 2;
-                const px = x + Math.cos(a) * charged.radius * 0.52;
-                const py = y + Math.sin(a) * charged.radius * 0.52;
-                const qx = x + Math.cos(a + 0.7) * charged.radius * 0.34;
-                const qy = y + Math.sin(a + 0.7) * charged.radius * 0.34;
-                innerArcLayer.lineBetween(px, py, qx, qy);
-            }
-
-            ringOuter.rotation += 0.028;
-            ringInner.rotation -= 0.04;
-
-            // Ambient sparkles
-            if (Math.random() > 0.35) {
-                const sA = Phaser.Math.FloatBetween(0, Math.PI * 2);
-                const sR = Phaser.Math.FloatBetween(charged.radius * 0.22, charged.radius * 0.95);
-                const sparkle = this.scene.add.circle(
-                    x + Math.cos(sA) * sR,
-                    y + Math.sin(sA) * sR,
-                    Phaser.Math.FloatBetween(1.2, 2.8),
-                    0xd6fdff,
-                    0.9
-                ).setDepth(168);
-                this.scene.tweens.add({
-                    targets: sparkle,
-                    alpha: 0,
-                    scale: 0.2,
-                    duration: Phaser.Math.Between(120, 220),
-                    onComplete: () => sparkle.destroy()
-                });
+            stormRibbon.lineStyle(1.4, 0xe8feff, 0.9);
+            for (let i = 0; i < 7; i++) {
+                const a = elapsed * 0.018 + i * (Math.PI * 2 / 7);
+                const r0 = charged.radius * 0.16;
+                const r1 = activeRadius * Phaser.Math.FloatBetween(0.72, 0.96);
+                stormRibbon.lineBetween(
+                    x + Math.cos(a) * r0,
+                    y + Math.sin(a) * r0,
+                    x + Math.cos(a + 0.24) * r1,
+                    y + Math.sin(a + 0.24) * r1
+                );
             }
         };
 
-        const stormDuration = (charged.waves || 4) * 190 + 340;
-        const cageEvent = this.scene.time.addEvent({
-            delay: 34,
-            repeat: Math.ceil(stormDuration / 34),
-            callback: redrawStorm
+        const ambientEvent = this.scene.time.addEvent({
+            delay: 16,
+            callback: () => {
+                if (!core.scene) return;
+                elapsed += 16;
+                const progress = Phaser.Math.Clamp(elapsed / totalDuration, 0, 1);
+
+                const pulse = 1 + Math.sin(elapsed * 0.025) * 0.06;
+                core.setScale(Phaser.Math.Linear(0.72, 1.32, progress) * pulse);
+                coreGlow.setScale(Phaser.Math.Linear(0.82, 1.5, progress) * (1 + Math.sin(elapsed * 0.018) * 0.08));
+                coreGlow.alpha = 0.2 + progress * 0.24 + Math.sin(elapsed * 0.017) * 0.05;
+
+                halo.setScale(Phaser.Math.Linear(0.8, 1.34, progress));
+                halo.alpha = 0.06 + progress * 0.1;
+
+                orbitRingA.rotation += 0.02 + progress * 0.01;
+                orbitRingB.rotation -= 0.026 + progress * 0.012;
+                orbitRingA.setScale(0.88 + progress * 0.34);
+                orbitRingB.setScale(0.93 + progress * 0.36);
+
+                renderRibbon(progress);
+
+                if (Math.random() > 0.62) {
+                    const a = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                    const r = Phaser.Math.FloatBetween(charged.radius * 0.2, charged.radius * 0.92);
+                    const sparkle = this.scene.add.circle(
+                        x + Math.cos(a) * r,
+                        y + Math.sin(a) * r,
+                        Phaser.Math.FloatBetween(1.3, 2.7),
+                        0xd8feff,
+                        0.9
+                    ).setDepth(170);
+
+                    this.scene.tweens.add({
+                        targets: sparkle,
+                        x: sparkle.x + Math.cos(a + Math.PI * 0.5) * Phaser.Math.Between(8, 20),
+                        y: sparkle.y + Math.sin(a + Math.PI * 0.5) * Phaser.Math.Between(8, 20),
+                        alpha: 0,
+                        duration: Phaser.Math.Between(140, 240),
+                        onComplete: () => sparkle.destroy()
+                    });
+                }
+            },
+            loop: true
         });
 
         const waves = charged.waves || 4;
         const perWaveDamage = (charged.damage / waves) * (this.player.damageMultiplier || 1.0);
 
         for (let wave = 0; wave < waves; wave++) {
-            this.scene.time.delayedCall(wave * 190 + 70, () => {
-                if (!ringOuter.scene) return;
+            this.scene.time.delayedCall(230 + wave * 165, () => {
+                if (!core.scene) return;
 
-                // Primary thunder strike
-                const strike = this.scene.add.graphics().setDepth(170);
-                strike.lineStyle(4, 0xe8ffff, 0.96);
-                const startY = y - charged.radius - 130;
-                const endY = y + Phaser.Math.Between(-24, 24);
-                const sx = x + Phaser.Math.Between(-charged.radius * 0.62, charged.radius * 0.62);
+                thunderLayer.clear();
+                thunderLayer.lineStyle(3.4, 0xedffff, 0.96);
+                const startA = elapsed * 0.013 + wave * 0.9;
+                const sx = x + Math.cos(startA) * charged.radius * 0.9;
+                const sy = y + Math.sin(startA) * charged.radius * 0.9;
+
                 let px = sx;
-                let py = startY;
-                const segments = 9;
-                for (let i = 1; i <= segments; i++) {
-                    const t = i / segments;
-                    const nx = sx + Phaser.Math.Between(-18, 18);
-                    const ny = Phaser.Math.Linear(startY, endY, t);
-                    strike.lineBetween(px, py, nx, ny);
+                let py = sy;
+                for (let i = 1; i <= 8; i++) {
+                    const t = i / 8;
+                    const nx = Phaser.Math.Linear(sx, x, t) + Phaser.Math.Between(-11, 11) * (1 - t);
+                    const ny = Phaser.Math.Linear(sy, y, t) + Phaser.Math.Between(-11, 11) * (1 - t);
+                    thunderLayer.lineBetween(px, py, nx, ny);
                     px = nx;
                     py = ny;
                 }
 
-                // Secondary forks
-                const forkCount = 2 + Math.floor(Math.random() * 2);
-                for (let f = 0; f < forkCount; f++) {
-                    let fx = sx + Phaser.Math.Between(-12, 12);
-                    let fy = startY + Phaser.Math.Between(24, 60);
-                    const fLen = Phaser.Math.Between(3, 5);
-                    for (let s = 0; s < fLen; s++) {
-                        const nx = fx + Phaser.Math.Between(-14, 14);
-                        const ny = fy + Phaser.Math.Between(16, 26);
-                        strike.lineBetween(fx, fy, nx, ny);
-                        fx = nx;
-                        fy = ny;
-                    }
-                }
-
                 this.scene.tweens.add({
-                    targets: strike,
-                    alpha: 0,
-                    duration: 120,
-                    onComplete: () => strike.destroy()
+                    targets: thunderLayer,
+                    alpha: 0.15,
+                    duration: 70,
+                    yoyo: true
                 });
 
-                // Screen flash + shock ring for thunder impact
-                const flash = this.scene.add.rectangle(
-                    this.scene.cameras.main.width * 0.5,
-                    this.scene.cameras.main.height * 0.5,
-                    this.scene.cameras.main.width,
-                    this.scene.cameras.main.height,
-                    0xb9f4ff,
-                    0.06
-                ).setScrollFactor(0).setDepth(999);
-                this.scene.tweens.add({
-                    targets: flash,
-                    alpha: 0,
-                    duration: 90,
-                    onComplete: () => flash.destroy()
-                });
-
-                const shock = this.scene.add.circle(x, y, charged.radius * 0.4, 0x7be9ff, 0.2).setDepth(168);
+                const shock = this.scene.add.circle(x, y, charged.radius * 0.25, 0x8becff, 0.22).setDepth(169);
                 this.scene.tweens.add({
                     targets: shock,
                     alpha: 0,
-                    scale: 1.45,
-                    duration: 170,
+                    scale: 1.9,
+                    duration: 180,
                     onComplete: () => shock.destroy()
                 });
 
-                // Sparkle burst for each thunder hit
-                for (let i = 0; i < 12; i++) {
-                    const a = (i / 12) * Math.PI * 2;
-                    const sparkle = this.scene.add.circle(x, y, Phaser.Math.FloatBetween(1.8, 3.1), 0xd7feff, 0.95).setDepth(169);
-                    this.scene.tweens.add({
-                        targets: sparkle,
-                        x: x + Math.cos(a) * Phaser.Math.Between(24, charged.radius * 0.72),
-                        y: y + Math.sin(a) * Phaser.Math.Between(24, charged.radius * 0.72),
-                        alpha: 0,
-                        scale: 0.25,
-                        duration: Phaser.Math.Between(150, 260),
-                        onComplete: () => sparkle.destroy()
-                    });
-                }
+                this.scene.cameras.main.shake(65, 0.0015 + wave * 0.0002);
 
                 const boss = this.scene.boss;
                 if (!boss) return;
@@ -274,24 +227,26 @@ export class ElectroGauntletWeapon extends WeaponBase {
                 if (dist <= charged.radius) {
                     boss.takeDamage(perWaveDamage);
                     boss.setTint(0x9ff8ff);
-                    this.scene.time.delayedCall(90, () => boss.clearTint());
+                    this.scene.time.delayedCall(80, () => boss.clearTint());
                 }
             });
         }
 
-        this.scene.time.delayedCall(stormDuration, () => {
-            cageEvent.remove(false);
+        this.scene.time.delayedCall(totalDuration + 220, () => {
+            ambientEvent.remove(false);
             this.scene.tweens.add({
-                targets: [ringOuter, ringInner, cage, innerArcLayer, cloudLayer],
+                targets: [core, coreGlow, halo, orbitRingA, orbitRingB, stormRibbon, thunderLayer],
                 alpha: 0,
-                scale: 1.3,
-                duration: 240,
+                scale: 1.35,
+                duration: 220,
                 onComplete: () => {
-                    ringOuter.destroy();
-                    ringInner.destroy();
-                    cage.destroy();
-                    innerArcLayer.destroy();
-                    cloudLayer.destroy();
+                    core.destroy();
+                    coreGlow.destroy();
+                    halo.destroy();
+                    orbitRingA.destroy();
+                    orbitRingB.destroy();
+                    stormRibbon.destroy();
+                    thunderLayer.destroy();
                 }
             });
         });
