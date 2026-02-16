@@ -102,6 +102,25 @@ export class Boss extends Phaser.GameObjects.Container {
         });
     }
     
+
+    setTint(color) {
+        this.list.forEach((child) => {
+            if (child && typeof child.setTint === 'function') {
+                child.setTint(color);
+            }
+        });
+        return this;
+    }
+
+    clearTint() {
+        this.list.forEach((child) => {
+            if (child && typeof child.clearTint === 'function') {
+                child.clearTint();
+            }
+        });
+        return this;
+    }
+
     takeDamage(amount) {
         // ✅ FIX: Appliquer les dégâts directement sans multiplicateurs
         const finalDamage = Math.round(amount * (this.damageTakenMultiplier || 1.0));
