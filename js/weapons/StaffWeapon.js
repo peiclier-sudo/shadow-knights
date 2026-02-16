@@ -136,7 +136,20 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
 
-        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.22).setDepth(170);
+        // Forge pulse at cast point so the charged shot feels alive from frame 1
+        const forgeRing = this.scene.add.circle(startX, startY, 16, 0xffa347, 0)
+            .setStrokeStyle(3, 0xffcf91, 0.85)
+            .setDepth(172);
+        this.scene.tweens.add({
+            targets: forgeRing,
+            scale: 2.1,
+            alpha: 0,
+            duration: 240,
+            ease: 'Cubic.easeOut',
+            onComplete: () => forgeRing.destroy()
+        });
+
+        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.1).setDepth(170);
         const glow = this.scene.add.circle(startX, startY, 38, 0xff6600, 0.42).setDepth(169);
         const core = this.scene.add.circle(startX, startY, 18, 0xffef88, 0.36).setDepth(171);
         const ringOuter = this.scene.add.circle(startX, startY, 30, 0xffa43a, 0).setStrokeStyle(3, 0xffc780, 0.75).setDepth(168);
@@ -300,16 +313,23 @@ export class StaffWeapon extends WeaponBase {
                 const travelDist = Phaser.Math.Distance.Between(startX, startY, targetX, targetY) || 1;
                 const traveled = Phaser.Math.Distance.Between(startX, startY, fireball.x, fireball.y);
                 const progress = Phaser.Math.Clamp(traveled / travelDist, 0, 1);
-                fireball.setScale(1.22 + progress * 0.78);
-                glow.setRadius(38 + progress * 20);
-                ringOuter.setRadius(30 + progress * 10);
-                ringInner.setRadius(22 + progress * 8);
+                const eased = Phaser.Math.Easing.Cubic.Out(progress);
+                const pulse = 1 + Math.sin(animElapsed * 0.03) * 0.07;
+
+                // Evolutive growth: small at launch, significantly larger near impact
+                fireball.setScale((1.1 + eased * 1.25) * pulse);
+                glow.setRadius(36 + eased * 34);
+                core.setRadius(16 + eased * 11);
+                ringOuter.setRadius(28 + eased * 18);
+                ringInner.setRadius(21 + eased * 14);
+                glow.alpha = 0.34 + eased * 0.26;
+                core.alpha = 0.3 + eased * 0.22;
 
                 // Rotating rings and subtle offset for lively look
-                ringOuter.rotation += 0.12;
-                ringInner.rotation -= 0.18;
-                core.x = fireball.x + Math.cos(animElapsed * 0.02) * 1.6;
-                core.y = fireball.y + Math.sin(animElapsed * 0.02) * 1.6;
+                ringOuter.rotation += 0.1 + eased * 0.14;
+                ringInner.rotation -= 0.16 + eased * 0.2;
+                core.x = fireball.x + Math.cos(animElapsed * 0.02) * (1.6 + eased * 1.4);
+                core.y = fireball.y + Math.sin(animElapsed * 0.02) * (1.6 + eased * 1.4);
 
                 // Trail embers during travel
                 if (Math.random() > 0.55) {
@@ -331,7 +351,7 @@ export class StaffWeapon extends WeaponBase {
                 const distToBoss = Phaser.Math.Distance.Between(fireball.x, fireball.y, boss.x, boss.y);
                 if (distToBoss <= 52) {
                     travelTween.stop();
-                    const stickTime = 180;
+                    const stickTime = 240;
 
                     fireball.setPosition(boss.x, boss.y);
                     glow.setPosition(boss.x, boss.y);
@@ -341,10 +361,18 @@ export class StaffWeapon extends WeaponBase {
 
                     this.scene.tweens.add({
                         targets: [fireball, glow, core, ringOuter, ringInner],
-                        scale: '+=0.22',
-                        duration: 130,
+                        scale: '+=0.35',
+                        duration: 160,
                         yoyo: true,
                         ease: 'Sine.easeInOut'
+                    });
+
+                    this.scene.tweens.add({
+                        targets: [ringOuter, ringInner],
+                        alpha: { from: 0.75, to: 1 },
+                        duration: 90,
+                        yoyo: true,
+                        repeat: 1
                     });
 
                     const followHandler = () => {

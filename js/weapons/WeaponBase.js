@@ -150,21 +150,6 @@ export class WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => sigil.destroy()
         });
-
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2 + Math.random() * 0.2;
-            const spark = this.scene.add.circle(x, y, Phaser.Math.FloatBetween(1.8, 3.4), color, 0.9).setDepth(167);
-            this.scene.tweens.add({
-                targets: spark,
-                x: x + Math.cos(a) * Phaser.Math.Between(16, 34),
-                y: y + Math.sin(a) * Phaser.Math.Between(16, 34),
-                alpha: 0,
-                scale: 0.3,
-                duration: Phaser.Math.Between(120, 210),
-                ease: 'Sine.easeOut',
-                onComplete: () => spark.destroy()
-            });
-        }
     }
 
     createChargeReleaseBurst(angle) {
