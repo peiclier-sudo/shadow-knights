@@ -30,9 +30,9 @@ export class GreatswordWeapon extends WeaponBase {
         wave.range = data.range;
         wave.startX = startX;
         wave.startY = startY;
-        wave.knockback = data.knockback;
-        wave.knockbackForce = data.knockbackForce;
-        wave.heavyKnockback = true;
+        wave.knockback = false;
+        wave.knockbackForce = 0;
+        wave.heavyKnockback = false;
         
         this.scene.projectiles.push(wave);
         this.addTrail(wave, data.color, data.size);

@@ -142,8 +142,8 @@ export const WEAPONS = {
             count: 1,
             range: 300,
             cooldown: 500,
-            knockback: true,
-            knockbackForce: 360,
+            knockback: false,
+            knockbackForce: 0,
             piercing: false  // ✅ Aussi fixé ici
         },
         charged: {
