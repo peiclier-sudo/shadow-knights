@@ -5,6 +5,9 @@ export class BootScene extends Phaser.Scene {
     }
     
     preload() {
+        // Ensure remote assets can be fetched when available
+        this.load.setCORS('anonymous');
+
         // Show loading text
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
@@ -35,19 +38,27 @@ export class BootScene extends Phaser.Scene {
             this.loadingText.destroy();
         });
 
-        // Firestaff spritesheet: 5x4 grid inside a 960x960 sheet => 192x240 frames
-        // Loaded from release URL to avoid committing binaries in the repository.
+        // Firestaff spritesheet: 5x4 grid inside a 960x960 sheet => 192x240 frames.
+        // Keep repository binary-safe by loading from release URL at runtime.
         this.load.spritesheet('firestaff',
             'https://github.com/peiclier-sudo/shadow-knights/releases/download/v1.0.0/firestaff.jpg', {
                 frameWidth: 192,
                 frameHeight: 240
             }
         );
+
+        this.load.on('loaderror', (file) => {
+            if (file?.key === 'firestaff') {
+                console.warn('[BootScene] Failed to load firestaff spritesheet:', file.src);
+            }
+        });
     }
     
     create() {
-        // Firestaff spritesheet animations
-        if (!this.anims.exists('fireball-grow')) {
+        // Firestaff spritesheet animations (only if texture is available)
+        if (!this.textures.exists('firestaff')) {
+            console.warn('[BootScene] firestaff texture not available, using fallback charged VFX.');
+        } else if (!this.anims.exists('fireball-grow')) {
             this.anims.create({
                 key: 'fireball-grow',
                 frames: this.anims.generateFrameNumbers('firestaff', { start: 0, end: 4 }),
@@ -56,7 +67,7 @@ export class BootScene extends Phaser.Scene {
             });
         }
 
-        if (!this.anims.exists('fire-comet')) {
+        if (this.textures.exists('firestaff') && !this.anims.exists('fire-comet')) {
             this.anims.create({
                 key: 'fire-comet',
                 frames: this.anims.generateFrameNumbers('firestaff', { start: 5, end: 9 }),
@@ -65,7 +76,7 @@ export class BootScene extends Phaser.Scene {
             });
         }
 
-        if (!this.anims.exists('fire-burst')) {
+        if (this.textures.exists('firestaff') && !this.anims.exists('fire-burst')) {
             this.anims.create({
                 key: 'fire-burst',
                 frames: this.anims.generateFrameNumbers('firestaff', { start: 10, end: 14 }),
@@ -74,7 +85,7 @@ export class BootScene extends Phaser.Scene {
             });
         }
 
-        if (!this.anims.exists('fire-explode')) {
+        if (this.textures.exists('firestaff') && !this.anims.exists('fire-explode')) {
             this.anims.create({
                 key: 'fire-explode',
                 frames: this.anims.generateFrameNumbers('firestaff', { start: 15, end: 19 }),

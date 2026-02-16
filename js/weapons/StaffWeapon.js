@@ -145,6 +145,8 @@ export class StaffWeapon extends WeaponBase {
                         fireball.destroy();
                     }
                 });
+            } else if (fireball.active) {
+                fireball.destroy();
             }
 
             this.scene.tweens.add({
