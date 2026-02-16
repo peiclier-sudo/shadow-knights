@@ -15,9 +15,23 @@ export class StaffWeapon extends WeaponBase {
         
         this.createMuzzleFlash(startX, startY, this.data.color);
         
-        // Créer l'orbe
-        const orb = this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
+        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
+
+        // Créer l'orbe (spritesheet when available, star fallback otherwise)
+        const orb = hasFirestaffSprite
+            ? this.scene.add.sprite(startX, startY, 'firestaff', 5)
+                .setScale(0.35)
+                .setBlendMode(Phaser.BlendModes.ADD)
+            : this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
         orb.setDepth(150);
+
+        if (hasFirestaffSprite) {
+            if (this.scene.anims.exists('fire-comet')) {
+                orb.play('fire-comet');
+            } else if (this.scene.anims.exists('fireball-grow')) {
+                orb.play('fireball-grow');
+            }
+        }
         
         orb.vx = Math.cos(angle) * data.speed;
         orb.vy = Math.sin(angle) * data.speed;
@@ -28,6 +42,9 @@ export class StaffWeapon extends WeaponBase {
         
         // Comportement de homing
         orb.update = () => {
+            if (hasFirestaffSprite) {
+                orb.rotation = Math.atan2(orb.vy, orb.vx);
+            }
             const boss = this.scene.boss;
             if (!boss) return;
             
