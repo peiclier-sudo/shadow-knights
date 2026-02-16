@@ -136,8 +136,32 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
 
-        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.5).setDepth(170);
-        const glow = this.scene.add.circle(startX, startY, 36, 0xff6600, 0.45).setDepth(169);
+        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.55).setDepth(170);
+        const glow = this.scene.add.circle(startX, startY, 38, 0xff6600, 0.42).setDepth(169);
+        const core = this.scene.add.circle(startX, startY, 18, 0xffef88, 0.36).setDepth(171);
+        const ringOuter = this.scene.add.circle(startX, startY, 30, 0xffa43a, 0).setStrokeStyle(3, 0xffc780, 0.75).setDepth(168);
+        const ringInner = this.scene.add.circle(startX, startY, 22, 0xffef88, 0).setStrokeStyle(2, 0xffef88, 0.55).setDepth(168);
+
+        this.scene.tweens.add({
+            targets: [glow, core],
+            scale: { from: 0.96, to: 1.1 },
+            alpha: { from: 0.38, to: 0.6 },
+            duration: 160,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        this.scene.tweens.add({
+            targets: [ringOuter, ringInner],
+            scale: { from: 0.9, to: 1.14 },
+            alpha: { from: 0.3, to: 0.65 },
+            angle: 40,
+            duration: 220,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
         const targetPoint = this.getClampedChargedTarget(
             this.player.x + Math.cos(angle) * this.data.charged.maxRange,
@@ -149,11 +173,21 @@ export class StaffWeapon extends WeaponBase {
         let exploded = false;
         let animElapsed = 0;
 
+        const cleanupCoreFx = () => {
+            [glow, core, ringOuter, ringInner, fireball].forEach((obj) => {
+                if (obj?.scene) obj.destroy();
+            });
+        };
+
         const explodeAt = (x, y) => {
             if (exploded) return;
             exploded = true;
 
-            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff6600, 0.7);
+            const explosionCore = this.scene.add.circle(x, y, charged.radius * 0.82, 0xff6600, 0.75).setDepth(172);
+            const explosionHot = this.scene.add.circle(x, y, charged.radius * 0.55, 0xffef88, 0.45).setDepth(173);
+            const explosionRing = this.scene.add.circle(x, y, charged.radius * 0.35, 0xff6600, 0)
+                .setStrokeStyle(4, 0xffd39b, 0.95)
+                .setDepth(174);
 
             const boss = this.scene.boss;
             if (boss) {
@@ -164,7 +198,7 @@ export class StaffWeapon extends WeaponBase {
 
                     if (charged.dotDamage) {
                         let tickCount = 0;
-                        const dotTimer = this.scene.time.addEvent({
+                        this.scene.time.addEvent({
                             delay: charged.dotInterval,
                             repeat: charged.dotTicks - 1,
                             callback: () => {
@@ -176,51 +210,111 @@ export class StaffWeapon extends WeaponBase {
                                 tickCount++;
                             }
                         });
-                        if (!dotTimer) return;
                     }
                 }
             }
 
-            for (let i = 0; i < 14; i++) {
-                const particleAngle = (i / 14) * Math.PI * 2;
-                const particle = this.scene.add.circle(x, y, 5 + Math.random() * 5, 0xff7a1a, 0.7);
+            // Radial blast petals
+            for (let i = 0; i < 18; i++) {
+                const particleAngle = (i / 18) * Math.PI * 2;
+                const particle = this.scene.add.circle(x, y, 4 + Math.random() * 6, 0xff8a1a, 0.78).setDepth(175);
                 this.scene.tweens.add({
                     targets: particle,
-                    x: x + Math.cos(particleAngle) * 110,
-                    y: y + Math.sin(particleAngle) * 110,
+                    x: x + Math.cos(particleAngle) * (100 + Math.random() * 36),
+                    y: y + Math.sin(particleAngle) * (100 + Math.random() * 36),
                     alpha: 0,
-                    duration: 320,
+                    scale: 0.25,
+                    duration: 360,
+                    ease: 'Cubic.easeOut',
                     onComplete: () => particle.destroy()
                 });
             }
 
+            // Spiral embers for richer look
+            for (let i = 0; i < 10; i++) {
+                const ember = this.scene.add.circle(x, y, Phaser.Math.FloatBetween(2, 3.8), 0xffef88, 0.92).setDepth(176);
+                const baseAngle = Math.random() * Math.PI * 2;
+                this.scene.tweens.addCounter({
+                    from: 0,
+                    to: 1,
+                    duration: Phaser.Math.Between(320, 460),
+                    onUpdate: (tw) => {
+                        const t = tw.getValue();
+                        const radius = 14 + t * Phaser.Math.Between(40, 88);
+                        const a = baseAngle + t * 4.2;
+                        ember.x = x + Math.cos(a) * radius;
+                        ember.y = y + Math.sin(a) * radius;
+                        ember.alpha = 0.95 - t;
+                    },
+                    onComplete: () => ember.destroy()
+                });
+            }
+
             this.scene.tweens.add({
-                targets: [explosion, glow, fireball],
+                targets: [explosionCore, explosionHot],
                 alpha: 0,
-                scale: 1.5,
-                duration: 300,
+                scale: 1.55,
+                duration: 320,
+                ease: 'Cubic.easeOut',
                 onComplete: () => {
-                    explosion.destroy();
-                    glow.destroy();
-                    fireball.destroy();
+                    explosionCore.destroy();
+                    explosionHot.destroy();
                 }
             });
 
-            this.scene.cameras.main.shake(170, 0.012);
+            this.scene.tweens.add({
+                targets: explosionRing,
+                alpha: 0,
+                scale: 2.2,
+                duration: 360,
+                ease: 'Expo.easeOut',
+                onComplete: () => explosionRing.destroy()
+            });
+
+            // Fade out traveling projectile FX
+            this.scene.tweens.add({
+                targets: [fireball, glow, core, ringOuter, ringInner],
+                alpha: 0,
+                scale: 1.45,
+                duration: 220,
+                onComplete: cleanupCoreFx
+            });
+
+            this.scene.cameras.main.shake(190, 0.013);
         };
 
         const travelTween = this.scene.tweens.add({
-            targets: [fireball, glow],
+            targets: [fireball, glow, core, ringOuter, ringInner],
             x: targetX,
             y: targetY,
-            duration: 420,
-            ease: 'Power2',
-            onUpdate: (_, target) => {
+            duration: 460,
+            ease: 'Cubic.easeOut',
+            onUpdate: () => {
                 animElapsed += 16;
-                fireball.setTexture(`staff_fireball_${Math.floor(animElapsed / 36) % this.fireFrameCount}`);
+
+                // Animate fire sprite and orient by velocity direction
+                fireball.setTexture(`staff_fireball_${Math.floor(animElapsed / 34) % this.fireFrameCount}`);
                 fireball.setRotation(Math.atan2(targetY - fireball.y, targetX - fireball.x));
-                glow.x = fireball.x;
-                glow.y = fireball.y;
+
+                // Rotating rings and subtle offset for lively look
+                ringOuter.rotation += 0.12;
+                ringInner.rotation -= 0.18;
+                core.x = fireball.x + Math.cos(animElapsed * 0.02) * 1.6;
+                core.y = fireball.y + Math.sin(animElapsed * 0.02) * 1.6;
+
+                // Trail embers during travel
+                if (Math.random() > 0.55) {
+                    const ember = this.scene.add.circle(fireball.x, fireball.y, Phaser.Math.FloatBetween(1.8, 3.2), 0xffc26b, 0.6).setDepth(167);
+                    this.scene.tweens.add({
+                        targets: ember,
+                        x: ember.x - Math.cos(fireball.rotation) * Phaser.Math.Between(12, 26),
+                        y: ember.y - Math.sin(fireball.rotation) * Phaser.Math.Between(12, 26),
+                        alpha: 0,
+                        scale: 0.35,
+                        duration: Phaser.Math.Between(120, 180),
+                        onComplete: () => ember.destroy()
+                    });
+                }
 
                 const boss = this.scene.boss;
                 if (!boss || exploded) return;
@@ -228,15 +322,19 @@ export class StaffWeapon extends WeaponBase {
                 const distToBoss = Phaser.Math.Distance.Between(fireball.x, fireball.y, boss.x, boss.y);
                 if (distToBoss <= 52) {
                     travelTween.stop();
-                    const stickTime = 140;
+                    const stickTime = 180;
 
                     fireball.setPosition(boss.x, boss.y);
                     glow.setPosition(boss.x, boss.y);
+                    core.setPosition(boss.x, boss.y);
+                    ringOuter.setPosition(boss.x, boss.y);
+                    ringInner.setPosition(boss.x, boss.y);
 
                     const followHandler = () => {
                         if (!boss.scene || exploded) return;
-                        fireball.setPosition(boss.x, boss.y);
-                        glow.setPosition(boss.x, boss.y);
+                        [fireball, glow, core, ringOuter, ringInner].forEach((obj) => obj.setPosition(boss.x, boss.y));
+                        ringOuter.rotation += 0.22;
+                        ringInner.rotation -= 0.3;
                     };
                     this.scene.events.on('update', followHandler);
 
