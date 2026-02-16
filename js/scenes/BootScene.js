@@ -35,26 +35,51 @@ export class BootScene extends Phaser.Scene {
             this.loadingText.destroy();
         });
 
-        // Firestaff spritesheet (remote release asset to avoid repository binary bloat)
-        this.load.spritesheet('firestaff-sheet',
+        // Firestaff spritesheet: 5x4 grid inside a 960x960 sheet => 192x240 frames
+        // Loaded from release URL to avoid committing binaries in the repository.
+        this.load.spritesheet('firestaff',
             'https://github.com/peiclier-sudo/shadow-knights/releases/download/v1.0.0/firestaff.jpg', {
                 frameWidth: 192,
-                frameHeight: 192
+                frameHeight: 240
             }
         );
     }
     
     create() {
-        // Firestaff projectile loop animation
-        if (!this.anims.exists('firestaff-flight')) {
+        // Firestaff spritesheet animations
+        if (!this.anims.exists('fireball-grow')) {
             this.anims.create({
-                key: 'firestaff-flight',
-                frames: this.anims.generateFrameNumbers('firestaff-sheet', {
-                    start: 5,
-                    end: 18
-                }),
-                frameRate: 18,
+                key: 'fireball-grow',
+                frames: this.anims.generateFrameNumbers('firestaff', { start: 0, end: 4 }),
+                frameRate: 12,
+                repeat: 0
+            });
+        }
+
+        if (!this.anims.exists('fire-comet')) {
+            this.anims.create({
+                key: 'fire-comet',
+                frames: this.anims.generateFrameNumbers('firestaff', { start: 5, end: 9 }),
+                frameRate: 20,
                 repeat: -1
+            });
+        }
+
+        if (!this.anims.exists('fire-burst')) {
+            this.anims.create({
+                key: 'fire-burst',
+                frames: this.anims.generateFrameNumbers('firestaff', { start: 10, end: 14 }),
+                frameRate: 15,
+                repeat: 0
+            });
+        }
+
+        if (!this.anims.exists('fire-explode')) {
+            this.anims.create({
+                key: 'fire-explode',
+                frames: this.anims.generateFrameNumbers('firestaff', { start: 15, end: 19 }),
+                frameRate: 18,
+                repeat: 0
             });
         }
 

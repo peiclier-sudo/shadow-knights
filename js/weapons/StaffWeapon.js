@@ -56,16 +56,27 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
         
-        const hasFirestaffSprite = this.scene.textures.exists('firestaff-sheet');
+        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
         const fireball = hasFirestaffSprite
-            ? this.scene.add.sprite(startX, startY, 'firestaff-sheet', 5)
+            ? this.scene.add.sprite(startX, startY, 'firestaff', 0)
                 .setScale(0.5)
                 .setBlendMode(Phaser.BlendModes.ADD)
             : this.scene.add.circle(startX, startY, 20, 0xff6600);
         const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
 
-        if (hasFirestaffSprite && this.scene.anims.exists('firestaff-flight')) {
-            fireball.play('firestaff-flight');
+        if (hasFirestaffSprite) {
+            fireball.rotation = angle;
+
+            if (this.scene.anims.exists('fireball-grow')) {
+                fireball.play('fireball-grow');
+                fireball.once('animationcomplete-fireball-grow', () => {
+                    if (fireball.active && this.scene.anims.exists('fire-comet')) {
+                        fireball.play('fire-comet');
+                    }
+                });
+            } else if (this.scene.anims.exists('fire-comet')) {
+                fireball.play('fire-comet');
+            }
         }
         
         const targetPoint = this.getClampedChargedTarget(
@@ -127,15 +138,27 @@ export class StaffWeapon extends WeaponBase {
                 });
             }
 
+            if (hasFirestaffSprite && this.scene.anims.exists('fire-explode')) {
+                fireball.play('fire-explode');
+                fireball.once('animationcomplete-fire-explode', () => {
+                    if (fireball.active) {
+                        fireball.destroy();
+                    }
+                });
+            }
+
             this.scene.tweens.add({
-                targets: [explosion, glow, fireball],
+                targets: [explosion, glow],
                 alpha: 0,
                 scale: 1.5,
                 duration: 300,
                 onComplete: () => {
                     explosion.destroy();
                     glow.destroy();
-                    fireball.destroy();
+
+                    if (!hasFirestaffSprite && fireball.active) {
+                        fireball.destroy();
+                    }
                 }
             });
 
@@ -153,7 +176,12 @@ export class StaffWeapon extends WeaponBase {
                 glow.y = fireball.y;
 
                 if (hasFirestaffSprite) {
-                    fireball.rotation = angle;
+                    fireball.rotation = Phaser.Math.Angle.Between(
+                        fireball.x,
+                        fireball.y,
+                        targetX,
+                        targetY
+                    );
                 }
 
                 const boss = this.scene.boss;
