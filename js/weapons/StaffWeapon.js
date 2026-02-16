@@ -15,33 +15,27 @@ export class StaffWeapon extends WeaponBase {
             if (this.scene.textures.exists(key)) continue;
 
             const g = this.scene.add.graphics();
-            const wobble = Math.sin((i / frameCount) * Math.PI * 2) * 4;
+            const phase = (i / frameCount) * Math.PI * 2;
+            const wobble = Math.sin(phase) * 3;
+            const tailWobble = Math.cos(phase * 1.35) * 4;
 
-            // Outer flame
+            // Outer flame body (compatible primitives only)
             g.fillStyle(0xff7a1a, 0.95);
-            g.beginPath();
-            g.moveTo(8 + wobble, 24);
-            g.quadraticCurveTo(16, 8 + wobble, 38, 16);
-            g.quadraticCurveTo(54, 23, 45, 33);
-            g.quadraticCurveTo(30, 45, 12 + wobble, 35);
-            g.quadraticCurveTo(2, 30, 8 + wobble, 24);
-            g.closePath();
-            g.fillPath();
+            g.fillEllipse(30, 24, 38 + wobble, 26 + Math.sin(phase * 0.7) * 2);
+            g.fillTriangle(4 + tailWobble, 24, 22, 15, 22, 33);
 
-            // Mid flame
-            g.fillStyle(0xffb733, 0.95);
-            g.beginPath();
-            g.moveTo(16 + wobble * 0.5, 24);
-            g.quadraticCurveTo(22, 13, 36, 19);
-            g.quadraticCurveTo(47, 25, 40, 32);
-            g.quadraticCurveTo(28, 40, 17 + wobble * 0.5, 33);
-            g.quadraticCurveTo(11, 29, 16 + wobble * 0.5, 24);
-            g.closePath();
-            g.fillPath();
+            // Mid flame body
+            g.fillStyle(0xffb733, 0.96);
+            g.fillEllipse(31, 24, 26 + wobble * 0.7, 18);
+            g.fillTriangle(10 + tailWobble * 0.7, 24, 22, 18, 22, 30);
 
             // Core glow
             g.fillStyle(0xffef88, 0.95);
-            g.fillEllipse(30, 25, 18, 12);
+            g.fillEllipse(34, 24, 16, 10);
+
+            // Small ember flick
+            g.fillStyle(0xffa21a, 0.55);
+            g.fillEllipse(8 + tailWobble * 0.55, 23, 6, 3);
 
             g.generateTexture(key, 56, 48);
             g.destroy();
