@@ -404,6 +404,7 @@ export class StaffWeapon extends WeaponBase {
                     // Keep impact point relative to boss to avoid visible position snapping/jumping
                     const impactOffsetX = fireball.x - boss.x;
                     const impactOffsetY = fireball.y - boss.y;
+                    let stickElapsed = 0;
 
                     this.scene.tweens.add({
                         targets: [fireball, glow, core, ringOuter, ringInner],
@@ -423,11 +424,36 @@ export class StaffWeapon extends WeaponBase {
 
                     const followHandler = () => {
                         if (!boss.scene || exploded) return;
+                        stickElapsed += 16;
+
                         const px = boss.x + impactOffsetX;
                         const py = boss.y + impactOffsetY;
                         [fireball, glow, core, ringOuter, ringInner].forEach((obj) => obj.setPosition(px, py));
+
+                        // Keep stick phase alive: swirling flame motion around impact point
                         ringOuter.rotation += 0.24;
                         ringInner.rotation -= 0.34;
+                        const wobble = 1 + Math.sin(stickElapsed * 0.045) * 0.08;
+                        fireball.setScale(fireball.scaleX * 0.985 + (2.05 * wobble) * 0.015);
+
+                        if (Math.random() > 0.35) {
+                            const flame = this.scene.add.circle(px, py, Phaser.Math.FloatBetween(2.2, 4.6), 0xffb14d, 0.82).setDepth(177);
+                            const spiralA = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                            this.scene.tweens.addCounter({
+                                from: 0,
+                                to: 1,
+                                duration: Phaser.Math.Between(180, 280),
+                                onUpdate: (tw) => {
+                                    const tt = tw.getValue();
+                                    const rr = 6 + tt * Phaser.Math.Between(22, 44);
+                                    const aa = spiralA + tt * 3.1;
+                                    flame.x = px + Math.cos(aa) * rr;
+                                    flame.y = py + Math.sin(aa) * rr;
+                                    flame.alpha = 0.82 - tt;
+                                },
+                                onComplete: () => flame.destroy()
+                            });
+                        }
                     };
                     this.scene.events.on('update', followHandler);
 
