@@ -34,9 +34,30 @@ export class BootScene extends Phaser.Scene {
             progressBox.destroy();
             this.loadingText.destroy();
         });
+
+        // Firestaff spritesheet (remote release asset to avoid repository binary bloat)
+        this.load.spritesheet('firestaff-sheet',
+            'https://github.com/peiclier-sudo/shadow-knights/releases/download/v1.0.0/firestaff.jpg', {
+                frameWidth: 192,
+                frameHeight: 192
+            }
+        );
     }
     
     create() {
+        // Firestaff projectile loop animation
+        if (!this.anims.exists('firestaff-flight')) {
+            this.anims.create({
+                key: 'firestaff-flight',
+                frames: this.anims.generateFrameNumbers('firestaff-sheet', {
+                    start: 5,
+                    end: 18
+                }),
+                frameRate: 18,
+                repeat: -1
+            });
+        }
+
         // Go to menu after loading
         this.scene.start('MenuScene');
     }

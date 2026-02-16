@@ -56,8 +56,17 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
         
-        const fireball = this.scene.add.circle(startX, startY, 20, 0xff6600);
+        const hasFirestaffSprite = this.scene.textures.exists('firestaff-sheet');
+        const fireball = hasFirestaffSprite
+            ? this.scene.add.sprite(startX, startY, 'firestaff-sheet', 5)
+                .setScale(0.5)
+                .setBlendMode(Phaser.BlendModes.ADD)
+            : this.scene.add.circle(startX, startY, 20, 0xff6600);
         const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
+
+        if (hasFirestaffSprite && this.scene.anims.exists('firestaff-flight')) {
+            fireball.play('firestaff-flight');
+        }
         
         const targetPoint = this.getClampedChargedTarget(
             this.player.x + Math.cos(angle) * this.data.charged.maxRange,
@@ -142,6 +151,10 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 glow.x = fireball.x;
                 glow.y = fireball.y;
+
+                if (hasFirestaffSprite) {
+                    fireball.rotation = angle;
+                }
 
                 const boss = this.scene.boss;
                 if (!boss || exploded) return;
