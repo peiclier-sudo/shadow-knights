@@ -102,34 +102,52 @@ export class WeaponBase {
     
     // Créer un effet de flash (utilitaire)
     createMuzzleFlash(x, y, color) {
-        const flash = this.scene.add.circle(x, y, 12, color, 0.5);
+        const flash = this.scene.add.circle(x, y, 12, color, 0.6).setDepth(165);
+        const ring = this.scene.add.circle(x, y, 18, color, 0)
+            .setStrokeStyle(2, color, 0.7)
+            .setDepth(164);
+
         this.scene.tweens.add({
             targets: flash,
-            scale: 1.5,
+            scale: 1.8,
             alpha: 0,
-            duration: 100,
+            duration: 120,
+            ease: 'Cubic.easeOut',
             onComplete: () => flash.destroy()
+        });
+
+        this.scene.tweens.add({
+            targets: ring,
+            scale: 1.35,
+            alpha: 0,
+            duration: 180,
+            ease: 'Sine.easeOut',
+            onComplete: () => ring.destroy()
         });
     }
     
     // Ajouter un trail (utilitaire)
     addTrail(proj, color, size) {
-        let trailCount = 0;
-        const trailInterval = setInterval(() => {
-            if (!proj.scene || trailCount > 6) {
-                clearInterval(trailInterval);
-                return;
+        const trailEvent = this.scene.time.addEvent({
+            delay: 40,
+            repeat: 8,
+            callback: () => {
+                if (!proj || !proj.scene) {
+                    trailEvent.remove(false);
+                    return;
+                }
+
+                const trail = this.scene.add.circle(proj.x, proj.y, size * 0.58, color, 0.16).setDepth(140);
+                this.scene.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    scale: 0.35,
+                    duration: 210,
+                    ease: 'Sine.easeOut',
+                    onComplete: () => trail.destroy()
+                });
             }
-            const trail = this.scene.add.circle(proj.x, proj.y, size * 0.6, color, 0.1);
-            this.scene.tweens.add({
-                targets: trail,
-                alpha: 0,
-                scale: 0.5,
-                duration: 200,
-                onComplete: () => trail.destroy()
-            });
-            trailCount++;
-        }, 50);
+        });
     }
     
     // Réinitialiser la charge (quand annulée)
