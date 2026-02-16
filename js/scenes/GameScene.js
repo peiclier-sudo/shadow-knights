@@ -94,16 +94,16 @@ export class GameScene extends Phaser.Scene {
     createBackground(width, height) {
         // Deep gradient backdrop
         const gradient = this.add.graphics();
-        gradient.fillGradientStyle(0x070711, 0x151b2f, 0x090d1a, 0x1a2238, 1);
+        gradient.fillGradientStyle(0x040409, 0x0d1222, 0x050810, 0x111a2f, 1);
         gradient.fillRect(0, 0, width, height);
 
         // Subtle radial glow to focus center combat area
-        const centerGlow = this.add.circle(width * 0.52, height * 0.5, Math.max(width, height) * 0.45, 0x2a4e8c, 0.08)
+        const centerGlow = this.add.circle(width * 0.52, height * 0.5, Math.max(width, height) * 0.45, 0x21406f, 0.06)
             .setBlendMode(Phaser.BlendModes.SCREEN);
 
         // Faint grid lines for a cleaner arena feel
         const grid = this.add.graphics();
-        grid.lineStyle(1, 0x9ecbff, 0.045);
+        grid.lineStyle(1, 0x9ecbff, 0.03);
         const spacing = 64;
         for (let x = 0; x <= width; x += spacing) {
             grid.lineBetween(x, 0, x, height);
@@ -146,8 +146,11 @@ export class GameScene extends Phaser.Scene {
         makeStarLayer(80, 0.05, 0.22, 5000, 9000, 0.8, 1.6);
         makeStarLayer(30, 0.08, 0.28, 3500, 6500, 1.2, 2.3);
 
+        const vignette = this.add.circle(width * 0.5, height * 0.5, Math.max(width, height) * 0.78, 0x000000, 0.22)
+            .setBlendMode(Phaser.BlendModes.MULTIPLY);
+
         // Keep references if we want to tune/destroy later
-        this.backgroundDecor = { gradient, centerGlow, grid };
+        this.backgroundDecor = { gradient, centerGlow, grid, vignette };
     }
 
     createWeapon() {

@@ -66,7 +66,74 @@ export class StaffWeapon extends WeaponBase {
         const targetX = targetPoint.x;
         const targetY = targetPoint.y;
         
-        this.scene.tweens.add({
+        let exploded = false;
+
+        const explodeAt = (x, y) => {
+            if (exploded) return;
+            exploded = true;
+
+            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff6600, 0.7);
+
+            const boss = this.scene.boss;
+            if (boss) {
+                const distToExplosion = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
+                if (distToExplosion < charged.radius) {
+                    const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+                    boss.takeDamage(finalDamage);
+
+                    if (charged.dotDamage) {
+                        let tickCount = 0;
+                        const dotInterval = setInterval(() => {
+                            if (!boss.scene || tickCount >= charged.dotTicks) {
+                                clearInterval(dotInterval);
+                                return;
+                            }
+
+                            const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
+                            boss.takeDamage(dotDamage);
+                            boss.setTint(0xff6600);
+                            this.scene.time.delayedCall(100, () => boss.clearTint());
+                            tickCount++;
+                        }, charged.dotInterval);
+                    }
+                }
+            }
+
+            for (let i = 0; i < 12; i++) {
+                const particleAngle = (i / 12) * Math.PI * 2;
+                const particle = this.scene.add.circle(
+                    x, y,
+                    5 + Math.random() * 5,
+                    0xff6600,
+                    0.6
+                );
+
+                this.scene.tweens.add({
+                    targets: particle,
+                    x: x + Math.cos(particleAngle) * 100,
+                    y: y + Math.sin(particleAngle) * 100,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => particle.destroy()
+                });
+            }
+
+            this.scene.tweens.add({
+                targets: [explosion, glow, fireball],
+                alpha: 0,
+                scale: 1.5,
+                duration: 300,
+                onComplete: () => {
+                    explosion.destroy();
+                    glow.destroy();
+                    fireball.destroy();
+                }
+            });
+
+            this.scene.cameras.main.shake(170, 0.012);
+        };
+
+        const travelTween = this.scene.tweens.add({
             targets: [fireball, glow],
             x: targetX,
             y: targetY,
@@ -75,72 +142,34 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 glow.x = fireball.x;
                 glow.y = fireball.y;
-            },
-            onComplete: () => {
-                const explosion = this.scene.add.circle(targetX, targetY, charged.radius, 0xff6600, 0.7);
 
                 const boss = this.scene.boss;
-                if (boss) {
-                    const travelLine = new Phaser.Geom.Line(startX, startY, targetX, targetY);
-                    const nearest = Phaser.Geom.Line.GetNearestPoint(travelLine, { x: boss.x, y: boss.y });
-                    const distToLine = Phaser.Math.Distance.Between(nearest.x, nearest.y, boss.x, boss.y);
-                    const distToExplosion = Phaser.Math.Distance.Between(targetX, targetY, boss.x, boss.y);
+                if (!boss || exploded) return;
 
-                    // Inferno lance can hit either while passing through or at explosion point.
-                    if (distToLine < charged.radius * 0.55 || distToExplosion < charged.radius) {
-                        const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
-                        boss.takeDamage(finalDamage);
+                const distToBoss = Phaser.Math.Distance.Between(fireball.x, fireball.y, boss.x, boss.y);
+                if (distToBoss <= 52) {
+                    // Stop on contact and glue shortly to the boss before exploding.
+                    travelTween.stop();
+                    const stickTime = 140;
 
-                        if (charged.dotDamage) {
-                            let tickCount = 0;
-                            const dotInterval = setInterval(() => {
-                                if (!boss.scene || tickCount >= charged.dotTicks) {
-                                    clearInterval(dotInterval);
-                                    return;
-                                }
+                    fireball.setPosition(boss.x, boss.y);
+                    glow.setPosition(boss.x, boss.y);
 
-                                const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
-                                boss.takeDamage(dotDamage);
-                                boss.setTint(0xff6600);
-                                this.scene.time.delayedCall(100, () => boss.clearTint());
-                                tickCount++;
-                            }, charged.dotInterval);
-                        }
-                    }
-                }
+                    const followHandler = () => {
+                        if (!boss.scene || exploded) return;
+                        fireball.setPosition(boss.x, boss.y);
+                        glow.setPosition(boss.x, boss.y);
+                    };
+                    this.scene.events.on('update', followHandler);
 
-                for (let i = 0; i < 12; i++) {
-                    const particleAngle = (i / 12) * Math.PI * 2;
-                    const particle = this.scene.add.circle(
-                        targetX, targetY,
-                        5 + Math.random() * 5,
-                        0xff6600,
-                        0.6
-                    );
-
-                    this.scene.tweens.add({
-                        targets: particle,
-                        x: targetX + Math.cos(particleAngle) * 100,
-                        y: targetY + Math.sin(particleAngle) * 100,
-                        alpha: 0,
-                        duration: 300,
-                        onComplete: () => particle.destroy()
+                    this.scene.time.delayedCall(stickTime, () => {
+                        this.scene.events.off('update', followHandler);
+                        explodeAt(boss.x, boss.y);
                     });
                 }
-
-                this.scene.tweens.add({
-                    targets: [explosion, glow, fireball],
-                    alpha: 0,
-                    scale: 1.5,
-                    duration: 300,
-                    onComplete: () => {
-                        explosion.destroy();
-                        glow.destroy();
-                        fireball.destroy();
-                    }
-                });
-
-                this.scene.cameras.main.shake(170, 0.012);
+            },
+            onComplete: () => {
+                explodeAt(targetX, targetY);
             }
         });
     }

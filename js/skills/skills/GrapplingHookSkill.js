@@ -283,6 +283,40 @@ export class GrapplingHookSkill extends SkillBase {
                 
                 // ✅ Petit screen shake
                 this.scene.cameras.main.shake(100, 0.005);
+
+                // Apply vulnerability debuff: +30% damage taken for 6s
+                boss.damageTakenMultiplier = 1.3;
+                boss.setTint(0xffc266);
+
+                if (boss.vulnerabilityTimer) {
+                    boss.vulnerabilityTimer.remove(false);
+                    boss.vulnerabilityTimer = null;
+                }
+
+                boss.vulnerabilityTimer = this.scene.time.delayedCall(6000, () => {
+                    if (!boss.scene) return;
+                    boss.damageTakenMultiplier = 1.0;
+                    if (!boss.frozen && !boss.stunned) {
+                        boss.clearTint();
+                    }
+                    boss.vulnerabilityTimer = null;
+                });
+
+                const debuffText = this.scene.add.text(boss.x, boss.y - 80, 'VULNERABLE!', {
+                    fontSize: '22px',
+                    fill: '#ffc266',
+                    stroke: '#000',
+                    strokeThickness: 4,
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+
+                this.scene.tweens.add({
+                    targets: debuffText,
+                    y: boss.y - 120,
+                    alpha: 0,
+                    duration: 700,
+                    onComplete: () => debuffText.destroy()
+                });
                 
                 console.log(`🎯 GRAPPLED to boss!`);
             }

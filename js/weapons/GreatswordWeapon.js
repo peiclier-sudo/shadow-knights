@@ -51,11 +51,23 @@ export class GreatswordWeapon extends WeaponBase {
         slash.setRotation(angle);
         slash.setDepth(145);
 
+        const ring = this.scene.add.circle(this.player.x, this.player.y, 26, 0x99ff66, 0.25).setDepth(144);
+
         this.scene.tweens.add({
-            targets: slash,
+            targets: [slash, ring],
             alpha: 0,
-            duration: 220,
-            onComplete: () => slash.destroy()
+            scale: 1.15,
+            duration: 240,
+            onComplete: () => {
+                slash.destroy();
+                ring.destroy();
+            }
+        });
+
+        // Safety cleanup in case tween lifecycle is interrupted
+        this.scene.time.delayedCall(600, () => {
+            if (slash.scene) slash.destroy();
+            if (ring.scene) ring.destroy();
         });
 
         this.scene.tweens.add({
