@@ -88,6 +88,7 @@ export class WeaponBase {
         }
         
         this.player.stamina -= this.data.charged.staminaCost;
+        this.createChargeReleaseBurst(angle);
         this.executeChargedAttack(angle);
         
         console.log(`✅ Charged attack! Level: ${Math.floor(this.chargeLevel * 100)}%`);
@@ -102,54 +103,148 @@ export class WeaponBase {
     
     // Créer un effet de flash (utilitaire)
     createMuzzleFlash(x, y, color) {
-        const flash = this.scene.add.circle(x, y, 12, color, 0.6).setDepth(165);
-        const ring = this.scene.add.circle(x, y, 18, color, 0)
-            .setStrokeStyle(2, color, 0.7)
+        const flash = this.scene.add.circle(x, y, 14, color, 0.62).setDepth(165);
+        const ringA = this.scene.add.circle(x, y, 20, color, 0)
+            .setStrokeStyle(2, color, 0.8)
             .setDepth(164);
+        const ringB = this.scene.add.circle(x, y, 28, 0xffffff, 0)
+            .setStrokeStyle(1, color, 0.45)
+            .setDepth(163);
+
+        const sigil = this.scene.add.graphics().setDepth(166);
+        sigil.lineStyle(2, color, 0.65);
+        sigil.strokeCircle(x, y, 16);
+        sigil.beginPath();
+        sigil.arc(x, y, 24, -0.4, 0.4);
+        sigil.strokePath();
+        sigil.beginPath();
+        sigil.arc(x, y, 24, Math.PI - 0.4, Math.PI + 0.4);
+        sigil.strokePath();
 
         this.scene.tweens.add({
             targets: flash,
-            scale: 1.8,
+            scale: 2,
             alpha: 0,
-            duration: 120,
+            duration: 140,
             ease: 'Cubic.easeOut',
             onComplete: () => flash.destroy()
         });
 
         this.scene.tweens.add({
-            targets: ring,
-            scale: 1.35,
+            targets: [ringA, ringB],
+            scale: 1.55,
             alpha: 0,
-            duration: 180,
+            duration: 220,
             ease: 'Sine.easeOut',
+            onComplete: () => {
+                ringA.destroy();
+                ringB.destroy();
+            }
+        });
+
+        this.scene.tweens.add({
+            targets: sigil,
+            alpha: 0,
+            angle: 70,
+            duration: 260,
+            ease: 'Cubic.easeOut',
+            onComplete: () => sigil.destroy()
+        });
+
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2 + Math.random() * 0.2;
+            const spark = this.scene.add.circle(x, y, Phaser.Math.FloatBetween(1.8, 3.4), color, 0.9).setDepth(167);
+            this.scene.tweens.add({
+                targets: spark,
+                x: x + Math.cos(a) * Phaser.Math.Between(16, 34),
+                y: y + Math.sin(a) * Phaser.Math.Between(16, 34),
+                alpha: 0,
+                scale: 0.3,
+                duration: Phaser.Math.Between(120, 210),
+                ease: 'Sine.easeOut',
+                onComplete: () => spark.destroy()
+            });
+        }
+    }
+
+    createChargeReleaseBurst(angle) {
+        const x = this.player.x + Math.cos(angle) * 24;
+        const y = this.player.y + Math.sin(angle) * 24;
+        const color = this.data?.color || 0xffffff;
+
+        const cone = this.scene.add.graphics().setDepth(168);
+        cone.fillStyle(color, 0.28);
+        cone.slice(x, y, 68, angle - 0.45, angle + 0.45, false);
+        cone.fillPath();
+
+        const ring = this.scene.add.circle(x, y, 24, color, 0).setStrokeStyle(3, color, 0.8).setDepth(169);
+
+        this.scene.tweens.add({
+            targets: cone,
+            alpha: 0,
+            scaleX: 1.3,
+            scaleY: 0.9,
+            duration: 180,
+            onComplete: () => cone.destroy()
+        });
+
+        this.scene.tweens.add({
+            targets: ring,
+            alpha: 0,
+            scale: 2.2,
+            duration: 260,
+            ease: 'Expo.easeOut',
             onComplete: () => ring.destroy()
         });
     }
-    
+
     // Ajouter un trail (utilitaire)
     addTrail(proj, color, size) {
         const trailEvent = this.scene.time.addEvent({
-            delay: 40,
-            repeat: 8,
+            delay: 34,
+            repeat: 10,
             callback: () => {
                 if (!proj || !proj.scene) {
                     trailEvent.remove(false);
                     return;
                 }
 
-                const trail = this.scene.add.circle(proj.x, proj.y, size * 0.58, color, 0.16).setDepth(140);
+                const trail = this.scene.add.circle(proj.x, proj.y, size * 0.62, color, 0.2).setDepth(140);
+                const halo = this.scene.add.circle(proj.x, proj.y, size * 0.95, color, 0).setStrokeStyle(1, color, 0.25).setDepth(139);
+
                 this.scene.tweens.add({
-                    targets: trail,
+                    targets: [trail, halo],
                     alpha: 0,
-                    scale: 0.35,
-                    duration: 210,
+                    scale: 0.3,
+                    duration: 230,
                     ease: 'Sine.easeOut',
-                    onComplete: () => trail.destroy()
+                    onComplete: () => {
+                        trail.destroy();
+                        halo.destroy();
+                    }
                 });
+
+                if (Math.random() > 0.5) {
+                    const ember = this.scene.add.circle(
+                        proj.x + Phaser.Math.Between(-4, 4),
+                        proj.y + Phaser.Math.Between(-4, 4),
+                        Phaser.Math.FloatBetween(1.2, 2.4),
+                        color,
+                        0.75
+                    ).setDepth(141);
+
+                    this.scene.tweens.add({
+                        targets: ember,
+                        alpha: 0,
+                        y: ember.y - Phaser.Math.Between(4, 10),
+                        duration: Phaser.Math.Between(90, 160),
+                        onComplete: () => ember.destroy()
+                    });
+                }
             }
         });
     }
-    
+
     // Réinitialiser la charge (quand annulée)
     resetCharge() {
         this.isCharging = false;

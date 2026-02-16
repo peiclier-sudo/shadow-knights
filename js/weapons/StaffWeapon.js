@@ -136,7 +136,7 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
 
-        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.55).setDepth(170);
+        const fireball = this.scene.add.image(startX, startY, 'staff_fireball_0').setScale(1.22).setDepth(170);
         const glow = this.scene.add.circle(startX, startY, 38, 0xff6600, 0.42).setDepth(169);
         const core = this.scene.add.circle(startX, startY, 18, 0xffef88, 0.36).setDepth(171);
         const ringOuter = this.scene.add.circle(startX, startY, 30, 0xffa43a, 0).setStrokeStyle(3, 0xffc780, 0.75).setDepth(168);
@@ -296,6 +296,15 @@ export class StaffWeapon extends WeaponBase {
                 fireball.setTexture(`staff_fireball_${Math.floor(animElapsed / 34) % this.fireFrameCount}`);
                 fireball.setRotation(Math.atan2(targetY - fireball.y, targetX - fireball.x));
 
+                // Growth over travel for a stronger charged feel
+                const travelDist = Phaser.Math.Distance.Between(startX, startY, targetX, targetY) || 1;
+                const traveled = Phaser.Math.Distance.Between(startX, startY, fireball.x, fireball.y);
+                const progress = Phaser.Math.Clamp(traveled / travelDist, 0, 1);
+                fireball.setScale(1.22 + progress * 0.78);
+                glow.setRadius(38 + progress * 20);
+                ringOuter.setRadius(30 + progress * 10);
+                ringInner.setRadius(22 + progress * 8);
+
                 // Rotating rings and subtle offset for lively look
                 ringOuter.rotation += 0.12;
                 ringInner.rotation -= 0.18;
@@ -329,6 +338,14 @@ export class StaffWeapon extends WeaponBase {
                     core.setPosition(boss.x, boss.y);
                     ringOuter.setPosition(boss.x, boss.y);
                     ringInner.setPosition(boss.x, boss.y);
+
+                    this.scene.tweens.add({
+                        targets: [fireball, glow, core, ringOuter, ringInner],
+                        scale: '+=0.22',
+                        duration: 130,
+                        yoyo: true,
+                        ease: 'Sine.easeInOut'
+                    });
 
                     const followHandler = () => {
                         if (!boss.scene || exploded) return;
