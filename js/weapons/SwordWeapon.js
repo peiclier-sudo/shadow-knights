@@ -5,6 +5,17 @@ import { WEAPONS } from './weaponData.js';
 export class SwordWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.SWORD);
+        this.ultimateState = null;
+        this.ensureUltimateTextures();
+    }
+
+    ensureUltimateTextures() {
+        if (this.scene.textures.exists('sword-ult-dot')) return;
+        const g = this.scene.add.graphics();
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(4, 4, 4);
+        g.generateTexture('sword-ult-dot', 8, 8);
+        g.destroy();
     }
 
     fire(angle) {
@@ -308,5 +319,216 @@ export class SwordWeapon extends WeaponBase {
                 onComplete: () => spark.destroy()
             });
         }
+    }
+
+    startUltimateCharge(targetX, targetY) {
+        if (this.ultimateState || !this.canUseUltimate()) return false;
+
+        const aimX = targetX ?? this.player.x + 1;
+        const aimY = targetY ?? this.player.y;
+        const angle = Math.atan2(aimY - this.player.y, aimX - this.player.x);
+        const sideDist = 62;
+
+        const makeChargedSword = (side) => {
+            const sign = side === 'left' ? -1 : 1;
+            const sx = this.player.x + sign * sideDist;
+            const sy = this.player.y;
+
+            const container = this.scene.add.container(sx, sy).setDepth(188);
+            const aura = this.scene.add.rectangle(0, 0, 180, 34, 0xff9f2f, 0.15);
+            const blade = this.scene.add.rectangle(0, 0, 160, 14, 0xffe7c5, 0.95);
+            const edge = this.scene.add.rectangle(58, 0, 38, 5, 0xffffff, 0.92);
+            const guard = this.scene.add.rectangle(-66, 0, 24, 20, 0xffa941, 0.82);
+            const trail = this.scene.add.particles(0, 0, null, {
+                lifespan: { min: 180, max: 300 },
+                speed: { min: 40, max: 120 },
+                angle: { min: 150, max: 210 },
+                quantity: 1,
+                frequency: 26,
+                scale: { start: 0.7, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                tint: [0xfff3d0, 0xffd186, 0xffa948],
+                emitting: true,
+                blendMode: 'ADD'
+            });
+
+            trail.setTexture('sword-ult-dot');
+            trail.setDepth(187);
+
+            container.rotation = angle + (sign < 0 ? 0.2 : -0.2);
+            container.add([aura, blade, edge, guard]);
+
+            this.scene.tweens.add({
+                targets: [aura, blade],
+                alpha: { from: 0.55, to: 0.95 },
+                scaleX: { from: 0.94, to: 1.08 },
+                duration: 180,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            return {
+                side,
+                sign,
+                container,
+                aura,
+                blade,
+                edge,
+                guard,
+                trail,
+                phase: Math.random() * Math.PI * 2
+            };
+        };
+
+        this.ultimateState = {
+            phase: 'charge',
+            startedAt: this.scene.time.now,
+            targetX: aimX,
+            targetY: aimY,
+            swords: [makeChargedSword('left'), makeChargedSword('right')],
+            sigil: this.scene.add.graphics().setDepth(186)
+        };
+
+        return true;
+    }
+
+    updateUltimate(time, delta, targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        if (state.phase === 'charge') {
+            state.targetX = targetX ?? state.targetX;
+            state.targetY = targetY ?? state.targetY;
+
+            const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+            const sideDist = 62;
+            const sway = Math.sin(time * 0.012) * 7;
+
+            state.sigil.clear();
+            state.sigil.lineStyle(3, 0xffd07a, 0.38);
+            state.sigil.strokeCircle(this.player.x, this.player.y, 54 + Math.sin(time * 0.01) * 5);
+            state.sigil.lineStyle(1.5, 0xfff0cd, 0.32);
+            state.sigil.strokeCircle(this.player.x, this.player.y, 80 + Math.sin(time * 0.008) * 6);
+
+            for (const sword of state.swords) {
+                sword.phase += 0.08;
+                sword.container.x = this.player.x + sword.sign * sideDist;
+                sword.container.y = this.player.y + Math.sin(sword.phase) * 5;
+                sword.container.rotation = angle + (sword.sign < 0 ? 0.24 : -0.24) + sway * 0.002;
+                sword.trail.setPosition(sword.container.x - Math.cos(sword.container.rotation) * 50, sword.container.y - Math.sin(sword.container.rotation) * 50);
+            }
+        }
+    }
+
+    releaseUltimate(targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return false;
+
+        if (!this.consumeUltimate()) {
+            this.destroyUltimateState();
+            return false;
+        }
+
+        state.phase = 'rush';
+        state.targetX = targetX ?? state.targetX;
+        state.targetY = targetY ?? state.targetY;
+
+        const clamped = this.getClampedChargedTarget(state.targetX, state.targetY);
+        state.targetX = clamped.x;
+        state.targetY = clamped.y;
+
+        const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+        const perpX = Math.cos(angle + Math.PI * 0.5);
+        const perpY = Math.sin(angle + Math.PI * 0.5);
+
+        const boss = this.scene.boss;
+        let hitApplied = false;
+
+        for (const sword of state.swords) {
+            const sideOffset = sword.sign * 52;
+            const rushX = state.targetX + perpX * sideOffset;
+            const rushY = state.targetY + perpY * sideOffset;
+            const endX = state.targetX - perpX * sideOffset;
+            const endY = state.targetY - perpY * sideOffset;
+
+            sword.container.rotation = angle;
+
+            this.scene.tweens.add({
+                targets: sword.container,
+                x: rushX,
+                y: rushY,
+                duration: 200,
+                ease: 'Cubic.easeIn',
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: sword.container,
+                        x: endX,
+                        y: endY,
+                        duration: 260,
+                        ease: 'Cubic.easeOut',
+                        onComplete: () => {
+                            if (boss && !hitApplied) {
+                                hitApplied = true;
+                                const finalDamage = 220 * (this.player.damageMultiplier || 1.0);
+                                boss.takeDamage(finalDamage);
+                                this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
+                                boss.setTint(0xffd18a);
+                                this.scene.time.delayedCall(120, () => boss.clearTint());
+                            }
+                            this.spawnUltimateImpact(state.targetX, state.targetY);
+                        }
+                    });
+                }
+            });
+        }
+
+        this.scene.cameras.main.flash(140, 255, 205, 120);
+        this.scene.cameras.main.shake(180, 0.008);
+        this.scene.time.delayedCall(640, () => this.destroyUltimateState());
+        return true;
+    }
+
+    spawnUltimateImpact(x, y) {
+        const burst = this.scene.add.particles(x, y, 'sword-ult-dot', {
+            speed: { min: 180, max: 420 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 1.8, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: { min: 240, max: 540 },
+            quantity: 22,
+            blendMode: 'ADD',
+            emitting: false
+        }).setDepth(191);
+        burst.explode();
+
+        const ring = this.scene.add.circle(x, y, 20, 0xffe7be, 0).setStrokeStyle(4, 0xffd187, 0.88).setDepth(192);
+        this.scene.tweens.add({
+            targets: ring,
+            radius: 118,
+            alpha: 0,
+            duration: 220,
+            ease: 'Sine.easeOut',
+            onComplete: () => ring.destroy()
+        });
+
+        this.scene.time.delayedCall(700, () => burst.destroy());
+    }
+
+    destroyUltimateState() {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        state.sigil?.destroy();
+        for (const sword of state.swords || []) {
+            sword.aura?.destroy();
+            sword.blade?.destroy();
+            sword.edge?.destroy();
+            sword.guard?.destroy();
+            sword.trail?.destroy();
+            sword.container?.destroy();
+        }
+
+        this.ultimateState = null;
     }
 }
