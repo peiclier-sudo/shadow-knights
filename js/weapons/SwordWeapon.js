@@ -5,6 +5,95 @@ import { WEAPONS } from './weaponData.js';
 export class SwordWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.SWORD);
+        this.ultimateState = null;
+        this.ensureUltimateTextures();
+    }
+
+    ensureUltimateTextures() {
+        if (this.scene.textures.exists('sword-ult-dot')) return;
+        const g = this.scene.add.graphics();
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(4, 4, 4);
+        g.generateTexture('sword-ult-dot', 8, 8);
+        g.destroy();
+    }
+
+    createProceduralSwordParts(scale = 1, palette = {}, options = {}) {
+        const {
+            aura = 0xff9f2f,
+            blade = 0xffe7c5,
+            edge = 0xffffff,
+            guard = 0xffa941,
+            rune = 0xffcf83,
+            pommelCore = 0x6f4514,
+            pommelRing = 0xc88941
+        } = palette;
+        const {
+            darkKnight = false,
+            largePommel = 1
+        } = options;
+
+        const auraRect = this.scene.add.rectangle(8 * scale, 0, 200 * scale, 38 * scale, aura, darkKnight ? 0.2 : 0.16);
+        const bladeBody = this.scene.add.polygon(0, 0, [
+            -82 * scale, -7.4 * scale,
+            66 * scale, -7.4 * scale,
+            94 * scale, 0,
+            66 * scale, 7.4 * scale,
+            -82 * scale, 7.4 * scale
+        ], blade, 0.98).setStrokeStyle(1.1 * scale, edge, 0.9);
+
+        const fuller = this.scene.add.rectangle(8 * scale, 0, 112 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
+        const edgeRect = this.scene.add.polygon(0, 0, [
+            36 * scale, -2.5 * scale,
+            68 * scale, -2.5 * scale,
+            87 * scale, 0,
+            68 * scale, 2.5 * scale,
+            36 * scale, 2.5 * scale
+        ], edge, 0.92);
+
+        const guardRect = this.scene.add.rectangle(-66 * scale, 0, 28 * scale, 20 * scale, guard, 0.9);
+        const guardWingA = this.scene.add.triangle(-79 * scale, 0, 0, 0, -16 * scale, -8 * scale, -16 * scale, 8 * scale, guard, 0.86);
+        const guardWingB = this.scene.add.triangle(-53 * scale, 0, 0, 0, 16 * scale, -8 * scale, 16 * scale, 8 * scale, guard, 0.86);
+
+        const grip = this.scene.add.rectangle(-90 * scale, 0, 24 * scale, 10 * scale, darkKnight ? 0x1e1c26 : 0x5e3a18, 0.95)
+            .setStrokeStyle(1.2 * scale, darkKnight ? 0x5d5874 : 0xbf8a4a, 0.7);
+
+        const pommel = this.scene.add.circle(-108 * scale, 0, (8 * scale) * largePommel, pommelCore, 0.95)
+            .setStrokeStyle(2 * scale, pommelRing, 0.88);
+        const pommelCoreGlow = this.scene.add.circle(-108 * scale, 0, (3.4 * scale) * largePommel, edge, 0.55);
+
+        const runeArc = this.scene.add.graphics();
+        runeArc.lineStyle(2 * scale, rune, 0.72);
+        runeArc.beginPath();
+        runeArc.arc(0, 0, 82 * scale, -0.35, 0.35);
+        runeArc.strokePath();
+
+        return {
+            aura: auraRect,
+            blade: bladeBody,
+            fuller,
+            edge: edgeRect,
+            guard: guardRect,
+            guardWingA,
+            guardWingB,
+            grip,
+            pommel,
+            pommelCoreGlow,
+            runeArc,
+            all: [
+                auraRect,
+                bladeBody,
+                fuller,
+                edgeRect,
+                guardRect,
+                guardWingA,
+                guardWingB,
+                grip,
+                pommel,
+                pommelCoreGlow,
+                runeArc
+            ]
+        };
     }
 
     fire(angle) {
@@ -15,67 +104,47 @@ export class SwordWeapon extends WeaponBase {
         this.createMuzzleFlash(startX, startY, this.data.color);
         this.createSlashCastFX(startX, startY, angle, data);
 
-        const slash = this.scene.add.container(startX, startY).setDepth(150);
+        const sword = this.scene.add.container(startX, startY).setDepth(150);
+        const scale = 0.38 + data.size / 34;
 
-        const bladeGlow = this.scene.add.rectangle(0, 0, data.size * 3.1, data.size * 0.95, 0xffb84d, 0.28);
-        const bladeCore = this.scene.add.rectangle(0, 0, data.size * 2.45, data.size * 0.45, 0xfff2d3, 0.95);
-        const bladeEdge = this.scene.add.rectangle(data.size * 1.22, 0, data.size * 0.85, data.size * 0.26, 0xffffff, 0.92);
-        const guard = this.scene.add.rectangle(-data.size * 0.95, 0, data.size * 0.65, data.size * 0.55, 0xffa645, 0.78);
+        const blade = this.scene.add.triangle(
+            0,
+            0,
+            108 * scale,
+            0,
+            -64 * scale,
+            -14 * scale,
+            -64 * scale,
+            14 * scale,
+            0xfff1dc,
+            0.99
+        ).setStrokeStyle(1.9 * scale, 0xffffff, 0.94);
 
-        const arc = this.scene.add.graphics();
-        arc.lineStyle(3, 0xffd07f, 0.82);
-        arc.beginPath();
-        arc.arc(0, 0, data.size * 2.55, -0.7, 0.7);
-        arc.strokePath();
+        sword.add([blade]);
+        sword.rotation = angle;
 
-        slash.rotation = angle;
-        slash.add([bladeGlow, bladeCore, bladeEdge, guard, arc]);
-
-        this.scene.tweens.add({
-            targets: [bladeGlow, bladeCore],
-            alpha: { from: 0.95, to: 0.62 },
-            scaleX: { from: 1, to: 1.08 },
-            duration: 90,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        slash.vx = Math.cos(angle) * data.speed;
-        slash.vy = Math.sin(angle) * data.speed;
-        slash.damage = data.damage;
-        slash.range = data.range;
-        slash.startX = startX;
-        slash.startY = startY;
-        slash.piercing = data.piercing;
-        slash.hasHit = false;
-        slash.visualAngle = angle;
-
-        slash.update = () => {
-            if (!slash.scene) return;
-
-            const targetAngle = Math.atan2(slash.vy, slash.vx);
-            slash.visualAngle = Phaser.Math.Angle.RotateTo(slash.visualAngle, targetAngle, 0.24);
-            slash.rotation = slash.visualAngle;
-
-            if (Math.random() > 0.6) {
-                this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
-            }
-            if (Math.random() > 0.72) {
-                this.spawnBladeGhost(slash.x, slash.y, slash.visualAngle, data.size);
-            }
+        sword.vx = Math.cos(angle) * data.speed;
+        sword.vy = Math.sin(angle) * data.speed;
+        sword.damage = data.damage;
+        sword.range = data.range;
+        sword.startX = startX;
+        sword.startY = startY;
+        sword.piercing = data.piercing;
+        sword.hasHit = false;
+        sword.visualAngle = angle;
+        sword.update = () => {
+            if (!sword.scene) return;
+            const targetAngle = Math.atan2(sword.vy, sword.vx);
+            sword.visualAngle = Phaser.Math.Angle.RotateTo(sword.visualAngle, targetAngle, 0.24);
+            sword.rotation = sword.visualAngle;
         };
 
-        slash.on('destroy', () => {
-            bladeGlow.destroy();
-            bladeCore.destroy();
-            bladeEdge.destroy();
-            guard.destroy();
-            arc.destroy();
+        sword.on('destroy', () => {
+            blade.destroy();
         });
 
-        this.scene.projectiles.push(slash);
-        this.addTrail(slash, data.color, data.size);
+        this.scene.projectiles.push(sword);
+        this.addTrail(sword, data.color, data.size);
     }
 
     executeChargedAttack(angle) {
@@ -284,6 +353,19 @@ export class SwordWeapon extends WeaponBase {
         graphics.strokePath();
     }
 
+    drawCurveLine(graphics, x1, y1, cx, cy, x2, y2, segments = 14) {
+        graphics.beginPath();
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const inv = 1 - t;
+            const x = (inv * inv * x1) + (2 * inv * t * cx) + (t * t * x2);
+            const y = (inv * inv * y1) + (2 * inv * t * cy) + (t * t * y2);
+            if (i === 0) graphics.moveTo(x, y);
+            else graphics.lineTo(x, y);
+        }
+        graphics.strokePath();
+    }
+
     spawnBeamParticles(startX, startY, angle, charged) {
         for (let i = 0; i < 20; i++) {
             const dist = i * (charged.length / 20);
@@ -308,5 +390,218 @@ export class SwordWeapon extends WeaponBase {
                 onComplete: () => spark.destroy()
             });
         }
+    }
+
+    startUltimateCharge(targetX, targetY) {
+        if (this.ultimateState || !this.canUseUltimate()) return false;
+
+        const aimX = targetX ?? this.player.x + 1;
+        const aimY = targetY ?? this.player.y;
+        const angle = Math.atan2(aimY - this.player.y, aimX - this.player.x);
+        const sideDist = 62;
+
+        const makeChargedSword = (side) => {
+            const sign = side === 'left' ? -1 : 1;
+            const sx = this.player.x + sign * sideDist;
+            const sy = this.player.y;
+
+            const container = this.scene.add.container(sx, sy).setDepth(188);
+            const swordParts = this.createProceduralSwordParts(1.35, {
+                aura: 0x5b5a82,
+                blade: 0xd6d6e8,
+                edge: 0xf5f8ff,
+                guard: 0x2c2a38,
+                rune: 0x9fa6ff,
+                pommelCore: 0x121018,
+                pommelRing: 0x7e85c9
+            }, {
+                darkKnight: true,
+                largePommel: 1.45
+            });
+            const trail = this.scene.add.particles(0, 0, null, {
+                lifespan: { min: 180, max: 300 },
+                speed: { min: 40, max: 120 },
+                angle: { min: 150, max: 210 },
+                quantity: 1,
+                frequency: 26,
+                scale: { start: 0.7, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                tint: [0xfff3d0, 0xffd186, 0xffa948],
+                emitting: true,
+                blendMode: 'ADD'
+            });
+
+            trail.setTexture('sword-ult-dot');
+            trail.setDepth(187);
+
+            container.rotation = angle + (sign < 0 ? 0.2 : -0.2);
+            container.add(swordParts.all);
+
+            this.scene.tweens.add({
+                targets: [swordParts.aura, swordParts.blade],
+                alpha: { from: 0.55, to: 0.95 },
+                scaleX: { from: 0.94, to: 1.08 },
+                duration: 180,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            return {
+                side,
+                sign,
+                container,
+                parts: swordParts,
+                trail,
+                phase: Math.random() * Math.PI * 2
+            };
+        };
+
+        this.ultimateState = {
+            phase: 'charge',
+            startedAt: this.scene.time.now,
+            targetX: aimX,
+            targetY: aimY,
+            swords: [makeChargedSword('left'), makeChargedSword('right')],
+            sigil: this.scene.add.graphics().setDepth(186)
+        };
+
+        return true;
+    }
+
+    updateUltimate(time, delta, targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        if (state.phase === 'charge') {
+            state.targetX = targetX ?? state.targetX;
+            state.targetY = targetY ?? state.targetY;
+
+            const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+            const sideDist = 62;
+            const sway = Math.sin(time * 0.012) * 7;
+
+            state.sigil.clear();
+            state.sigil.lineStyle(3, 0xffd07a, 0.38);
+            state.sigil.strokeCircle(this.player.x, this.player.y, 54 + Math.sin(time * 0.01) * 5);
+            state.sigil.lineStyle(1.5, 0xfff0cd, 0.32);
+            state.sigil.strokeCircle(this.player.x, this.player.y, 80 + Math.sin(time * 0.008) * 6);
+
+            for (const sword of state.swords) {
+                sword.phase += 0.08;
+                sword.container.x = this.player.x + sword.sign * sideDist;
+                sword.container.y = this.player.y + Math.sin(sword.phase) * 5;
+                sword.container.rotation = angle + (sword.sign < 0 ? 0.24 : -0.24) + sway * 0.002;
+                sword.trail.setPosition(sword.container.x - Math.cos(sword.container.rotation) * 50, sword.container.y - Math.sin(sword.container.rotation) * 50);
+            }
+        }
+    }
+
+    releaseUltimate(targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return false;
+
+        if (!this.consumeUltimate()) {
+            this.destroyUltimateState();
+            return false;
+        }
+
+        state.phase = 'rush';
+        state.targetX = targetX ?? state.targetX;
+        state.targetY = targetY ?? state.targetY;
+
+        const clamped = this.getClampedChargedTarget(state.targetX, state.targetY);
+        state.targetX = clamped.x;
+        state.targetY = clamped.y;
+
+        const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+        const perpX = Math.cos(angle + Math.PI * 0.5);
+        const perpY = Math.sin(angle + Math.PI * 0.5);
+
+        const boss = this.scene.boss;
+        let hitApplied = false;
+
+        for (const sword of state.swords) {
+            const sideOffset = sword.sign * 52;
+            const rushX = state.targetX + perpX * sideOffset;
+            const rushY = state.targetY + perpY * sideOffset;
+            const endX = state.targetX - perpX * sideOffset;
+            const endY = state.targetY - perpY * sideOffset;
+
+            sword.container.rotation = angle;
+
+            this.scene.tweens.add({
+                targets: sword.container,
+                x: rushX,
+                y: rushY,
+                duration: 200,
+                ease: 'Cubic.easeIn',
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: sword.container,
+                        x: endX,
+                        y: endY,
+                        duration: 260,
+                        ease: 'Cubic.easeOut',
+                        onComplete: () => {
+                            if (boss && !hitApplied) {
+                                hitApplied = true;
+                                const finalDamage = 220 * (this.player.damageMultiplier || 1.0);
+                                boss.takeDamage(finalDamage);
+                                this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
+                                boss.setTint(0xffd18a);
+                                this.scene.time.delayedCall(120, () => boss.clearTint());
+                            }
+                            this.spawnUltimateImpact(state.targetX, state.targetY);
+                        }
+                    });
+                }
+            });
+        }
+
+        this.scene.cameras.main.flash(140, 255, 205, 120);
+        this.scene.cameras.main.shake(180, 0.008);
+        this.scene.time.delayedCall(640, () => this.destroyUltimateState());
+        return true;
+    }
+
+    spawnUltimateImpact(x, y) {
+        const burst = this.scene.add.particles(x, y, 'sword-ult-dot', {
+            speed: { min: 180, max: 420 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 1.8, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: { min: 240, max: 540 },
+            quantity: 22,
+            blendMode: 'ADD',
+            emitting: false
+        }).setDepth(191);
+        burst.explode();
+
+        const ring = this.scene.add.circle(x, y, 20, 0xffe7be, 0).setStrokeStyle(4, 0xffd187, 0.88).setDepth(192);
+        this.scene.tweens.add({
+            targets: ring,
+            radius: 118,
+            alpha: 0,
+            duration: 220,
+            ease: 'Sine.easeOut',
+            onComplete: () => ring.destroy()
+        });
+
+        this.scene.time.delayedCall(700, () => burst.destroy());
+    }
+
+    destroyUltimateState() {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        state.sigil?.destroy();
+        for (const sword of state.swords || []) {
+            sword.parts?.all?.forEach((part) => part.destroy());
+            sword.trail?.destroy();
+            sword.container?.destroy();
+        }
+
+        this.ultimateState = null;
     }
 }
