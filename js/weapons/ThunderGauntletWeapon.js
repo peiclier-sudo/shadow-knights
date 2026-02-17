@@ -114,6 +114,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
         const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
         boss.takeDamage(finalDamage);
+        this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
 
         boss.damageTakenMultiplier = charged.vulnerabilityMultiplier;
         boss.setTint(0x8fd8ff);

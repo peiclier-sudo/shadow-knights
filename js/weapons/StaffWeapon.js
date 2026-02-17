@@ -205,6 +205,7 @@ export class StaffWeapon extends WeaponBase {
                 if (dist <= charged.radius) {
                     const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
                     boss.takeDamage(finalDamage);
+                    this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
 
                     if (charged.dotDamage) {
                         let tick = 0;
@@ -213,7 +214,9 @@ export class StaffWeapon extends WeaponBase {
                                 clearInterval(timer);
                                 return;
                             }
-                            boss.takeDamage(charged.dotDamage * (this.player.damageMultiplier || 1.0));
+                            const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
+                            boss.takeDamage(dotDamage);
+                            this.gainUltimateGaugeFromDamage(dotDamage, { charged: true, dot: true });
                             boss.setTint(0xff7f3a);
                             this.scene.time.delayedCall(120, () => boss.clearTint());
                             tick++;
@@ -223,7 +226,7 @@ export class StaffWeapon extends WeaponBase {
             }
 
             this.scene.cameras.main.flash(180, 255, 170, 95);
-            this.scene.cameras.main.shake(220, 0.013 + chargePower * 0.003);
+            this.scene.cameras.main.shake(200, 0.009 + chargePower * 0.002);
 
             core.destroy();
             flames.destroy();

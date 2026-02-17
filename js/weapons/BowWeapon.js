@@ -83,6 +83,7 @@ export class BowWeapon extends WeaponBase {
                 const distToBoss = Phaser.Math.Distance.Between(centerX, centerY, boss.x, boss.y);
                 if (distToBoss <= charged.radius) {
                     boss.takeDamage(perWaveDamage);
+                    this.gainUltimateGaugeFromDamage(perWaveDamage, { charged: true });
                     if (wave === 0) {
                         console.log(`🏹 Cataclysm Rain: ${Math.floor(perWaveDamage)} per wave x${waves}`);
                     }

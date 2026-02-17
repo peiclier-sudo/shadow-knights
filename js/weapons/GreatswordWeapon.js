@@ -114,6 +114,7 @@ export class GreatswordWeapon extends WeaponBase {
             if (distToPath <= charged.radius) {
                 const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(finalDamage);
+                this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
 
                 if (charged.stun) {
                     boss.stunned = true;
