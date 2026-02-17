@@ -25,7 +25,7 @@ export const SKILL_DATA = {
         name: 'GRAPPLING HOOK',
         class: 'WARRIOR',
         icon: '🪝',
-        description: 'Launch hook and pull yourself to target (500px range)',
+        description: 'Dash strike then warp back, applies Shocked (+20% damage taken)',
         staminaCost: 35,
         cooldown: 12000,
         color: 0xffaa00

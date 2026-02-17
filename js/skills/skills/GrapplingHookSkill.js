@@ -259,14 +259,13 @@ export class GrapplingHookSkill extends SkillBase {
             },
             onComplete: () => {
                 // ✅ Arrivée sur le boss
-                this.player.isInvulnerable = false;
-                this.player.isDashing = false;
-                
                 // Détruire la corde
                 if (rope.scene) rope.destroy();
                 if (trailEvent && !trailEvent.hasDispatched) trailEvent.remove(false);
 
                 if (!boss.scene) {
+                    this.player.isInvulnerable = false;
+                    this.player.isDashing = false;
                     console.log('🎯 GRAPPLE finished but boss no longer exists.');
                     return;
                 }
@@ -306,8 +305,14 @@ export class GrapplingHookSkill extends SkillBase {
                 // ✅ Petit screen shake
                 this.scene.cameras.main.shake(100, 0.005);
 
-                // Apply vulnerability debuff: +30% damage taken for 6s
-                boss.damageTakenMultiplier = 1.3;
+                this.createSparkleBurst(this.player.x, this.player.y);
+                this.createThunderStrike(startX, startY, this.player.x, this.player.y);
+
+                const dashDamage = Math.round(55 * (this.player.damageMultiplier || 1.0));
+                boss.takeDamage(dashDamage);
+
+                // Apply vulnerability debuff: +20% damage taken for 6s
+                boss.damageTakenMultiplier = 1.2;
                 boss.setTint(0xffc266);
 
                 if (boss.vulnerabilityTimer) {
@@ -324,7 +329,7 @@ export class GrapplingHookSkill extends SkillBase {
                     boss.vulnerabilityTimer = null;
                 });
 
-                const debuffText = this.scene.add.text(boss.x, boss.y - 80, 'VULNERABLE!', {
+                const debuffText = this.scene.add.text(boss.x, boss.y - 80, 'SHOCKED! +20%', {
                     fontSize: '22px',
                     fill: '#ffc266',
                     stroke: '#000',
@@ -339,9 +344,81 @@ export class GrapplingHookSkill extends SkillBase {
                     duration: 700,
                     onComplete: () => debuffText.destroy()
                 });
+
+                this.dashBackToStart(startX, startY, boss);
                 
                 console.log(`🎯 GRAPPLED to boss!`);
             }
+        });
+    }
+
+    dashBackToStart(startX, startY, boss) {
+        this.scene.tweens.add({
+            targets: this.player,
+            x: startX,
+            y: startY,
+            duration: 220,
+            ease: 'Sine.easeInOut',
+            onUpdate: () => {
+                this.createSparkleBurst(this.player.x, this.player.y, 0xaad8ff, 2);
+            },
+            onComplete: () => {
+                this.player.isInvulnerable = false;
+                this.player.isDashing = false;
+                this.createThunderStrike(this.player.x, this.player.y - 70, this.player.x, this.player.y + 30);
+                this.createSparkleBurst(this.player.x, this.player.y, 0xe2f2ff, 16);
+
+                if (boss.scene) {
+                    this.scene.cameras.main.shake(80, 0.003);
+                }
+            }
+        });
+    }
+
+    createSparkleBurst(x, y, color = 0xfff1a8, count = 12) {
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const sparkle = this.scene.add.star(x, y, 4, 2, 5, color, 0.9);
+            sparkle.setDepth(115);
+
+            this.scene.tweens.add({
+                targets: sparkle,
+                x: x + Math.cos(angle) * Phaser.Math.Between(20, 52),
+                y: y + Math.sin(angle) * Phaser.Math.Between(20, 52),
+                alpha: 0,
+                scale: 0.35,
+                duration: 260,
+                onComplete: () => sparkle.destroy()
+            });
+        }
+    }
+
+    createThunderStrike(fromX, fromY, toX, toY) {
+        const bolt = this.scene.add.graphics();
+        bolt.setDepth(114);
+
+        bolt.lineStyle(4, 0x9dd9ff, 0.95);
+        bolt.beginPath();
+        bolt.moveTo(fromX, fromY);
+
+        const segments = 5;
+        for (let i = 1; i < segments; i++) {
+            const t = i / segments;
+            const jitterX = Phaser.Math.Between(-14, 14);
+            const jitterY = Phaser.Math.Between(-14, 14);
+            const x = Phaser.Math.Linear(fromX, toX, t) + jitterX;
+            const y = Phaser.Math.Linear(fromY, toY, t) + jitterY;
+            bolt.lineTo(x, y);
+        }
+
+        bolt.lineTo(toX, toY);
+        bolt.strokePath();
+
+        this.scene.tweens.add({
+            targets: bolt,
+            alpha: 0,
+            duration: 160,
+            onComplete: () => bolt.destroy()
         });
     }
 }
