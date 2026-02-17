@@ -6,93 +6,30 @@ export class SwordWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.SWORD);
         this.ultimateState = null;
-        this.ensureUltimateTextures();
     }
 
-    ensureUltimateTextures() {
-        if (this.scene.textures.exists('sword-ult-dot')) return;
-        const g = this.scene.add.graphics();
-        g.fillStyle(0xffffff, 1);
-        g.fillCircle(4, 4, 4);
-        g.generateTexture('sword-ult-dot', 8, 8);
-        g.destroy();
-    }
+    createSimpleSwordVisual(scale = 1) {
+        const blade = this.scene.add.polygon(0, 0, [
+            -42 * scale, -4.4 * scale,
+            58 * scale, -4.4 * scale,
+            72 * scale, 0,
+            58 * scale, 4.4 * scale,
+            -42 * scale, 4.4 * scale
+        ], 0xfff1dc, 0.99).setStrokeStyle(Math.max(0.6, 1.6 * scale), 0xffffff, 0.9);
 
-    createProceduralSwordParts(scale = 1, palette = {}, options = {}) {
-        const {
-            aura = 0xff9f2f,
-            blade = 0xffe7c5,
-            edge = 0xffffff,
-            guard = 0xffa941,
-            rune = 0xffcf83,
-            pommelCore = 0x6f4514,
-            pommelRing = 0xc88941
-        } = palette;
-        const {
-            darkKnight = false,
-            largePommel = 1
-        } = options;
-
-        const auraRect = this.scene.add.rectangle(8 * scale, 0, 200 * scale, 38 * scale, aura, darkKnight ? 0.2 : 0.16);
-        const bladeBody = this.scene.add.polygon(0, 0, [
-            -82 * scale, -7.4 * scale,
-            66 * scale, -7.4 * scale,
-            94 * scale, 0,
-            66 * scale, 7.4 * scale,
-            -82 * scale, 7.4 * scale
-        ], blade, 0.98).setStrokeStyle(1.1 * scale, edge, 0.9);
-
-        const fuller = this.scene.add.rectangle(8 * scale, 0, 112 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
-        const edgeRect = this.scene.add.polygon(0, 0, [
-            36 * scale, -2.5 * scale,
-            68 * scale, -2.5 * scale,
-            87 * scale, 0,
-            68 * scale, 2.5 * scale,
-            36 * scale, 2.5 * scale
-        ], edge, 0.92);
-
-        const guardRect = this.scene.add.rectangle(-66 * scale, 0, 28 * scale, 20 * scale, guard, 0.9);
-        const guardWingA = this.scene.add.triangle(-79 * scale, 0, 0, 0, -16 * scale, -8 * scale, -16 * scale, 8 * scale, guard, 0.86);
-        const guardWingB = this.scene.add.triangle(-53 * scale, 0, 0, 0, 16 * scale, -8 * scale, 16 * scale, 8 * scale, guard, 0.86);
-
-        const grip = this.scene.add.rectangle(-90 * scale, 0, 24 * scale, 10 * scale, darkKnight ? 0x1e1c26 : 0x5e3a18, 0.95)
-            .setStrokeStyle(1.2 * scale, darkKnight ? 0x5d5874 : 0xbf8a4a, 0.7);
-
-        const pommel = this.scene.add.circle(-108 * scale, 0, (8 * scale) * largePommel, pommelCore, 0.95)
-            .setStrokeStyle(2 * scale, pommelRing, 0.88);
-        const pommelCoreGlow = this.scene.add.circle(-108 * scale, 0, (3.4 * scale) * largePommel, edge, 0.55);
-
-        const runeArc = this.scene.add.graphics();
-        runeArc.lineStyle(2 * scale, rune, 0.72);
-        runeArc.beginPath();
-        runeArc.arc(0, 0, 82 * scale, -0.35, 0.35);
-        runeArc.strokePath();
+        const guard = this.scene.add.rectangle(-44 * scale, 0, 12 * scale, 10 * scale, 0xd3944e, 0.96)
+            .setStrokeStyle(Math.max(0.5, 1 * scale), 0xf1c489, 0.72);
+        const grip = this.scene.add.rectangle(-55 * scale, 0, 12 * scale, 6 * scale, 0x714b25, 0.96)
+            .setStrokeStyle(Math.max(0.45, 0.9 * scale), 0xc79558, 0.64);
+        const pommel = this.scene.add.circle(-63 * scale, 0, 3.2 * scale, 0x946031, 0.96)
+            .setStrokeStyle(Math.max(0.5, 1 * scale), 0xddae6f, 0.84);
 
         return {
-            aura: auraRect,
-            blade: bladeBody,
-            fuller,
-            edge: edgeRect,
-            guard: guardRect,
-            guardWingA,
-            guardWingB,
+            blade,
+            guard,
             grip,
             pommel,
-            pommelCoreGlow,
-            runeArc,
-            all: [
-                auraRect,
-                bladeBody,
-                fuller,
-                edgeRect,
-                guardRect,
-                guardWingA,
-                guardWingB,
-                grip,
-                pommel,
-                pommelCoreGlow,
-                runeArc
-            ]
+            all: [blade, guard, grip, pommel]
         };
     }
 
@@ -131,23 +68,9 @@ export class SwordWeapon extends WeaponBase {
 
         const sword = this.scene.add.container(startX, startY).setDepth(150);
         const scale = 0.26 + size / 44;
+        const swordVisual = this.createSimpleSwordVisual(scale);
 
-        const blade = this.scene.add.polygon(0, 0, [
-            -42 * scale, -4.4 * scale,
-            58 * scale, -4.4 * scale,
-            72 * scale, 0,
-            58 * scale, 4.4 * scale,
-            -42 * scale, 4.4 * scale
-        ], 0xfff1dc, 0.99).setStrokeStyle(1.6 * scale, 0xffffff, 0.9);
-
-        const guard = this.scene.add.rectangle(-44 * scale, 0, 12 * scale, 10 * scale, 0xd3944e, 0.96)
-            .setStrokeStyle(1 * scale, 0xf1c489, 0.72);
-        const grip = this.scene.add.rectangle(-55 * scale, 0, 12 * scale, 6 * scale, 0x714b25, 0.96)
-            .setStrokeStyle(0.9 * scale, 0xc79558, 0.64);
-        const pommel = this.scene.add.circle(-63 * scale, 0, 3.2 * scale, 0x946031, 0.96)
-            .setStrokeStyle(1 * scale, 0xddae6f, 0.84);
-
-        sword.add([blade, guard, grip, pommel]);
+        sword.add(swordVisual.all);
         sword.rotation = angle;
 
         sword.vx = Math.cos(angle) * speed;
@@ -167,10 +90,7 @@ export class SwordWeapon extends WeaponBase {
         };
 
         sword.on('destroy', () => {
-            blade.destroy();
-            guard.destroy();
-            grip.destroy();
-            pommel.destroy();
+            swordVisual.all.forEach((part) => part.destroy());
         });
 
         this.scene.projectiles.push(sword);
@@ -308,34 +228,15 @@ export class SwordWeapon extends WeaponBase {
         this.scene.tweens.add({
             targets: [castArc, flash],
             alpha: 0,
-            scaleX: 1.2,
-            scaleY: 1.1,
-            duration: 120,
+            scaleX: 1.15,
+            scaleY: 1.05,
+            duration: 90,
             ease: 'Cubic.easeOut',
             onComplete: () => {
                 castArc.destroy();
                 flash.destroy();
             }
         });
-
-        for (let i = 0; i < 8; i++) {
-            const spark = this.scene.add.circle(
-                x + Phaser.Math.Between(-10, 10),
-                y + Phaser.Math.Between(-10, 10),
-                Phaser.Math.FloatBetween(1.8, 3.8),
-                Phaser.Math.RND.pick([0xfff2d4, 0xffd79c, 0xffb55a]),
-                0.88
-            ).setDepth(159);
-
-            this.scene.tweens.add({
-                targets: spark,
-                x: spark.x + Math.cos(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(20, 36),
-                y: spark.y + Math.sin(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(20, 36),
-                alpha: 0,
-                duration: Phaser.Math.Between(90, 170),
-                onComplete: () => spark.destroy()
-            });
-        }
     }
 
     spawnSwordSpark(x, y, angle) {
@@ -434,22 +335,11 @@ export class SwordWeapon extends WeaponBase {
         const angle = Math.atan2(aimY - this.player.y, aimX - this.player.x);
 
         const makeSummonedSword = (sign) => {
-            const container = this.scene.add.container(this.player.x, this.player.y).setDepth(188);
-            const parts = this.createProceduralSwordParts(1.1, {
-                aura: 0x7a73c7,
-                blade: 0xe6e7ff,
-                edge: 0xffffff,
-                guard: 0x5f57a8,
-                rune: 0xc0c6ff,
-                pommelCore: 0x302858,
-                pommelRing: 0x908ad3
-            }, {
-                darkKnight: true,
-                largePommel: 1.1
-            });
-            container.add(parts.all);
-            container.rotation = angle + (sign < 0 ? 0.22 : -0.22);
-            return { sign, container, parts, phase: Math.random() * Math.PI * 2 };
+            const container = this.scene.add.container(this.player.x + sign * 60, this.player.y).setDepth(188);
+            const visual = this.createSimpleSwordVisual(1.35);
+            container.add(visual.all);
+            container.rotation = angle + (sign < 0 ? 0.24 : -0.24);
+            return { sign, container, visual, phase: Math.random() * Math.PI * 2 };
         };
 
         this.ultimateState = {
@@ -513,55 +403,25 @@ export class SwordWeapon extends WeaponBase {
         state.targetX = clamped.x;
         state.targetY = clamped.y;
 
-        const ultimateRange = 520;
-
         for (const summoned of state.swords) {
             const angle = Math.atan2(state.targetY - summoned.container.y, state.targetX - summoned.container.x);
             this.launchSwordProjectile(angle, {
-                startX: summoned.container.x + Math.cos(angle) * 38,
-                startY: summoned.container.y + Math.sin(angle) * 38,
-                speed: 1280,
+                startX: summoned.container.x + Math.cos(angle) * 34,
+                startY: summoned.container.y + Math.sin(angle) * 34,
+                speed: this.data.projectile.speed,
                 damage: 120,
-                range: ultimateRange,
-                size: this.data.projectile.size + 6,
-                color: 0xdedbff,
+                range: 520,
+                size: this.data.projectile.size,
+                color: this.data.projectile.color,
                 piercing: true,
-                trailSize: this.data.projectile.size + 4
+                trailSize: this.data.projectile.size
             });
         }
 
-        this.spawnUltimateImpact(state.targetX, state.targetY);
-
-        this.scene.cameras.main.flash(140, 255, 205, 120);
-        this.scene.cameras.main.shake(180, 0.008);
+        this.scene.cameras.main.flash(120, 255, 205, 120);
+        this.scene.cameras.main.shake(160, 0.007);
         this.destroyUltimateState();
         return true;
-    }
-
-    spawnUltimateImpact(x, y) {
-        const burst = this.scene.add.particles(x, y, 'sword-ult-dot', {
-            speed: { min: 180, max: 420 },
-            angle: { min: 0, max: 360 },
-            scale: { start: 1.8, end: 0 },
-            alpha: { start: 1, end: 0 },
-            lifespan: { min: 240, max: 540 },
-            quantity: 22,
-            blendMode: 'ADD',
-            emitting: false
-        }).setDepth(191);
-        burst.explode();
-
-        const ring = this.scene.add.circle(x, y, 20, 0xffe7be, 0).setStrokeStyle(4, 0xffd187, 0.88).setDepth(192);
-        this.scene.tweens.add({
-            targets: ring,
-            radius: 118,
-            alpha: 0,
-            duration: 220,
-            ease: 'Sine.easeOut',
-            onComplete: () => ring.destroy()
-        });
-
-        this.scene.time.delayedCall(700, () => burst.destroy());
     }
 
     destroyUltimateState() {
@@ -570,7 +430,7 @@ export class SwordWeapon extends WeaponBase {
 
         state.sigil?.destroy();
         for (const sword of state.swords || []) {
-            sword.parts?.all?.forEach((part) => part.destroy());
+            sword.visual?.all?.forEach((part) => part.destroy());
             sword.container?.destroy();
         }
 
