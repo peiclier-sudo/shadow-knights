@@ -148,12 +148,18 @@ export class SwordWeapon extends WeaponBase {
 
         const sideCurves = this.scene.add.graphics();
         sideCurves.lineStyle(2.7 * scale, 0xffd896, 0.82);
-        sideCurves.beginPath();
-        sideCurves.moveTo(-56 * scale, -1 * scale);
-        sideCurves.quadraticCurveTo(12 * scale, -22 * scale, 94 * scale, -5 * scale);
-        sideCurves.moveTo(-56 * scale, 1 * scale);
-        sideCurves.quadraticCurveTo(12 * scale, 22 * scale, 94 * scale, 5 * scale);
-        sideCurves.strokePath();
+        this.drawCurveLine(sideCurves,
+            -56 * scale, -1 * scale,
+            12 * scale, -22 * scale,
+            94 * scale, -5 * scale,
+            16
+        );
+        this.drawCurveLine(sideCurves,
+            -56 * scale, 1 * scale,
+            12 * scale, 22 * scale,
+            94 * scale, 5 * scale,
+            16
+        );
 
         const hilt = this.scene.add.rectangle(-78 * scale, 0, 23 * scale, 17 * scale, 0xcf8b3f, 0.98)
             .setStrokeStyle(1.2 * scale, 0xf9d18a, 0.88);
@@ -411,6 +417,19 @@ export class SwordWeapon extends WeaponBase {
             else graphics.lineTo(x, y);
         }
 
+        graphics.strokePath();
+    }
+
+    drawCurveLine(graphics, x1, y1, cx, cy, x2, y2, segments = 14) {
+        graphics.beginPath();
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const inv = 1 - t;
+            const x = (inv * inv * x1) + (2 * inv * t * cx) + (t * t * x2);
+            const y = (inv * inv * y1) + (2 * inv * t * cy) + (t * t * y2);
+            if (i === 0) graphics.moveTo(x, y);
+            else graphics.lineTo(x, y);
+        }
         graphics.strokePath();
     }
 
