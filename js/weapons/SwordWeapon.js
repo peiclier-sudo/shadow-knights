@@ -102,101 +102,63 @@ export class SwordWeapon extends WeaponBase {
         const startY = this.player.y + Math.sin(angle) * 30;
 
         this.createMuzzleFlash(startX, startY, this.data.color);
-        this.createSlashCastFX(startX, startY, angle, data);
 
-        const slash = this.scene.add.container(startX, startY).setDepth(150);
-        const scale = 0.22 + data.size / 52;
+        const sword = this.scene.add.container(startX, startY).setDepth(150);
+        const scale = 0.24 + data.size / 58;
 
-        const auraBlade = this.scene.add.polygon(0, 0, [
-            -96 * scale, -10 * scale,
-            72 * scale, -10 * scale,
-            112 * scale, 0,
-            72 * scale, 10 * scale,
-            -96 * scale, 10 * scale
-        ], 0xffa63f, 0.24);
+        // One clean sword silhouette: triangle blade + curved side trails.
+        const blade = this.scene.add.triangle(
+            0,
+            0,
+            -78 * scale, 0,
+            54 * scale, -12 * scale,
+            54 * scale, 12 * scale,
+            0xffecd1,
+            0.98
+        ).setStrokeStyle(1.3 * scale, 0xffffff, 0.9);
 
-        const blade = this.scene.add.polygon(0, 0, [
-            -86 * scale, -7.2 * scale,
-            64 * scale, -7.2 * scale,
-            94 * scale, 0,
-            64 * scale, 7.2 * scale,
-            -86 * scale, 7.2 * scale
-        ], 0xffe7ca, 0.98).setStrokeStyle(1.2 * scale, 0xffffff, 0.9);
+        const sideCurves = this.scene.add.graphics();
+        sideCurves.lineStyle(2, 0xffd896, 0.68);
+        sideCurves.beginPath();
+        sideCurves.moveTo(-68 * scale, -1 * scale);
+        sideCurves.quadraticCurveTo(-10 * scale, -17 * scale, 52 * scale, -6 * scale);
+        sideCurves.moveTo(-68 * scale, 1 * scale);
+        sideCurves.quadraticCurveTo(-10 * scale, 17 * scale, 52 * scale, 6 * scale);
+        sideCurves.strokePath();
 
-        const fuller = this.scene.add.polygon(0, 0, [
-            -44 * scale, -2.3 * scale,
-            54 * scale, -2.3 * scale,
-            73 * scale, 0,
-            54 * scale, 2.3 * scale,
-            -44 * scale, 2.3 * scale
-        ], 0xb7b7c8, 0.74);
+        const hilt = this.scene.add.rectangle(-86 * scale, 0, 18 * scale, 14 * scale, 0xc6863f, 0.95);
+        const pommel = this.scene.add.circle(-99 * scale, 0, 5.2 * scale, 0x6a3c16, 1)
+            .setStrokeStyle(1.2 * scale, 0xcf9858, 0.8);
 
-        const guard = this.scene.add.rectangle(-72 * scale, 0, 32 * scale, 19 * scale, 0xd58d3a, 0.92);
-        const grip = this.scene.add.rectangle(-96 * scale, 0, 26 * scale, 10 * scale, 0x5d3919, 0.96)
-            .setStrokeStyle(1 * scale, 0xc58a49, 0.72);
-        const pommel = this.scene.add.circle(-114 * scale, 0, 8.6 * scale, 0x6f451e, 0.98)
-            .setStrokeStyle(1.7 * scale, 0xd7a260, 0.88);
-        const pommelCore = this.scene.add.circle(-114 * scale, 0, 3.2 * scale, 0xffddac, 0.55);
+        sword.add([blade, sideCurves, hilt, pommel]);
+        sword.rotation = angle;
 
-        const spinRing = this.scene.add.circle(0, 0, data.size * 2.45, 0x000000, 0).setStrokeStyle(1.8, 0xffd487, 0.62);
-        slash.add([auraBlade, blade, fuller, guard, grip, pommel, pommelCore, spinRing]);
+        sword.vx = Math.cos(angle) * data.speed;
+        sword.vy = Math.sin(angle) * data.speed;
+        sword.damage = data.damage;
+        sword.range = data.range;
+        sword.startX = startX;
+        sword.startY = startY;
+        sword.piercing = data.piercing;
+        sword.hasHit = false;
+        sword.visualAngle = angle;
 
-        slash.rotation = angle;
-
-        this.scene.tweens.add({
-            targets: [auraBlade, blade],
-            alpha: { from: 0.95, to: 0.62 },
-            scaleX: { from: 1, to: 1.08 },
-            duration: 90,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        slash.vx = Math.cos(angle) * data.speed;
-        slash.vy = Math.sin(angle) * data.speed;
-        slash.damage = data.damage;
-        slash.range = data.range;
-        slash.startX = startX;
-        slash.startY = startY;
-        slash.piercing = data.piercing;
-        slash.hasHit = false;
-        slash.visualAngle = angle;
-        slash.flightTick = Math.random() * 10;
-
-        slash.update = () => {
-            if (!slash.scene) return;
-            slash.flightTick += 0.3;
-
-            const targetAngle = Math.atan2(slash.vy, slash.vx);
-            slash.visualAngle = Phaser.Math.Angle.RotateTo(slash.visualAngle, targetAngle, 0.24);
-            slash.rotation = slash.visualAngle;
-            spinRing.rotation += 0.2;
-            fuller.alpha = 0.45 + Math.sin(slash.flightTick * 1.7) * 0.2;
-            auraBlade.alpha = 0.16 + Math.sin(slash.flightTick * 1.1) * 0.09;
-            pommelCore.alpha = 0.28 + Math.sin(slash.flightTick * 1.5) * 0.2;
-
-            if (Math.random() > 0.6) {
-                this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
-            }
-            if (Math.random() > 0.72) {
-                this.spawnBladeGhost(slash.x, slash.y, slash.visualAngle, data.size);
-            }
+        sword.update = () => {
+            if (!sword.scene) return;
+            const targetAngle = Math.atan2(sword.vy, sword.vx);
+            sword.visualAngle = Phaser.Math.Angle.RotateTo(sword.visualAngle, targetAngle, 0.24);
+            sword.rotation = sword.visualAngle;
         };
 
-        slash.on('destroy', () => {
-            auraBlade.destroy();
+        sword.on('destroy', () => {
             blade.destroy();
-            fuller.destroy();
-            guard.destroy();
-            grip.destroy();
+            sideCurves.destroy();
+            hilt.destroy();
             pommel.destroy();
-            pommelCore.destroy();
-            spinRing.destroy();
         });
 
-        this.scene.projectiles.push(slash);
-        this.addTrail(slash, data.color, data.size);
+        this.scene.projectiles.push(sword);
+        this.addTrail(sword, data.color, data.size);
     }
 
     executeChargedAttack(angle) {
