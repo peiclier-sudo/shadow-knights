@@ -16,7 +16,8 @@ export class DaggerWeapon extends WeaponBase {
             finisherDamage: 95,
             markDuration: 420,
             escapeDistance: 150,
-            untargetableDuration: 520
+            untargetableDuration: 520,
+            dashGhostCount: 5
         };
     }
     
@@ -199,8 +200,24 @@ export class DaggerWeapon extends WeaponBase {
         const throughX = boss.x + Math.cos(dashAngle) * cfg.dashDistance;
         const throughY = boss.y + Math.sin(dashAngle) * cfg.dashDistance;
 
-        const trail = this.scene.add.line(0, 0, fromX, fromY, boss.x, boss.y, 0xeeccff, 0.4).setDepth(178);
-        trail.setLineWidth(6, 2);
+        const backbone = this.scene.add.line(0, 0, fromX, fromY, throughX, throughY, 0xf7dbff, 0.28).setDepth(177);
+        backbone.setLineWidth(8, 1.5);
+
+        const edgeA = this.scene.add.line(0, 0, fromX, fromY, throughX, throughY, 0xc785ff, 0.22)
+            .setDepth(176)
+            .setAngle(-1.2);
+        edgeA.setLineWidth(4, 0.5);
+
+        const edgeB = this.scene.add.line(0, 0, fromX, fromY, throughX, throughY, 0xb764ff, 0.2)
+            .setDepth(176)
+            .setAngle(1.2);
+        edgeB.setLineWidth(4, 0.5);
+
+        const entryBurst = this.scene.add.circle(fromX, fromY, 18, 0x1e0a2d, 0.62).setDepth(179);
+        const entryRing = this.scene.add.circle(fromX, fromY, 14, 0xffffff, 0)
+            .setStrokeStyle(3, 0xf1dcff, 0.88)
+            .setDepth(180);
+
         const mark = this.scene.add.text(boss.x, boss.y - 2, '✕', {
             fontSize: '64px',
             fill: '#f0caff',
@@ -210,8 +227,29 @@ export class DaggerWeapon extends WeaponBase {
         }).setOrigin(0.5).setDepth(182).setAlpha(0.85);
 
         this.player.untargetable = true;
-        this.player.alpha = 0.35;
-        this.scene.cameras.main.zoomTo(1.04, 130, 'Quad.easeOut');
+        this.player.alpha = 0.15;
+        this.scene.cameras.main.zoomTo(1.06, 95, 'Quad.easeOut');
+
+        this.scene.tweens.add({
+            targets: entryBurst,
+            radius: 64,
+            alpha: 0,
+            duration: 180,
+            ease: 'Cubic.easeOut',
+            onComplete: () => entryBurst.destroy()
+        });
+
+        this.scene.tweens.add({
+            targets: entryRing,
+            radius: 78,
+            alpha: 0,
+            duration: 220,
+            ease: 'Sine.easeOut',
+            onComplete: () => entryRing.destroy()
+        });
+
+        this.spawnDashGhosts(fromX, fromY, throughX, throughY, dashAngle);
+        this.spawnDashShards(fromX, fromY, throughX, throughY, dashAngle);
 
         this.scene.tweens.add({
             targets: this.player,
@@ -221,18 +259,85 @@ export class DaggerWeapon extends WeaponBase {
             ease: 'Cubic.easeInOut',
             onComplete: () => {
                 this.player.alpha = 1;
-                this.scene.cameras.main.zoomTo(1, 160, 'Quad.easeOut');
+                this.scene.cameras.main.zoomTo(1, 150, 'Quad.easeOut');
+                this.scene.cameras.main.shake(80, 0.0028);
                 this.playTriCut(state, boss, mark);
             }
         });
 
-        this.scene.tweens.add({
-            targets: trail,
-            alpha: 0,
-            duration: 220,
-            ease: 'Sine.easeOut',
-            onComplete: () => trail.destroy()
-        });
+        for (const trail of [backbone, edgeA, edgeB]) {
+            this.scene.tweens.add({
+                targets: trail,
+                alpha: 0,
+                duration: 240,
+                ease: 'Sine.easeOut',
+                onComplete: () => trail.destroy()
+            });
+        }
+    }
+
+    spawnDashGhosts(fromX, fromY, toX, toY, dashAngle) {
+        const cfg = this.shadowExecutionConfig;
+
+        for (let i = 0; i < cfg.dashGhostCount; i++) {
+            const t = (i + 1) / (cfg.dashGhostCount + 1);
+            const x = Phaser.Math.Linear(fromX, toX, t);
+            const y = Phaser.Math.Linear(fromY, toY, t);
+            const ghost = this.scene.add.circle(x, y, 14 - i * 1.2, 0xe5c6ff, 0.25 - i * 0.03)
+                .setDepth(178);
+
+            const needle = this.scene.add.rectangle(x, y, 40 - i * 4, 2.6, 0xffffff, 0.36)
+                .setDepth(179)
+                .setRotation(dashAngle);
+
+            this.scene.tweens.add({
+                targets: ghost,
+                alpha: 0,
+                scale: 0.55,
+                duration: 180 + i * 26,
+                ease: 'Sine.easeOut',
+                onComplete: () => ghost.destroy()
+            });
+
+            this.scene.tweens.add({
+                targets: needle,
+                alpha: 0,
+                scaleX: 0.72,
+                duration: 140 + i * 24,
+                ease: 'Sine.easeOut',
+                onComplete: () => needle.destroy()
+            });
+        }
+    }
+
+    spawnDashShards(fromX, fromY, toX, toY, dashAngle) {
+        for (let i = 0; i < 16; i++) {
+            const t = Math.random();
+            const baseX = Phaser.Math.Linear(fromX, toX, t);
+            const baseY = Phaser.Math.Linear(fromY, toY, t);
+            const side = (Math.random() - 0.5) * 2;
+            const spread = Phaser.Math.Between(8, 30) * side;
+            const perp = dashAngle + Math.PI * 0.5;
+
+            const shard = this.scene.add.rectangle(
+                baseX + Math.cos(perp) * spread,
+                baseY + Math.sin(perp) * spread,
+                Phaser.Math.Between(8, 18),
+                Phaser.Math.Between(1, 3),
+                Phaser.Math.Between(0, 1) > 0.5 ? 0xf8e9ff : 0xc991ff,
+                Phaser.Math.FloatBetween(0.26, 0.62)
+            ).setDepth(177).setRotation(dashAngle + Phaser.Math.FloatBetween(-0.5, 0.5));
+
+            this.scene.tweens.add({
+                targets: shard,
+                x: shard.x + Math.cos(dashAngle) * Phaser.Math.Between(40, 100),
+                y: shard.y + Math.sin(dashAngle) * Phaser.Math.Between(40, 100),
+                alpha: 0,
+                duration: Phaser.Math.Between(140, 260),
+                ease: 'Cubic.easeOut',
+                onComplete: () => shard.destroy()
+            });
+        }
     }
 
     playTriCut(state, boss, mark) {
