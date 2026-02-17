@@ -34,16 +34,22 @@ export class SwordWeapon extends WeaponBase {
         } = options;
 
         const auraRect = this.scene.add.rectangle(8 * scale, 0, 200 * scale, 38 * scale, aura, darkKnight ? 0.2 : 0.16);
-        const bladeRect = this.scene.add.rectangle(-4 * scale, 0, 154 * scale, 14 * scale, blade, 0.96);
-        const fuller = this.scene.add.rectangle(18 * scale, 0, 96 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
-        const edgeRect = this.scene.add.rectangle(52 * scale, 0, 34 * scale, 5 * scale, edge, 0.94);
+        const bladeBody = this.scene.add.polygon(0, 0, [
+            -82 * scale, -7.4 * scale,
+            66 * scale, -7.4 * scale,
+            94 * scale, 0,
+            66 * scale, 7.4 * scale,
+            -82 * scale, 7.4 * scale
+        ], blade, 0.98).setStrokeStyle(1.1 * scale, edge, 0.9);
 
-        const bladeTip = this.scene.add.polygon(73 * scale, 0, [
-            0, -8 * scale,
-            24 * scale, 0,
-            0, 8 * scale,
-            -8 * scale, 0
-        ], blade, 0.98).setStrokeStyle(1.5 * scale, edge, 0.9);
+        const fuller = this.scene.add.rectangle(8 * scale, 0, 112 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
+        const edgeRect = this.scene.add.polygon(0, 0, [
+            36 * scale, -2.5 * scale,
+            68 * scale, -2.5 * scale,
+            87 * scale, 0,
+            68 * scale, 2.5 * scale,
+            36 * scale, 2.5 * scale
+        ], edge, 0.92);
 
         const guardRect = this.scene.add.rectangle(-66 * scale, 0, 28 * scale, 20 * scale, guard, 0.9);
         const guardWingA = this.scene.add.triangle(-79 * scale, 0, 0, 0, -16 * scale, -8 * scale, -16 * scale, 8 * scale, guard, 0.86);
@@ -64,10 +70,9 @@ export class SwordWeapon extends WeaponBase {
 
         return {
             aura: auraRect,
-            blade: bladeRect,
+            blade: bladeBody,
             fuller,
             edge: edgeRect,
-            bladeTip,
             guard: guardRect,
             guardWingA,
             guardWingB,
@@ -77,10 +82,9 @@ export class SwordWeapon extends WeaponBase {
             runeArc,
             all: [
                 auraRect,
-                bladeRect,
+                bladeBody,
                 fuller,
                 edgeRect,
-                bladeTip,
                 guardRect,
                 guardWingA,
                 guardWingB,
