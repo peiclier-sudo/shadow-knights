@@ -158,5 +158,38 @@ export const WEAPONS = {
             stun: true,
             stunDuration: 1400
         }
+    },
+
+    THUNDER_GAUNTLET: {
+        name: 'THUNDER GAUNTLET',
+        icon: '⚡',
+        color: 0x63c5ff,
+        description: 'Thunder Gauntlet - Arc jabs / Blinkstrike recoil',
+        projectile: {
+            type: 'arcbolt',
+            size: 7,
+            speed: 1150,
+            damage: 20,
+            color: 0x63c5ff,
+            count: 1,
+            range: 240,
+            cooldown: 170,
+            piercing: false
+        },
+        charged: {
+            name: 'THUNDER SNAPBACK',
+            chargeTime: 1200,
+            staminaCost: 38,
+            damage: 85,
+            targeting: 'line',
+            maxRange: 460,
+            fullChargeRequired: true,
+            dashDuration: 95,
+            returnDuration: 110,
+            snapDelay: 20,
+            hitRadius: 90,
+            vulnerabilityMultiplier: 1.2,
+            vulnerabilityDuration: 2400
+        }
     }
 };

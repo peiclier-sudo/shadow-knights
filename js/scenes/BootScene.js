@@ -37,63 +37,9 @@ export class BootScene extends Phaser.Scene {
             progressBox.destroy();
             this.loadingText.destroy();
         });
-
-        // Firestaff spritesheet: 5x4 grid inside a 960x960 sheet => 192x240 frames.
-        // Keep repository binary-safe by loading from release URL at runtime.
-        this.load.spritesheet('firestaff',
-            'https://github.com/peiclier-sudo/shadow-knights/releases/download/v1.0.0/firestaff.jpg', {
-                frameWidth: 192,
-                frameHeight: 240
-            }
-        );
-
-        this.load.on('loaderror', (file) => {
-            if (file?.key === 'firestaff') {
-                console.warn('[BootScene] Failed to load firestaff spritesheet:', file.src);
-            }
-        });
     }
     
     create() {
-        // Firestaff spritesheet animations (only if texture is available)
-        if (!this.textures.exists('firestaff')) {
-            console.warn('[BootScene] firestaff texture not available, using fallback charged VFX.');
-        } else if (!this.anims.exists('fireball-grow')) {
-            this.anims.create({
-                key: 'fireball-grow',
-                frames: this.anims.generateFrameNumbers('firestaff', { start: 0, end: 4 }),
-                frameRate: 12,
-                repeat: 0
-            });
-        }
-
-        if (this.textures.exists('firestaff') && !this.anims.exists('fire-comet')) {
-            this.anims.create({
-                key: 'fire-comet',
-                frames: this.anims.generateFrameNumbers('firestaff', { start: 5, end: 9 }),
-                frameRate: 20,
-                repeat: -1
-            });
-        }
-
-        if (this.textures.exists('firestaff') && !this.anims.exists('fire-burst')) {
-            this.anims.create({
-                key: 'fire-burst',
-                frames: this.anims.generateFrameNumbers('firestaff', { start: 10, end: 14 }),
-                frameRate: 15,
-                repeat: 0
-            });
-        }
-
-        if (this.textures.exists('firestaff') && !this.anims.exists('fire-explode')) {
-            this.anims.create({
-                key: 'fire-explode',
-                frames: this.anims.generateFrameNumbers('firestaff', { start: 15, end: 19 }),
-                frameRate: 18,
-                repeat: 0
-            });
-        }
-
         // Go to menu after loading
         this.scene.start('MenuScene');
     }
