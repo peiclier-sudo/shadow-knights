@@ -39,7 +39,6 @@ export class SwordWeapon extends WeaponBase {
         const startY = this.player.y + Math.sin(angle) * 30;
 
         this.createMuzzleFlash(startX, startY, this.data.color);
-        this.createSlashCastFX(startX, startY, angle, data);
         this.launchSwordProjectile(angle, {
             startX,
             startY,
@@ -214,28 +213,14 @@ export class SwordWeapon extends WeaponBase {
     }
 
     createSlashCastFX(x, y, angle, data) {
-        const castArc = this.scene.add.graphics().setDepth(158);
-        const len = data.size * 3.2;
-        const tipX = x + Math.cos(angle) * len;
-        const tipY = y + Math.sin(angle) * len;
-        castArc.lineStyle(3, 0xffd89b, 0.82);
-        castArc.lineBetween(x, y, tipX, tipY);
-        castArc.lineStyle(1.6, 0xfff2d4, 0.9);
-        castArc.lineBetween(x, y, x + Math.cos(angle) * (len * 0.72), y + Math.sin(angle) * (len * 0.72));
-
-        const flash = this.scene.add.circle(x, y, 12, 0xfff0ce, 0.62).setDepth(159);
-
+        const flash = this.scene.add.circle(x, y, Math.max(6, data.size * 0.45), 0xfff0ce, 0.42).setDepth(159);
         this.scene.tweens.add({
-            targets: [castArc, flash],
+            targets: flash,
             alpha: 0,
-            scaleX: 1.15,
-            scaleY: 1.05,
-            duration: 90,
-            ease: 'Cubic.easeOut',
-            onComplete: () => {
-                castArc.destroy();
-                flash.destroy();
-            }
+            scale: 1.08,
+            duration: 70,
+            ease: 'Sine.easeOut',
+            onComplete: () => flash.destroy()
         });
     }
 
@@ -411,10 +396,10 @@ export class SwordWeapon extends WeaponBase {
                 speed: this.data.projectile.speed,
                 damage: 120,
                 range: 520,
-                size: this.data.projectile.size,
+                size: this.data.projectile.size + 6,
                 color: this.data.projectile.color,
                 piercing: true,
-                trailSize: this.data.projectile.size
+                trailSize: this.data.projectile.size + 2
             });
         }
 
