@@ -181,6 +181,39 @@ export class Boss extends Phaser.GameObjects.Container {
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
+        } else if (this.bossId === 6) {
+            // Overclock - The Chrono Tyrant
+            const body = this.scene.add.rectangle(0, 0, 62, 92, this.bossData.color, 0.8);
+            body.setStrokeStyle(3, this.bossData.glowColor, 1);
+
+            const core = this.scene.add.circle(0, -8, 14, 0xffffff, 0.95);
+            const ring = this.scene.add.ellipse(0, -8, 56, 56, this.bossData.secondaryColor, 0.35);
+            ring.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const hornL = this.scene.add.triangle(-24, -56, -38, -42, -12, -42, -24, -68, this.bossData.glowColor, 0.85);
+            const hornR = this.scene.add.triangle(24, -56, 12, -42, 38, -42, 24, -68, this.bossData.glowColor, 0.85);
+
+            const legL = this.scene.add.rectangle(-16, 48, 12, 28, this.bossData.secondaryColor, 0.7);
+            const legR = this.scene.add.rectangle(16, 48, 12, 28, this.bossData.secondaryColor, 0.7);
+
+            this.add([body, core, ring, hornL, hornR, legL, legR]);
+
+            this.scene.tweens.add({
+                targets: ring,
+                angle: 360,
+                duration: 1800,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [hornL, hornR],
+                y: '-=3',
+                duration: 500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
         }
         
         // Add glow effects

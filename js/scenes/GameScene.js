@@ -21,6 +21,7 @@ export class GameScene extends Phaser.Scene {
             weapon: 'SWORD'
         };
         this.bossId = data.bossId || GameData.currentBossId;
+        GameData.currentBossId = this.bossId;
     }
     
     create() {
@@ -1044,12 +1045,17 @@ export class GameScene extends Phaser.Scene {
         
         // Game over
         if (this.player.health <= 0) {
-            this.scene.start('GameOverScene', { victory: false });
+            this.scene.start('GameOverScene', {
+                victory: false,
+                bossId: this.bossId,
+                playerConfig: this.playerConfig
+            });
         } else if (this.boss?.health <= 0) {
             GameData.unlockNextBoss();
-            this.scene.start('GameOverScene', { 
-                victory: true, 
-                bossId: this.bossId 
+            this.scene.start('GameOverScene', {
+                victory: true,
+                bossId: this.bossId,
+                playerConfig: this.playerConfig
             });
         }
     }

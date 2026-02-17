@@ -39,5 +39,13 @@ export const BOSSES = {
         glowColor: 0xb5a6ff,
         secondaryColor: 0x2d1a63,
         attackType: 'GRAVITY LATTICE'
+    },
+    6: {
+        name: 'OVERCLOCK',
+        hp: 980,
+        color: 0xffd54a,
+        glowColor: 0xffef99,
+        secondaryColor: 0x8a5d00,
+        attackType: 'TIME SPLIT DASH'
     }
 };

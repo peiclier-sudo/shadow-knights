@@ -5,6 +5,7 @@ import { GunnerBoss } from './bosses/GunnerBoss.js';
 import { DasherBoss } from './bosses/DasherBoss.js';
 import { PhantomBoss } from './bosses/PhantomBoss.js';
 import { NebulaBoss } from './bosses/NebulaBoss.js';
+import { OverclockBoss } from './bosses/OverclockBoss.js';
 
 export class BossFactory {
     static createBoss(scene, bossId) {
@@ -19,6 +20,8 @@ export class BossFactory {
                 return new PhantomBoss(scene);
             case 5:
                 return new NebulaBoss(scene);
+            case 6:
+                return new OverclockBoss(scene);
             default:
                 return new Boss(scene, bossId);
         }
