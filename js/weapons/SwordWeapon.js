@@ -110,9 +110,9 @@ export class SwordWeapon extends WeaponBase {
         const blade = this.scene.add.triangle(
             0,
             0,
-            -78 * scale, 0,
-            54 * scale, -12 * scale,
-            54 * scale, 12 * scale,
+            92 * scale, 0,
+            -66 * scale, -12 * scale,
+            -66 * scale, 12 * scale,
             0xffecd1,
             0.98
         ).setStrokeStyle(1.3 * scale, 0xffffff, 0.9);
@@ -120,14 +120,14 @@ export class SwordWeapon extends WeaponBase {
         const sideCurves = this.scene.add.graphics();
         sideCurves.lineStyle(2, 0xffd896, 0.68);
         sideCurves.beginPath();
-        sideCurves.moveTo(-68 * scale, -1 * scale);
-        sideCurves.quadraticCurveTo(-10 * scale, -17 * scale, 52 * scale, -6 * scale);
-        sideCurves.moveTo(-68 * scale, 1 * scale);
-        sideCurves.quadraticCurveTo(-10 * scale, 17 * scale, 52 * scale, 6 * scale);
+        sideCurves.moveTo(-60 * scale, -1 * scale);
+        sideCurves.quadraticCurveTo(6 * scale, -18 * scale, 84 * scale, -4 * scale);
+        sideCurves.moveTo(-60 * scale, 1 * scale);
+        sideCurves.quadraticCurveTo(6 * scale, 18 * scale, 84 * scale, 4 * scale);
         sideCurves.strokePath();
 
-        const hilt = this.scene.add.rectangle(-86 * scale, 0, 18 * scale, 14 * scale, 0xc6863f, 0.95);
-        const pommel = this.scene.add.circle(-99 * scale, 0, 5.2 * scale, 0x6a3c16, 1)
+        const hilt = this.scene.add.rectangle(-76 * scale, 0, 18 * scale, 14 * scale, 0xc6863f, 0.95);
+        const pommel = this.scene.add.circle(-90 * scale, 0, 5.2 * scale, 0x6a3c16, 1)
             .setStrokeStyle(1.2 * scale, 0xcf9858, 0.8);
 
         sword.add([blade, sideCurves, hilt, pommel]);
