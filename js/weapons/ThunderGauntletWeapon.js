@@ -4,6 +4,26 @@ import { WEAPONS } from './weaponData.js';
 export class ThunderGauntletWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.THUNDER_GAUNTLET);
+        this.ultimateState = null;
+        this.stormbreakerConfig = {
+            maxRange: 460,
+            blitzHits: 4,
+            blitzInterval: 115,
+            blitzDamage: 40,
+            empDamage: 135,
+            nodeRadius: 140,
+            afterBuffDuration: 1800,
+            afterBuffShots: 6
+        };
+    }
+
+    getUltimatePreviewConfig() {
+        const cfg = this.stormbreakerConfig;
+        return {
+            targeting: 'line',
+            maxRange: cfg.maxRange,
+            width: cfg.nodeRadius
+        };
     }
 
     fire(angle) {
@@ -353,4 +373,231 @@ export class ThunderGauntletWeapon extends WeaponBase {
             });
         }
     }
+
+    startUltimateCharge(targetX, targetY) {
+        if (this.ultimateState || !this.canUseUltimate()) return false;
+
+        const boss = this.scene.boss;
+        if (!boss?.scene) return false;
+
+        const clamped = this.getClampedUltimateTarget(targetX ?? boss.x, targetY ?? boss.y);
+        const angle = Math.atan2(clamped.y - this.player.y, clamped.x - this.player.x);
+
+        const orb = this.scene.add.circle(this.player.x, this.player.y, 16, 0x63cfff, 0.45).setDepth(186);
+        const ring = this.scene.add.circle(this.player.x, this.player.y, 24, 0x000000, 0)
+            .setStrokeStyle(3, 0xc8f4ff, 0.82)
+            .setDepth(187);
+
+        this.ultimateState = {
+            phase: 'charge',
+            targetX: clamped.x,
+            targetY: clamped.y,
+            angle,
+            boss,
+            orb,
+            ring,
+            nodes: [],
+            timers: []
+        };
+
+        return true;
+    }
+
+    updateUltimate(time, delta, targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return;
+
+        const clamped = this.getClampedUltimateTarget(targetX ?? state.targetX, targetY ?? state.targetY);
+        state.targetX = clamped.x;
+        state.targetY = clamped.y;
+        state.angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+
+        const pulse = 1 + Math.sin(time * 0.018) * 0.2;
+        state.orb.setRadius(14 * pulse);
+        state.orb.setAlpha(0.35 + (Math.sin(time * 0.022) + 1) * 0.18);
+        state.ring.setRadius(22 + Math.sin(time * 0.016) * 4);
+
+        if (Math.random() > 0.68) {
+            this.spawnDashSpark(this.player.x, this.player.y, false);
+        }
+    }
+
+    releaseUltimate(targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return false;
+
+        if (!this.consumeUltimate()) {
+            this.destroyUltimateState();
+            return false;
+        }
+
+        const boss = this.scene.boss;
+        if (!boss?.scene) {
+            this.destroyUltimateState();
+            return false;
+        }
+
+        const clamped = this.getClampedUltimateTarget(targetX ?? state.targetX, targetY ?? state.targetY);
+        state.targetX = clamped.x;
+        state.targetY = clamped.y;
+        state.angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+        state.phase = 'blitz';
+
+        this.scene.tweens.add({
+            targets: [state.orb, state.ring],
+            alpha: 0,
+            duration: 120,
+            onComplete: () => {
+                state.orb?.destroy();
+                state.ring?.destroy();
+            }
+        });
+
+        this.executeStormbreakerBlitz(state, boss);
+        return true;
+    }
+
+    executeStormbreakerBlitz(state, boss) {
+        const cfg = this.stormbreakerConfig;
+        this.player.untargetable = true;
+        this.player.alpha = 0.2;
+
+        for (let i = 0; i < cfg.blitzHits; i++) {
+            const t = this.scene.time.delayedCall(i * cfg.blitzInterval, () => {
+                if (!this.ultimateState || !boss?.scene) return;
+
+                const arc = (Math.PI * 2 * i) / cfg.blitzHits;
+                const px = boss.x + Math.cos(arc) * 68;
+                const py = boss.y + Math.sin(arc) * 68;
+                this.player.x = px;
+                this.player.y = py;
+
+                const slash = this.scene.add.rectangle(boss.x, boss.y, 120, 6, 0xd6f8ff, 0.9)
+                    .setRotation(arc)
+                    .setDepth(190);
+                this.scene.tweens.add({
+                    targets: slash,
+                    alpha: 0,
+                    scaleX: 1.25,
+                    duration: 100,
+                    onComplete: () => slash.destroy()
+                });
+
+                const node = this.scene.add.circle(px, py, 10, 0x80d9ff, 0.62).setDepth(188);
+                state.nodes.push(node);
+                this.scene.tweens.add({
+                    targets: node,
+                    alpha: 0.38,
+                    radius: 14,
+                    duration: 180,
+                    yoyo: true,
+                    repeat: -1
+                });
+
+                const dmg = cfg.blitzDamage * (this.player.damageMultiplier || 1.0);
+                boss.takeDamage(dmg);
+                this.gainUltimateGaugeFromDamage(dmg, { charged: true });
+                boss.setTint(0x98e2ff);
+                this.scene.time.delayedCall(60, () => boss?.clearTint?.());
+                this.createThunderBurst(px, py, arc);
+            });
+            state.timers.push(t);
+        }
+
+        const finisher = this.scene.time.delayedCall(cfg.blitzHits * cfg.blitzInterval + 90, () => {
+            if (!this.ultimateState || !boss?.scene) return;
+            this.executeStormbreakerEMP(state, boss);
+        });
+        state.timers.push(finisher);
+    }
+
+    executeStormbreakerEMP(state, boss) {
+        const cfg = this.stormbreakerConfig;
+        const centerX = boss.x;
+        const centerY = boss.y;
+
+        for (const node of state.nodes) {
+            if (!node?.scene) continue;
+            const beam = this.scene.add.graphics().setDepth(191);
+            beam.lineStyle(2.8, 0xd8f7ff, 0.9);
+            beam.beginPath();
+            beam.moveTo(node.x, node.y);
+            beam.lineTo(centerX, centerY);
+            beam.strokePath();
+            this.scene.tweens.add({
+                targets: beam,
+                alpha: 0,
+                duration: 110,
+                onComplete: () => beam.destroy()
+            });
+        }
+
+        const cage = this.scene.add.circle(centerX, centerY, cfg.nodeRadius * 0.45, 0x5ebfff, 0.25).setDepth(189);
+        const ring = this.scene.add.circle(centerX, centerY, 32, 0x000000, 0)
+            .setStrokeStyle(4, 0xe6fbff, 0.95)
+            .setDepth(192);
+
+        this.scene.tweens.add({
+            targets: cage,
+            radius: cfg.nodeRadius,
+            alpha: 0,
+            duration: 260,
+            ease: 'Cubic.easeOut',
+            onComplete: () => cage.destroy()
+        });
+        this.scene.tweens.add({
+            targets: ring,
+            radius: cfg.nodeRadius * 1.25,
+            alpha: 0,
+            duration: 260,
+            ease: 'Cubic.easeOut',
+            onComplete: () => ring.destroy()
+        });
+
+        this.scene.cameras.main.flash(160, 180, 245, 255);
+        this.scene.cameras.main.shake(230, 0.009);
+
+        const empDamage = cfg.empDamage * (this.player.damageMultiplier || 1.0);
+        boss.takeDamage(empDamage);
+        this.gainUltimateGaugeFromDamage(empDamage, { charged: true });
+        boss.setTint(0xe8fbff);
+
+        const knockAngle = Math.atan2(boss.y - this.player.y, boss.x - this.player.x);
+        this.scene.tweens.add({
+            targets: boss,
+            x: boss.x + Math.cos(knockAngle) * 140,
+            y: boss.y + Math.sin(knockAngle) * 140,
+            duration: 180,
+            ease: 'Power2'
+        });
+
+        this.player.alpha = 1;
+        this.player.untargetable = false;
+        this.player.multishot = 1;
+        this.player.multishotCount = Math.max(this.player.multishotCount || 0, cfg.afterBuffShots);
+
+        this.scene.time.delayedCall(cfg.afterBuffDuration, () => {
+            if (!this.player?.scene) return;
+            this.player.multishotCount = 0;
+            this.player.multishot = 0;
+        });
+
+        this.scene.time.delayedCall(120, () => boss?.clearTint?.());
+        this.destroyUltimateState();
+    }
+
+    destroyUltimateState() {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        state.orb?.destroy();
+        state.ring?.destroy();
+        for (const timer of state.timers || []) timer?.remove?.();
+        for (const node of state.nodes || []) node?.destroy?.();
+
+        this.player.alpha = 1;
+        this.player.untargetable = false;
+        this.ultimateState = null;
+    }
+
 }
