@@ -14,6 +14,7 @@ export class StaffWeapon extends WeaponBase {
         const startY = this.player.y + Math.sin(angle) * 30;
 
         this.createMuzzleFlash(startX, startY, this.data.color);
+        this.spawnArcaneFlare(startX, startY, angle, false);
         this.spawnHeatPulse(startX, startY, 18, 0.26);
 
         const orb = this.scene.add.container(startX, startY).setDepth(150);
@@ -43,6 +44,16 @@ export class StaffWeapon extends WeaponBase {
             ease: 'Sine.easeInOut'
         });
 
+        this.scene.tweens.add({
+            targets: [crownA, crownB],
+            scaleY: { from: 0.88, to: 1.22 },
+            alpha: { from: 0.72, to: 0.94 },
+            duration: 120,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
         orb.update = () => {
             orb.rotation += 0.16;
             crownA.rotation += 0.35;
@@ -55,6 +66,9 @@ export class StaffWeapon extends WeaponBase {
 
             if (Math.random() > 0.52) {
                 this.spawnEmber(orb.x, orb.y, Math.atan2(orb.vy, orb.vx));
+            }
+            if (Math.random() > 0.7) {
+                this.spawnSolarSpark(orb.x, orb.y, Math.atan2(orb.vy, orb.vx));
             }
             if (Math.random() > 0.78) {
                 this.spawnSmokePuff(orb.x, orb.y, Math.atan2(orb.vy, orb.vx) + Math.PI);
@@ -97,6 +111,7 @@ export class StaffWeapon extends WeaponBase {
         const startY = this.player.y + Math.sin(angle) * 40;
 
         this.createCastSigil(startX, startY, angle);
+        this.spawnArcaneFlare(startX, startY, angle, true);
 
         const fireball = this.scene.add.container(startX, startY).setDepth(155);
         const body = this.scene.add.circle(0, 0, 18, 0xff4d12, 0.95);
@@ -203,6 +218,15 @@ export class StaffWeapon extends WeaponBase {
             }
 
             for (let i = 0; i < 12; i++) {
+                this.spawnSolarSpark(
+                    x + Phaser.Math.Between(-18, 18),
+                    y + Phaser.Math.Between(-18, 18),
+                    Phaser.Math.FloatBetween(-Math.PI, Math.PI),
+                    true
+                );
+            }
+
+            for (let i = 0; i < 12; i++) {
                 const tongue = this.scene.add.triangle(
                     x,
                     y,
@@ -275,6 +299,9 @@ export class StaffWeapon extends WeaponBase {
                 }
                 if (Math.random() > 0.68) {
                     this.spawnCinderRibbon(fireball.x, fireball.y, dir + Math.PI);
+                }
+                if (Math.random() > 0.62) {
+                    this.spawnSolarSpark(fireball.x, fireball.y, dir + Math.PI);
                 }
                 if (Math.random() > 0.79) {
                     this.spawnSmokePuff(fireball.x, fireball.y, dir + Math.PI);
@@ -399,6 +426,54 @@ export class StaffWeapon extends WeaponBase {
             scale: Phaser.Math.FloatBetween(1.25, 1.75),
             duration: Phaser.Math.Between(180, 340),
             onComplete: () => smoke.destroy()
+        });
+    }
+
+    spawnArcaneFlare(x, y, angle, charged = false) {
+        const spikes = charged ? 8 : 5;
+        const radius = charged ? 26 : 16;
+        const color = charged ? 0xffe2a1 : 0xffc478;
+
+        for (let i = 0; i < spikes; i++) {
+            const dir = angle + Phaser.Math.FloatBetween(-0.95, 0.95);
+            const shard = this.scene.add.triangle(x, y, 0, -10, -3, 8, 3, 8, color, 0.9).setDepth(159);
+            shard.rotation = dir;
+
+            this.scene.tweens.add({
+                targets: shard,
+                x: x + Math.cos(dir) * Phaser.Math.Between(radius * 0.5, radius * 1.5),
+                y: y + Math.sin(dir) * Phaser.Math.Between(radius * 0.5, radius * 1.5),
+                alpha: 0,
+                scaleY: charged ? 0.16 : 0.28,
+                duration: Phaser.Math.Between(120, 210),
+                onComplete: () => shard.destroy()
+            });
+        }
+    }
+
+    spawnSolarSpark(x, y, angle, empowered = false) {
+        const spark = this.scene.add.star(
+            x + Phaser.Math.Between(-4, 4),
+            y + Phaser.Math.Between(-4, 4),
+            5,
+            empowered ? 2 : 1.2,
+            empowered ? 4.8 : 3.2,
+            Phaser.Math.RND.pick([0xfff5d1, 0xffe39e, 0xffbf73]),
+            empowered ? 0.95 : 0.8
+        ).setDepth(156);
+
+        spark.rotation = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        const drift = angle + Phaser.Math.FloatBetween(-0.55, 0.55);
+
+        this.scene.tweens.add({
+            targets: spark,
+            rotation: spark.rotation + Phaser.Math.FloatBetween(0.4, 1.4),
+            x: spark.x + Math.cos(drift) * Phaser.Math.Between(empowered ? 30 : 16, empowered ? 68 : 34),
+            y: spark.y + Math.sin(drift) * Phaser.Math.Between(empowered ? 30 : 16, empowered ? 68 : 34),
+            alpha: 0,
+            scale: empowered ? 0.18 : 0.3,
+            duration: Phaser.Math.Between(empowered ? 130 : 90, empowered ? 260 : 170),
+            onComplete: () => spark.destroy()
         });
     }
 
