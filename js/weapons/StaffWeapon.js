@@ -1,4 +1,4 @@
-// StaffWeapon.js - Fire staff procedural visuals rebuilt for premium charged fireball fantasy
+// BloodStaffWeapon.js - BloodStaff procedural visuals rebuilt for premium charged blood-orb fantasy
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
