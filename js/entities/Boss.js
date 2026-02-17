@@ -139,6 +139,166 @@ export class Boss extends Phaser.GameObjects.Container {
                 yoyo: true,
                 repeat: -1
             });
+        } else if (this.bossId === 5) {
+            // Nebula - The Void Architect
+            const outerRing = this.scene.add.circle(0, 0, 44, this.bossData.secondaryColor, 0.42);
+            outerRing.setStrokeStyle(3, this.bossData.glowColor, 0.85);
+
+            const body = this.scene.add.ellipse(0, 0, 60, 82, this.bossData.color, 0.78);
+            body.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const core = this.scene.add.circle(0, -8, 13, 0xffffff, 0.95);
+            const eyeL = this.scene.add.circle(-10, -20, 5, this.bossData.glowColor, 0.95);
+            const eyeR = this.scene.add.circle(10, -20, 5, this.bossData.glowColor, 0.95);
+
+            const shardTop = this.scene.add.triangle(0, -56, 0, -70, -8, -50, 8, -50, this.bossData.glowColor, 0.9);
+            const shardLeft = this.scene.add.triangle(-46, -2, -60, -2, -40, -12, -40, 8, this.bossData.glowColor, 0.8);
+            const shardRight = this.scene.add.triangle(46, -2, 60, -2, 40, -12, 40, 8, this.bossData.glowColor, 0.8);
+
+            this.add([outerRing, body, core, eyeL, eyeR, shardTop, shardLeft, shardRight]);
+
+            this.scene.tweens.add({
+                targets: outerRing,
+                angle: 360,
+                duration: 4000,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [eyeL, eyeR],
+                alpha: 0.35,
+                duration: 600,
+                yoyo: true,
+                repeat: -1
+            });
+
+            this.scene.tweens.add({
+                targets: body,
+                y: -6,
+                duration: 1400,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        } else if (this.bossId === 6) {
+            // Overclock - The Chrono Tyrant
+            const body = this.scene.add.rectangle(0, 0, 62, 92, this.bossData.color, 0.8);
+            body.setStrokeStyle(3, this.bossData.glowColor, 1);
+
+            const core = this.scene.add.circle(0, -8, 14, 0xffffff, 0.95);
+            const ring = this.scene.add.ellipse(0, -8, 56, 56, this.bossData.secondaryColor, 0.35);
+            ring.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const hornL = this.scene.add.triangle(-24, -56, -38, -42, -12, -42, -24, -68, this.bossData.glowColor, 0.85);
+            const hornR = this.scene.add.triangle(24, -56, 12, -42, 38, -42, 24, -68, this.bossData.glowColor, 0.85);
+
+            const legL = this.scene.add.rectangle(-16, 48, 12, 28, this.bossData.secondaryColor, 0.7);
+            const legR = this.scene.add.rectangle(16, 48, 12, 28, this.bossData.secondaryColor, 0.7);
+
+            this.add([body, core, ring, hornL, hornR, legL, legR]);
+
+            this.scene.tweens.add({
+                targets: ring,
+                angle: 360,
+                duration: 1800,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [hornL, hornR],
+                y: '-=3',
+                duration: 500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        } else if (this.bossId === 7) {
+            // Vortex - The Event Horizon
+            const body = this.scene.add.circle(0, 0, 34, this.bossData.color, 0.78);
+            body.setStrokeStyle(2, this.bossData.glowColor, 1);
+
+            const ring1 = this.scene.add.ellipse(0, 0, 78, 48, this.bossData.secondaryColor, 0.35);
+            const ring2 = this.scene.add.ellipse(0, 0, 96, 58, this.bossData.secondaryColor, 0.22);
+            ring1.setStrokeStyle(2, this.bossData.glowColor, 0.85);
+            ring2.setStrokeStyle(2, this.bossData.glowColor, 0.6);
+
+            const eye = this.scene.add.circle(0, -6, 8, 0xffffff, 0.9);
+
+            this.add([ring2, ring1, body, eye]);
+
+            this.scene.tweens.add({
+                targets: ring1,
+                angle: 360,
+                duration: 1800,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: ring2,
+                angle: -360,
+                duration: 2300,
+                repeat: -1,
+                ease: 'Linear'
+            });
+        } else if (this.bossId === 8) {
+            // Ember Crown - The Ash Sovereign
+            const body = this.scene.add.rectangle(0, 8, 66, 90, this.bossData.color, 0.8);
+            body.setStrokeStyle(3, this.bossData.glowColor, 0.95);
+
+            const crown = this.scene.add.triangle(0, -58, -26, -42, 0, -74, 26, -42, this.bossData.glowColor, 0.9);
+            const core = this.scene.add.circle(0, -12, 11, 0xfff0e6, 0.95);
+            const armL = this.scene.add.rectangle(-40, 10, 12, 34, this.bossData.secondaryColor, 0.75);
+            const armR = this.scene.add.rectangle(40, 10, 12, 34, this.bossData.secondaryColor, 0.75);
+
+            this.add([body, crown, core, armL, armR]);
+
+            this.scene.tweens.add({
+                targets: crown,
+                y: '-=4',
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
+
+            this.scene.tweens.add({
+                targets: [armL, armR],
+                angle: 7,
+                duration: 400,
+                yoyo: true,
+                repeat: -1
+            });
+        } else if (this.bossId === 9) {
+            // Aurora Judge - The Final Arbiter
+            const body = this.scene.add.ellipse(0, 6, 70, 96, this.bossData.color, 0.76);
+            body.setStrokeStyle(3, this.bossData.glowColor, 0.95);
+
+            const halo = this.scene.add.ellipse(0, -50, 72, 22, this.bossData.secondaryColor, 0.34);
+            halo.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const crystalL = this.scene.add.triangle(-34, -10, -48, -10, -24, -24, -24, 4, this.bossData.glowColor, 0.9);
+            const crystalR = this.scene.add.triangle(34, -10, 48, -10, 24, -24, 24, 4, this.bossData.glowColor, 0.9);
+            const core = this.scene.add.circle(0, -10, 12, 0xffffff, 0.95);
+
+            this.add([body, halo, crystalL, crystalR, core]);
+
+            this.scene.tweens.add({
+                targets: halo,
+                angle: 360,
+                duration: 2600,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [crystalL, crystalR],
+                alpha: 0.35,
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
         }
         
         // Add glow effects
