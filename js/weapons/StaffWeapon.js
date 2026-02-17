@@ -360,6 +360,7 @@ export class StaffWeapon extends WeaponBase {
         state.targetX = clamped.x;
         state.targetY = clamped.y;
 
+        state.phase = 'launch';
         state.flames?.stop?.();
         state.sparks?.stop?.();
 
@@ -404,13 +405,15 @@ export class StaffWeapon extends WeaponBase {
             });
         }
 
-        this.scene.tweens.add({
-            targets: state.ring,
-            alpha: 0,
-            scale: 2.2,
-            duration: 320,
-            onComplete: () => state.ring.destroy()
-        });
+        if (state.ring?.scene) {
+            this.scene.tweens.add({
+                targets: state.ring,
+                alpha: 0,
+                scale: 2.2,
+                duration: 320,
+                onComplete: () => state.ring?.destroy()
+            });
+        }
 
         this.scene.time.delayedCall(620, () => {
             if (!this.ultimateState || this.ultimateState !== state) return;
@@ -446,19 +449,25 @@ export class StaffWeapon extends WeaponBase {
             state.flames?.setFrequency?.(30 - Math.floor(progress * 22));
             state.sparks?.setFrequency?.(70 - Math.floor(progress * 45));
 
-            state.ring.setPosition(state.centerX, state.centerY);
-            state.ring.alpha = 0.18 + progress * 0.16;
-            state.ring.radius = 26 + progress * 16;
+            if (state.ring?.scene) {
+                state.ring.setPosition(state.centerX, state.centerY);
+                state.ring.alpha = 0.18 + progress * 0.16;
+                state.ring.radius = 26 + progress * 16;
+            }
 
-            this.drawVoidCore(state.core, state.centerX, state.centerY, 0.7 + progress * 2.3, time * 0.01);
+            if (state.core?.scene) {
+                this.drawVoidCore(state.core, state.centerX, state.centerY, 0.7 + progress * 2.3, time * 0.01);
+            }
             return;
         }
 
         for (const orb of state.orbs) {
             orb.phase += 0.04;
-            this.drawDarkOrbCore(orb.core, orb.x, orb.y, 1 + Math.sin(orb.phase) * 0.14);
-            orb.shadow.setPosition(orb.x, orb.y);
-            orb.shadow.radius = 18 + Math.sin(orb.phase * 1.3) * 2.5;
+            if (orb.core?.scene) this.drawDarkOrbCore(orb.core, orb.x, orb.y, 1 + Math.sin(orb.phase) * 0.14);
+            if (orb.shadow?.scene) {
+                orb.shadow.setPosition(orb.x, orb.y);
+                orb.shadow.radius = 18 + Math.sin(orb.phase * 1.3) * 2.5;
+            }
             orb.trail?.setPosition?.(orb.x, orb.y);
         }
 
