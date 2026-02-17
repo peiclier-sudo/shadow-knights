@@ -34,8 +34,9 @@ export class RogueClass extends ClassBase {
     enterStealth() {
         this.isStealthed = true;
         this.player.alpha = 0.3;
-        
-        // Effet de fumée
+        this.player.untargetable = true; // Boss ignores player while stealthed
+
+        // Smoke burst
         for (let i = 0; i < 10; i++) {
             const smoke = this.scene.add.circle(
                 this.player.x, this.player.y,
@@ -43,7 +44,7 @@ export class RogueClass extends ClassBase {
                 0x6600aa,
                 0.2
             );
-            
+
             this.scene.tweens.add({
                 targets: smoke,
                 x: smoke.x + (Math.random() - 0.5) * 100,
@@ -54,11 +55,12 @@ export class RogueClass extends ClassBase {
                 onComplete: () => smoke.destroy()
             });
         }
-        
-        // Sortir de l'invisibilité après 1.5s
+
+        // Exit stealth after 1.5 s
         this.scene.time.delayedCall(1500, () => {
             this.isStealthed = false;
             this.player.alpha = 1;
+            this.player.untargetable = false;
         });
     }
     

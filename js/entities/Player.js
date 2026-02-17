@@ -137,6 +137,8 @@ export class Player extends Phaser.GameObjects.Container {
                 }
             }
 
+            // Blue flash — mana shield absorbing the hit
+            this.scene.cameras.main.flash(90, 40, 80, 255, false);
             this.scene.tweens.add({
                 targets: this,
                 alpha: 0.35,
@@ -147,10 +149,12 @@ export class Player extends Phaser.GameObjects.Container {
 
             return 0;
         }
-        
+
         const reducedAmount = amount * (1 - this.damageReduction);
         this.health = Math.max(0, this.health - reducedAmount);
-        
+
+        // Red screen flash — visceral "I got hit" signal
+        this.scene.cameras.main.flash(130, 255, 15, 15, false);
         this.scene.tweens.add({
             targets: this,
             alpha: 0.3,
@@ -158,7 +162,7 @@ export class Player extends Phaser.GameObjects.Container {
             yoyo: true,
             repeat: 1
         });
-        
+
         return reducedAmount;
     }
     

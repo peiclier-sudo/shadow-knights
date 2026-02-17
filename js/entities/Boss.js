@@ -183,41 +183,52 @@ export class Boss extends Phaser.GameObjects.Container {
         return this;
     }
 
-    takeDamage(amount) {
-        // ✅ FIX: Appliquer les dégâts directement sans multiplicateurs
+    takeDamage(amount, options = {}) {
+        const { isCrit = false } = options;
         const finalDamage = Math.round(amount * (this.damageTakenMultiplier || 1.0));
-        
-        // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
-        
-        // Debug
-        console.log(`Boss took ${finalDamage} damage. Health: ${this.health}/${this.maxHealth}`);
-        
-        // Visual feedback
+
+        // White tint flash + alpha dip for strong hit feedback
+        this.setTint(0xffffff);
         this.scene.tweens.add({
             targets: this,
-            alpha: 0.3,
+            alpha: 0.35,
             duration: 50,
-            yoyo: true
+            yoyo: true,
+            onComplete: () => this.clearTint()
         });
-        
-        // Damage number
-        const dmgText = this.scene.add.text(this.x, this.y - 50, finalDamage.toString(), {
-            fontSize: '24px',
-            fill: '#ffaa00',
+
+        // Camera micro-shake — intensity scales with damage dealt
+        const shakeIntensity = finalDamage >= 60 ? 0.0032 : 0.0014;
+        const shakeDuration  = finalDamage >= 60 ? 80      : 48;
+        this.scene.cameras.main.shake(shakeDuration, shakeIntensity);
+
+        // Damage number — size and colour scale with amount and crit state
+        const isBig   = finalDamage >= 70;
+        const fontSize = isCrit ? '38px' : isBig ? '30px' : '22px';
+        const fill     = isCrit ? '#ffff44' : isBig ? '#ff8800' : '#ffcc44';
+        const label    = isCrit ? `${finalDamage}!` : `${finalDamage}`;
+        const offsetX  = Phaser.Math.Between(-22, 22);
+
+        const dmgText = this.scene.add.text(this.x + offsetX, this.y - 50, label, {
+            fontSize,
+            fill,
             stroke: '#000',
-            strokeThickness: 4,
+            strokeThickness: isCrit ? 6 : 4,
             fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
+        }).setOrigin(0.5).setDepth(220);
+
+        const floatDist = isCrit ? 80 : 55;
         this.scene.tweens.add({
             targets: dmgText,
-            y: this.y - 100,
+            y: this.y - 50 - floatDist,
             alpha: 0,
-            duration: 500,
+            scale: isCrit ? 1.25 : 1,
+            duration: isCrit ? 750 : 520,
+            ease: 'Cubic.easeOut',
             onComplete: () => dmgText.destroy()
         });
-        
+
         return finalDamage;
     }
     

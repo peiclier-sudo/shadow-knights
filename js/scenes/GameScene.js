@@ -68,6 +68,7 @@ export class GameScene extends Phaser.Scene {
         this.aimCurrentX = 0;
         this.aimCurrentY = 0;
         this.showAttackRangePreview = true;
+        this.bossDefeated = false;
 
         // Aim line
         this.aimLine = this.add.graphics();
@@ -504,6 +505,47 @@ export class GameScene extends Phaser.Scene {
         });
     }
     
+    triggerBossDeathSequence() {
+        const boss = this.boss;
+        const bossColor = boss.bossData?.color || 0xffffff;
+
+        // 22 staggered explosion pops spreading out from the boss
+        for (let i = 0; i < 22; i++) {
+            this.time.delayedCall(i * 48, () => {
+                if (!boss.scene) return;
+                const px = boss.x + Phaser.Math.Between(-75, 75);
+                const py = boss.y + Phaser.Math.Between(-95, 95);
+                const size = Phaser.Math.Between(10, 30);
+                const color = Phaser.Math.RND.pick([0xffffff, 0xffaa00, 0xff5500, bossColor]);
+                const burst = this.add.circle(px, py, size, color, 0.9).setDepth(300);
+                this.tweens.add({
+                    targets: burst,
+                    scale: 3,
+                    alpha: 0,
+                    duration: 340,
+                    ease: 'Cubic.easeOut',
+                    onComplete: () => burst.destroy()
+                });
+            });
+        }
+
+        // Boss fades out while shaking
+        this.cameras.main.shake(700, 0.006);
+        this.tweens.add({
+            targets: boss,
+            alpha: 0,
+            duration: 650,
+            delay: 320,
+            ease: 'Cubic.easeIn'
+        });
+
+        // White flash then transition to victory screen
+        this.time.delayedCall(220, () => this.cameras.main.flash(280, 255, 255, 255));
+        this.time.delayedCall(1150, () => {
+            this.scene.start('GameOverScene', { victory: true, bossId: this.bossId });
+        });
+    }
+
     setMoveTarget(x, y) {
         this.moveTarget = { x, y };
         const color = this.player.classData?.data?.color || 0x00d4ff;
@@ -882,6 +924,7 @@ export class GameScene extends Phaser.Scene {
                     
                     // Apply damage modifiers
                     let damageMultiplier = (this.player.damageMultiplier || 1.0);
+                    let isCrit = false;
 
                     // Rogue Backstab: consume buff on first valid hit from behind.
                     if (this.player.backstabReady) {
@@ -908,8 +951,15 @@ export class GameScene extends Phaser.Scene {
                         }
                     }
 
+                    // Rogue critical strike passive (critChance lives on RogueClass instance)
+                    const critChance = this.player.classData?.critChance || 0;
+                    if (critChance > 0 && Math.random() < critChance) {
+                        damageMultiplier *= 2;
+                        isCrit = true;
+                    }
+
                     const finalDamage = proj.damage * damageMultiplier;
-                    this.boss.takeDamage(finalDamage);
+                    this.boss.takeDamage(finalDamage, { isCrit });
                     this.weapon?.gainUltimateGaugeFromDamage(finalDamage, {
                         charged: !!proj.isCharged,
                         dot: !!proj.isDot
@@ -1016,6 +1066,12 @@ export class GameScene extends Phaser.Scene {
 
             this.staminaBar.width = 250 * this.displayStaminaRatio;
             this.staminaText.setText(`${Math.floor(this.player.stamina)}`);
+            // Pulse red when stamina is critically low
+            if (this.displayStaminaRatio < 0.25) {
+                this.staminaBar.setFillStyle(Math.sin(this.time.now * 0.013) > 0 ? 0xff2200 : 0xff6600);
+            } else {
+                this.staminaBar.setFillStyle(0xffaa00);
+            }
 
             const ultimateRatio = (this.player.ultimateGauge || 0) / (this.player.ultimateGaugeMax || 100);
             this.ultimateBar.width = 250 * ultimateRatio;
@@ -1045,12 +1101,10 @@ export class GameScene extends Phaser.Scene {
         // Game over
         if (this.player.health <= 0) {
             this.scene.start('GameOverScene', { victory: false });
-        } else if (this.boss?.health <= 0) {
+        } else if (this.boss?.health <= 0 && !this.bossDefeated) {
+            this.bossDefeated = true;
             GameData.unlockNextBoss();
-            this.scene.start('GameOverScene', { 
-                victory: true, 
-                bossId: this.bossId 
-            });
+            this.triggerBossDeathSequence();
         }
     }
 }
