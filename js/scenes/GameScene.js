@@ -463,6 +463,8 @@ export class GameScene extends Phaser.Scene {
             this.performDash();
         });
 
+        this.ultimateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+
         // ULTIMATE (F): hold to charge, release to launch
         this.input.keyboard.on('keydown-F', () => {
             this.weapon?.startUltimateCharge(this.worldMouseX, this.worldMouseY);
@@ -569,6 +571,73 @@ export class GameScene extends Phaser.Scene {
             graphics.arc(centerX, centerY, radius, start, end, false);
             graphics.strokePath();
         }
+    }
+
+    drawUltimateRangePreview() {
+        if (!this.rangePreviewGraphics || !this.weapon || !this.player) return false;
+
+        const ultimate = this.weapon.getUltimatePreviewConfig?.();
+        if (!ultimate) return false;
+
+        const graphics = this.rangePreviewGraphics;
+        const pulse = 0.78 + Math.sin(this.time.now * 0.012) * 0.22;
+        const spin = this.time.now * 0.0018;
+
+        if (ultimate.targeting === 'self') {
+            if ((ultimate.aoeRadius || 0) > 0) {
+                graphics.fillStyle(0xb883ff, 0.06 * pulse);
+                graphics.fillCircle(this.player.x, this.player.y, ultimate.aoeRadius);
+                this.drawDashedCircle(graphics, this.player.x, this.player.y, ultimate.aoeRadius, {
+                    segments: 66,
+                    dashRatio: 0.5,
+                    offset: -spin,
+                    lineWidth: 2,
+                    color: 0xd2aaff,
+                    alpha: 0.84
+                });
+            }
+            return true;
+        }
+
+        const targetPoint = this.weapon.getClampedUltimateTarget
+            ? this.weapon.getClampedUltimateTarget(this.worldMouseX, this.worldMouseY)
+            : { x: this.worldMouseX, y: this.worldMouseY };
+
+        if ((ultimate.maxRange || 0) > 0) {
+            this.drawDashedCircle(graphics, this.player.x, this.player.y, ultimate.maxRange, {
+                segments: 78,
+                dashRatio: 0.5,
+                offset: -spin,
+                lineWidth: 1.8,
+                color: 0xcf9aff,
+                alpha: 0.7
+            });
+        }
+
+        graphics.lineStyle(5, 0xaa66ff, 0.12 * pulse);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+        graphics.lineStyle(2, 0xe2c4ff, 0.82);
+        graphics.lineBetween(this.player.x, this.player.y, targetPoint.x, targetPoint.y);
+
+        const marker = 11 + pulse * 3;
+        graphics.lineStyle(2, 0xe9d1ff, 0.88);
+        graphics.strokeCircle(targetPoint.x, targetPoint.y, marker);
+
+        const width = ultimate.width || ultimate.aoeRadius || 0;
+        if (width > 0) {
+            const angle = Math.atan2(targetPoint.y - this.player.y, targetPoint.x - this.player.x);
+            graphics.fillStyle(0xc17dff, 0.07 * pulse);
+            graphics.fillTriangle(
+                this.player.x + Math.cos(angle + Math.PI / 2) * (width * 0.28),
+                this.player.y + Math.sin(angle + Math.PI / 2) * (width * 0.28),
+                this.player.x + Math.cos(angle - Math.PI / 2) * (width * 0.28),
+                this.player.y + Math.sin(angle - Math.PI / 2) * (width * 0.28),
+                targetPoint.x,
+                targetPoint.y
+            );
+        }
+
+        return true;
     }
 
     drawAttackRangePreview() {
@@ -764,8 +833,19 @@ export class GameScene extends Phaser.Scene {
             this.aimLine.strokeCircle(aimX, aimY, 8);
         }
 
-        if (this.showAttackRangePreview && isChargingInput) {
-            this.drawAttackRangePreview();
+        const isUltimateInput = !!this.ultimateKey?.isDown;
+
+        if (this.showAttackRangePreview && (isChargingInput || isUltimateInput)) {
+            this.rangePreviewGraphics?.clear();
+
+            if (isUltimateInput) {
+                const drewUltimate = this.drawUltimateRangePreview();
+                if (!drewUltimate && isChargingInput) {
+                    this.drawAttackRangePreview();
+                }
+            } else {
+                this.drawAttackRangePreview();
+            }
         } else if (this.rangePreviewGraphics) {
             this.rangePreviewGraphics.clear();
         }

@@ -198,6 +198,32 @@ export class WeaponBase {
         return false;
     }
 
+
+    getUltimatePreviewConfig() {
+        return null;
+    }
+
+    getClampedUltimateTarget(targetX, targetY) {
+        const config = this.getUltimatePreviewConfig();
+        if (!config) return { x: targetX, y: targetY };
+
+        const maxRange = config.maxRange || 0;
+        if (!maxRange || config.targeting === 'self') {
+            return { x: targetX, y: targetY };
+        }
+
+        const dx = targetX - this.player.x;
+        const dy = targetY - this.player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= maxRange || dist === 0) return { x: targetX, y: targetY };
+
+        const ratio = maxRange / dist;
+        return {
+            x: this.player.x + dx * ratio,
+            y: this.player.y + dy * ratio
+        };
+    }
+
     // Réinitialiser la charge (quand annulée)
     resetCharge() {
         this.isCharging = false;
