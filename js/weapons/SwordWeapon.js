@@ -18,35 +18,77 @@ export class SwordWeapon extends WeaponBase {
         g.destroy();
     }
 
-    createProceduralSwordParts(scale = 1, palette = {}) {
+    createProceduralSwordParts(scale = 1, palette = {}, options = {}) {
         const {
             aura = 0xff9f2f,
             blade = 0xffe7c5,
             edge = 0xffffff,
             guard = 0xffa941,
-            rune = 0xffcf83
+            rune = 0xffcf83,
+            pommelCore = 0x6f4514,
+            pommelRing = 0xc88941
         } = palette;
+        const {
+            darkKnight = false,
+            largePommel = 1
+        } = options;
 
-        const auraRect = this.scene.add.rectangle(0, 0, 180 * scale, 34 * scale, aura, 0.16);
-        const bladeRect = this.scene.add.rectangle(0, 0, 160 * scale, 14 * scale, blade, 0.96);
-        const edgeRect = this.scene.add.rectangle(58 * scale, 0, 38 * scale, 5 * scale, edge, 0.94);
-        const guardRect = this.scene.add.rectangle(-66 * scale, 0, 24 * scale, 20 * scale, guard, 0.86);
-        const pommel = this.scene.add.circle(-82 * scale, 0, 6 * scale, 0x6f4514, 0.9).setStrokeStyle(1.5, 0xc88941, 0.85);
+        const auraRect = this.scene.add.rectangle(8 * scale, 0, 200 * scale, 38 * scale, aura, darkKnight ? 0.2 : 0.16);
+        const bladeRect = this.scene.add.rectangle(-4 * scale, 0, 154 * scale, 14 * scale, blade, 0.96);
+        const fuller = this.scene.add.rectangle(18 * scale, 0, 96 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
+        const edgeRect = this.scene.add.rectangle(52 * scale, 0, 34 * scale, 5 * scale, edge, 0.94);
+
+        const bladeTip = this.scene.add.polygon(84 * scale, 0, [
+            0, -8 * scale,
+            24 * scale, 0,
+            0, 8 * scale,
+            -4 * scale, 0
+        ], blade, 0.98).setStrokeStyle(1.5 * scale, edge, 0.9);
+
+        const guardRect = this.scene.add.rectangle(-66 * scale, 0, 28 * scale, 20 * scale, guard, 0.9);
+        const guardWingA = this.scene.add.triangle(-79 * scale, 0, 0, 0, -16 * scale, -8 * scale, -16 * scale, 8 * scale, guard, 0.86);
+        const guardWingB = this.scene.add.triangle(-53 * scale, 0, 0, 0, 16 * scale, -8 * scale, 16 * scale, 8 * scale, guard, 0.86);
+
+        const grip = this.scene.add.rectangle(-90 * scale, 0, 24 * scale, 10 * scale, darkKnight ? 0x1e1c26 : 0x5e3a18, 0.95)
+            .setStrokeStyle(1.2 * scale, darkKnight ? 0x5d5874 : 0xbf8a4a, 0.7);
+
+        const pommel = this.scene.add.circle(-108 * scale, 0, (8 * scale) * largePommel, pommelCore, 0.95)
+            .setStrokeStyle(2 * scale, pommelRing, 0.88);
+        const pommelCoreGlow = this.scene.add.circle(-108 * scale, 0, (3.4 * scale) * largePommel, edge, 0.55);
 
         const runeArc = this.scene.add.graphics();
         runeArc.lineStyle(2 * scale, rune, 0.72);
         runeArc.beginPath();
-        runeArc.arc(0, 0, 70 * scale, -0.32, 0.32);
+        runeArc.arc(0, 0, 82 * scale, -0.35, 0.35);
         runeArc.strokePath();
 
         return {
             aura: auraRect,
             blade: bladeRect,
+            fuller,
             edge: edgeRect,
+            bladeTip,
             guard: guardRect,
+            guardWingA,
+            guardWingB,
+            grip,
             pommel,
+            pommelCoreGlow,
             runeArc,
-            all: [auraRect, bladeRect, edgeRect, guardRect, pommel, runeArc]
+            all: [
+                auraRect,
+                bladeRect,
+                fuller,
+                edgeRect,
+                bladeTip,
+                guardRect,
+                guardWingA,
+                guardWingB,
+                grip,
+                pommel,
+                pommelCoreGlow,
+                runeArc
+            ]
         };
     }
 
@@ -64,7 +106,12 @@ export class SwordWeapon extends WeaponBase {
             blade: 0xffedd3,
             edge: 0xffffff,
             guard: 0xe19135,
-            rune: 0xffdba2
+            rune: 0xffdba2,
+            pommelCore: 0x5f3a1a,
+            pommelRing: 0xd19856
+        }, {
+            darkKnight: false,
+            largePommel: 1.22
         });
         const spinRing = this.scene.add.circle(0, 0, data.size * 2.45, 0x000000, 0).setStrokeStyle(1.8, 0xffd487, 0.62);
 
@@ -102,6 +149,7 @@ export class SwordWeapon extends WeaponBase {
             spinRing.rotation += 0.2;
             swordParts.runeArc.alpha = 0.45 + Math.sin(slash.flightTick * 1.7) * 0.28;
             swordParts.aura.alpha = 0.2 + Math.sin(slash.flightTick * 1.1) * 0.1;
+            swordParts.pommelCoreGlow.alpha = 0.35 + Math.sin(slash.flightTick * 1.5) * 0.2;
 
             if (Math.random() > 0.6) {
                 this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
@@ -367,11 +415,16 @@ export class SwordWeapon extends WeaponBase {
 
             const container = this.scene.add.container(sx, sy).setDepth(188);
             const swordParts = this.createProceduralSwordParts(1.35, {
-                aura: 0xff9f2f,
-                blade: 0xffe7c5,
-                edge: 0xffffff,
-                guard: 0xffa941,
-                rune: 0xffcf83
+                aura: 0x5b5a82,
+                blade: 0xd6d6e8,
+                edge: 0xf5f8ff,
+                guard: 0x2c2a38,
+                rune: 0x9fa6ff,
+                pommelCore: 0x121018,
+                pommelRing: 0x7e85c9
+            }, {
+                darkKnight: true,
+                largePommel: 1.45
             });
             const trail = this.scene.add.particles(0, 0, null, {
                 lifespan: { min: 180, max: 300 },
