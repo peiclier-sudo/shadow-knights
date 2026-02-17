@@ -397,7 +397,8 @@ export class ThunderGauntletWeapon extends WeaponBase {
             orb,
             ring,
             nodes: [],
-            timers: []
+            timers: [],
+            tweens: []
         };
 
         return true;
@@ -443,7 +444,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
         state.angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
         state.phase = 'blitz';
 
-        this.scene.tweens.add({
+        const fadeTween = this.scene.tweens.add({
             targets: [state.orb, state.ring],
             alpha: 0,
             duration: 120,
@@ -452,6 +453,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
                 state.ring?.destroy();
             }
         });
+        state.tweens.push(fadeTween);
 
         this.executeStormbreakerBlitz(state, boss);
         return true;
@@ -475,24 +477,26 @@ export class ThunderGauntletWeapon extends WeaponBase {
                 const slash = this.scene.add.rectangle(boss.x, boss.y, 120, 6, 0xd6f8ff, 0.9)
                     .setRotation(arc)
                     .setDepth(190);
-                this.scene.tweens.add({
+                const slashTween = this.scene.tweens.add({
                     targets: slash,
                     alpha: 0,
                     scaleX: 1.25,
                     duration: 100,
                     onComplete: () => slash.destroy()
                 });
+                state.tweens.push(slashTween);
 
                 const node = this.scene.add.circle(px, py, 10, 0x80d9ff, 0.62).setDepth(188);
                 state.nodes.push(node);
-                this.scene.tweens.add({
+                const nodeTween = this.scene.tweens.add({
                     targets: node,
                     alpha: 0.38,
                     radius: 14,
                     duration: 180,
                     yoyo: true,
-                    repeat: -1
+                    repeat: 8
                 });
+                state.tweens.push(nodeTween);
 
                 const dmg = cfg.blitzDamage * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(dmg);
@@ -524,12 +528,13 @@ export class ThunderGauntletWeapon extends WeaponBase {
             beam.moveTo(node.x, node.y);
             beam.lineTo(centerX, centerY);
             beam.strokePath();
-            this.scene.tweens.add({
+            const beamTween = this.scene.tweens.add({
                 targets: beam,
                 alpha: 0,
                 duration: 110,
                 onComplete: () => beam.destroy()
             });
+            state.tweens.push(beamTween);
         }
 
         const cage = this.scene.add.circle(centerX, centerY, cfg.nodeRadius * 0.45, 0x5ebfff, 0.25).setDepth(189);
@@ -537,7 +542,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             .setStrokeStyle(4, 0xe6fbff, 0.95)
             .setDepth(192);
 
-        this.scene.tweens.add({
+        const cageTween = this.scene.tweens.add({
             targets: cage,
             radius: cfg.nodeRadius,
             alpha: 0,
@@ -545,7 +550,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => cage.destroy()
         });
-        this.scene.tweens.add({
+        const ringTween = this.scene.tweens.add({
             targets: ring,
             radius: cfg.nodeRadius * 1.25,
             alpha: 0,
@@ -553,6 +558,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => ring.destroy()
         });
+        state.tweens.push(cageTween, ringTween);
 
         this.scene.cameras.main.flash(160, 180, 245, 255);
         this.scene.cameras.main.shake(230, 0.009);
@@ -590,10 +596,21 @@ export class ThunderGauntletWeapon extends WeaponBase {
         const state = this.ultimateState;
         if (!state) return;
 
+        for (const tween of state.tweens || []) {
+            tween?.stop?.();
+            tween?.remove?.();
+        }
+
+        this.scene.tweens.killTweensOf(state.orb);
+        this.scene.tweens.killTweensOf(state.ring);
         state.orb?.destroy();
         state.ring?.destroy();
+
         for (const timer of state.timers || []) timer?.remove?.();
-        for (const node of state.nodes || []) node?.destroy?.();
+        for (const node of state.nodes || []) {
+            this.scene.tweens.killTweensOf(node);
+            node?.destroy?.();
+        }
 
         this.player.alpha = 1;
         this.player.untargetable = false;
