@@ -7,12 +7,12 @@ export const WEAPONS = {
         description: 'Sword - Fast slash / Piercing laser',
         projectile: {
             type: 'slash',
-            size: 14,
-            speed: 800,
+            size: 13,
+            speed: 980,
             damage: 22,
             color: 0xffaa00,
             count: 1,
-            range: 200,
+            range: 260,
             cooldown: 250,
             piercing: false  // ✅ FIXED - était true, maintenant false
         },
