@@ -130,22 +130,25 @@ export class SwordWeapon extends WeaponBase {
         } = options;
 
         const sword = this.scene.add.container(startX, startY).setDepth(150);
-        const scale = 0.34 + size / 36;
+        const scale = 0.3 + size / 40;
 
-        const blade = this.scene.add.triangle(
-            0,
-            0,
-            108 * scale,
-            0,
-            -64 * scale,
-            -14 * scale,
-            -64 * scale,
-            14 * scale,
-            0xfff1dc,
-            0.99
-        ).setStrokeStyle(1.9 * scale, 0xffffff, 0.94);
+        const blade = this.scene.add.polygon(0, 0, [
+            -56 * scale, -5.5 * scale,
+            76 * scale, -5.5 * scale,
+            94 * scale, 0,
+            76 * scale, 5.5 * scale,
+            -56 * scale, 5.5 * scale
+        ], 0xfff1dc, 0.99).setStrokeStyle(1.4 * scale, 0xffffff, 0.94);
 
-        sword.add([blade]);
+        const fuller = this.scene.add.rectangle(14 * scale, 0, 84 * scale, 1.9 * scale, 0xf5ddbc, 0.86);
+        const guard = this.scene.add.rectangle(-59 * scale, 0, 16 * scale, 12 * scale, 0xd08b3c, 0.95)
+            .setStrokeStyle(1.2 * scale, 0xf0bf7a, 0.75);
+        const grip = this.scene.add.rectangle(-73 * scale, 0, 16 * scale, 7 * scale, 0x684522, 0.95)
+            .setStrokeStyle(1 * scale, 0xc58c4f, 0.65);
+        const pommel = this.scene.add.circle(-84 * scale, 0, 4.2 * scale, 0x8d5c2c, 0.95)
+            .setStrokeStyle(1.1 * scale, 0xe0a761, 0.85);
+
+        sword.add([blade, fuller, guard, grip, pommel]);
         sword.rotation = angle;
 
         sword.vx = Math.cos(angle) * speed;
@@ -166,6 +169,10 @@ export class SwordWeapon extends WeaponBase {
 
         sword.on('destroy', () => {
             blade.destroy();
+            fuller.destroy();
+            guard.destroy();
+            grip.destroy();
+            pommel.destroy();
         });
 
         this.scene.projectiles.push(sword);
@@ -290,18 +297,22 @@ export class SwordWeapon extends WeaponBase {
 
     createSlashCastFX(x, y, angle, data) {
         const castArc = this.scene.add.graphics().setDepth(158);
-        castArc.lineStyle(3, 0xffd89b, 0.84);
-        castArc.beginPath();
-        castArc.arc(x, y, data.size * 2.5, angle - 1.02, angle + 1.02);
-        castArc.strokePath();
+        const len = data.size * 3.2;
+        const tipX = x + Math.cos(angle) * len;
+        const tipY = y + Math.sin(angle) * len;
+        castArc.lineStyle(3, 0xffd89b, 0.82);
+        castArc.lineBetween(x, y, tipX, tipY);
+        castArc.lineStyle(1.6, 0xfff2d4, 0.9);
+        castArc.lineBetween(x, y, x + Math.cos(angle) * (len * 0.72), y + Math.sin(angle) * (len * 0.72));
 
-        const flash = this.scene.add.circle(x, y, 14, 0xfff0ce, 0.62).setDepth(159);
+        const flash = this.scene.add.circle(x, y, 12, 0xfff0ce, 0.62).setDepth(159);
 
         this.scene.tweens.add({
             targets: [castArc, flash],
             alpha: 0,
-            scale: 1.3,
-            duration: 145,
+            scaleX: 1.2,
+            scaleY: 1.1,
+            duration: 120,
             ease: 'Cubic.easeOut',
             onComplete: () => {
                 castArc.destroy();
