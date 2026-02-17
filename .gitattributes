@@ -1,0 +1,4 @@
+*.html text eol=lf diff=html
+*.js text eol=lf diff=javascript
+*.css text eol=lf diff=css
+*.json text eol=lf diff=json
