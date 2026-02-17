@@ -18,6 +18,38 @@ export class SwordWeapon extends WeaponBase {
         g.destroy();
     }
 
+    createProceduralSwordParts(scale = 1, palette = {}) {
+        const {
+            aura = 0xff9f2f,
+            blade = 0xffe7c5,
+            edge = 0xffffff,
+            guard = 0xffa941,
+            rune = 0xffcf83
+        } = palette;
+
+        const auraRect = this.scene.add.rectangle(0, 0, 180 * scale, 34 * scale, aura, 0.16);
+        const bladeRect = this.scene.add.rectangle(0, 0, 160 * scale, 14 * scale, blade, 0.96);
+        const edgeRect = this.scene.add.rectangle(58 * scale, 0, 38 * scale, 5 * scale, edge, 0.94);
+        const guardRect = this.scene.add.rectangle(-66 * scale, 0, 24 * scale, 20 * scale, guard, 0.86);
+        const pommel = this.scene.add.circle(-82 * scale, 0, 6 * scale, 0x6f4514, 0.9).setStrokeStyle(1.5, 0xc88941, 0.85);
+
+        const runeArc = this.scene.add.graphics();
+        runeArc.lineStyle(2 * scale, rune, 0.72);
+        runeArc.beginPath();
+        runeArc.arc(0, 0, 70 * scale, -0.32, 0.32);
+        runeArc.strokePath();
+
+        return {
+            aura: auraRect,
+            blade: bladeRect,
+            edge: edgeRect,
+            guard: guardRect,
+            pommel,
+            runeArc,
+            all: [auraRect, bladeRect, edgeRect, guardRect, pommel, runeArc]
+        };
+    }
+
     fire(angle) {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
@@ -27,23 +59,20 @@ export class SwordWeapon extends WeaponBase {
         this.createSlashCastFX(startX, startY, angle, data);
 
         const slash = this.scene.add.container(startX, startY).setDepth(150);
-
-        const bladeGlow = this.scene.add.rectangle(0, 0, data.size * 3.1, data.size * 0.95, 0xffb84d, 0.28);
-        const bladeCore = this.scene.add.rectangle(0, 0, data.size * 2.45, data.size * 0.45, 0xfff2d3, 0.95);
-        const bladeEdge = this.scene.add.rectangle(data.size * 1.22, 0, data.size * 0.85, data.size * 0.26, 0xffffff, 0.92);
-        const guard = this.scene.add.rectangle(-data.size * 0.95, 0, data.size * 0.65, data.size * 0.55, 0xffa645, 0.78);
-
-        const arc = this.scene.add.graphics();
-        arc.lineStyle(3, 0xffd07f, 0.82);
-        arc.beginPath();
-        arc.arc(0, 0, data.size * 2.55, -0.7, 0.7);
-        arc.strokePath();
+        const swordParts = this.createProceduralSwordParts(0.22 + data.size / 52, {
+            aura: 0xff8f1f,
+            blade: 0xffedd3,
+            edge: 0xffffff,
+            guard: 0xe19135,
+            rune: 0xffdba2
+        });
+        const spinRing = this.scene.add.circle(0, 0, data.size * 2.45, 0x000000, 0).setStrokeStyle(1.8, 0xffd487, 0.62);
 
         slash.rotation = angle;
-        slash.add([bladeGlow, bladeCore, bladeEdge, guard, arc]);
+        slash.add([...swordParts.all, spinRing]);
 
         this.scene.tweens.add({
-            targets: [bladeGlow, bladeCore],
+            targets: [swordParts.aura, swordParts.blade],
             alpha: { from: 0.95, to: 0.62 },
             scaleX: { from: 1, to: 1.08 },
             duration: 90,
@@ -61,13 +90,18 @@ export class SwordWeapon extends WeaponBase {
         slash.piercing = data.piercing;
         slash.hasHit = false;
         slash.visualAngle = angle;
+        slash.flightTick = Math.random() * 10;
 
         slash.update = () => {
             if (!slash.scene) return;
+            slash.flightTick += 0.3;
 
             const targetAngle = Math.atan2(slash.vy, slash.vx);
             slash.visualAngle = Phaser.Math.Angle.RotateTo(slash.visualAngle, targetAngle, 0.24);
             slash.rotation = slash.visualAngle;
+            spinRing.rotation += 0.2;
+            swordParts.runeArc.alpha = 0.45 + Math.sin(slash.flightTick * 1.7) * 0.28;
+            swordParts.aura.alpha = 0.2 + Math.sin(slash.flightTick * 1.1) * 0.1;
 
             if (Math.random() > 0.6) {
                 this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
@@ -78,11 +112,8 @@ export class SwordWeapon extends WeaponBase {
         };
 
         slash.on('destroy', () => {
-            bladeGlow.destroy();
-            bladeCore.destroy();
-            bladeEdge.destroy();
-            guard.destroy();
-            arc.destroy();
+            swordParts.all.forEach((part) => part.destroy());
+            spinRing.destroy();
         });
 
         this.scene.projectiles.push(slash);
@@ -335,10 +366,13 @@ export class SwordWeapon extends WeaponBase {
             const sy = this.player.y;
 
             const container = this.scene.add.container(sx, sy).setDepth(188);
-            const aura = this.scene.add.rectangle(0, 0, 180, 34, 0xff9f2f, 0.15);
-            const blade = this.scene.add.rectangle(0, 0, 160, 14, 0xffe7c5, 0.95);
-            const edge = this.scene.add.rectangle(58, 0, 38, 5, 0xffffff, 0.92);
-            const guard = this.scene.add.rectangle(-66, 0, 24, 20, 0xffa941, 0.82);
+            const swordParts = this.createProceduralSwordParts(1.35, {
+                aura: 0xff9f2f,
+                blade: 0xffe7c5,
+                edge: 0xffffff,
+                guard: 0xffa941,
+                rune: 0xffcf83
+            });
             const trail = this.scene.add.particles(0, 0, null, {
                 lifespan: { min: 180, max: 300 },
                 speed: { min: 40, max: 120 },
@@ -356,10 +390,10 @@ export class SwordWeapon extends WeaponBase {
             trail.setDepth(187);
 
             container.rotation = angle + (sign < 0 ? 0.2 : -0.2);
-            container.add([aura, blade, edge, guard]);
+            container.add(swordParts.all);
 
             this.scene.tweens.add({
-                targets: [aura, blade],
+                targets: [swordParts.aura, swordParts.blade],
                 alpha: { from: 0.55, to: 0.95 },
                 scaleX: { from: 0.94, to: 1.08 },
                 duration: 180,
@@ -372,10 +406,7 @@ export class SwordWeapon extends WeaponBase {
                 side,
                 sign,
                 container,
-                aura,
-                blade,
-                edge,
-                guard,
+                parts: swordParts,
                 trail,
                 phase: Math.random() * Math.PI * 2
             };
@@ -521,10 +552,7 @@ export class SwordWeapon extends WeaponBase {
 
         state.sigil?.destroy();
         for (const sword of state.swords || []) {
-            sword.aura?.destroy();
-            sword.blade?.destroy();
-            sword.edge?.destroy();
-            sword.guard?.destroy();
+            sword.parts?.all?.forEach((part) => part.destroy());
             sword.trail?.destroy();
             sword.container?.destroy();
         }
