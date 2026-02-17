@@ -107,19 +107,6 @@ export class SwordWeapon extends WeaponBase {
         const sword = this.scene.add.container(startX, startY).setDepth(150);
         const scale = 0.38 + data.size / 34;
 
-        // Re-conceptualized basic sword: oversized readable projectile silhouette.
-        const shadow = this.scene.add.polygon(4 * scale, 2 * scale, [
-            108 * scale, 0,
-            -64 * scale, -15 * scale,
-            -64 * scale, 15 * scale
-        ], 0x000000, 0.22);
-
-        const aura = this.scene.add.polygon(0, 0, [
-            118 * scale, 0,
-            -72 * scale, -18 * scale,
-            -72 * scale, 18 * scale
-        ], 0xffb45f, 0.32);
-
         const blade = this.scene.add.triangle(
             0,
             0,
@@ -133,42 +120,7 @@ export class SwordWeapon extends WeaponBase {
             0.99
         ).setStrokeStyle(1.9 * scale, 0xffffff, 0.94);
 
-        const core = this.scene.add.triangle(
-            -4 * scale,
-            0,
-            84 * scale,
-            0,
-            -54 * scale,
-            -5.6 * scale,
-            -54 * scale,
-            5.6 * scale,
-            0xd9dae8,
-            0.74
-        );
-
-        const sideCurves = this.scene.add.graphics();
-        sideCurves.lineStyle(2.7 * scale, 0xffd896, 0.82);
-        this.drawCurveLine(sideCurves,
-            -56 * scale, -1 * scale,
-            12 * scale, -22 * scale,
-            94 * scale, -5 * scale,
-            16
-        );
-        this.drawCurveLine(sideCurves,
-            -56 * scale, 1 * scale,
-            12 * scale, 22 * scale,
-            94 * scale, 5 * scale,
-            16
-        );
-
-        const hilt = this.scene.add.rectangle(-78 * scale, 0, 23 * scale, 17 * scale, 0xcf8b3f, 0.98)
-            .setStrokeStyle(1.2 * scale, 0xf9d18a, 0.88);
-        const grip = this.scene.add.rectangle(-94 * scale, 0, 16 * scale, 11 * scale, 0x4f2f16, 0.95);
-        const pommel = this.scene.add.circle(-108 * scale, 0, 6.2 * scale, 0x6a3c16, 1)
-            .setStrokeStyle(1.6 * scale, 0xcf9858, 0.84);
-        const pommelGlow = this.scene.add.circle(-108 * scale, 0, 2.6 * scale, 0xffdba7, 0.66);
-
-        sword.add([shadow, aura, blade, core, sideCurves, hilt, grip, pommel, pommelGlow]);
+        sword.add([blade]);
         sword.rotation = angle;
 
         sword.vx = Math.cos(angle) * data.speed;
@@ -180,34 +132,15 @@ export class SwordWeapon extends WeaponBase {
         sword.piercing = data.piercing;
         sword.hasHit = false;
         sword.visualAngle = angle;
-        sword.pulse = Math.random() * 10;
-
         sword.update = () => {
             if (!sword.scene) return;
-            sword.pulse += 0.22;
             const targetAngle = Math.atan2(sword.vy, sword.vx);
             sword.visualAngle = Phaser.Math.Angle.RotateTo(sword.visualAngle, targetAngle, 0.24);
             sword.rotation = sword.visualAngle;
-
-            aura.alpha = 0.2 + Math.sin(sword.pulse) * 0.08;
-            sideCurves.alpha = 0.58 + Math.sin(sword.pulse * 1.6) * 0.18;
-            pommelGlow.alpha = 0.38 + Math.sin(sword.pulse * 2) * 0.2;
-
-            if (Math.random() > 0.66) {
-                this.spawnSwordSpark(sword.x, sword.y, sword.visualAngle);
-            }
         };
 
         sword.on('destroy', () => {
-            shadow.destroy();
-            aura.destroy();
             blade.destroy();
-            core.destroy();
-            sideCurves.destroy();
-            hilt.destroy();
-            grip.destroy();
-            pommel.destroy();
-            pommelGlow.destroy();
         });
 
         this.scene.projectiles.push(sword);
