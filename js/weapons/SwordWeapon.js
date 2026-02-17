@@ -160,6 +160,7 @@ export class SwordWeapon extends WeaponBase {
         if (perpDist < 50) {
             const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
             boss.takeDamage(finalDamage);
+            this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
 
             if (charged.knockback) {
                 this.scene.tweens.add({

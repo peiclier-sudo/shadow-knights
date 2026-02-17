@@ -68,6 +68,7 @@ export class DaggerWeapon extends WeaponBase {
                 // ✅ FIX: Appliquer le multiplicateur de dégâts
                 const tickDamage = (charged.damage / charged.ticks) * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(tickDamage);
+                this.gainUltimateGaugeFromDamage(tickDamage, { charged: true, dot: true });
                 
                 boss.setTint(0x88aa88);
                 

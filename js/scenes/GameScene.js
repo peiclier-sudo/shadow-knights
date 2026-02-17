@@ -203,6 +203,18 @@ export class GameScene extends Phaser.Scene {
             stroke: '#000',
             strokeThickness: 2
         }).setScrollFactor(0).setOrigin(0, 0.5);
+
+        // Ultimate gauge (future weapon ultimate trigger)
+        this.ultimateBarBg = this.add.rectangle(20, 80, 250, 10, 0x333333)
+            .setScrollFactor(0).setOrigin(0, 0.5);
+        this.ultimateBar = this.add.rectangle(20, 80, 250, 10, 0xa64dff)
+            .setScrollFactor(0).setOrigin(0, 0.5);
+        this.ultimateText = this.add.text(280, 80, 'ULT 0%', {
+            fontSize: '14px',
+            fill: '#d9aaff',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setScrollFactor(0).setOrigin(0, 0.5);
         
         // Boss health
         this.bossName = this.add.text(width - 200, 15, this.boss?.bossData?.name || 'BOSS', {
@@ -449,6 +461,15 @@ export class GameScene extends Phaser.Scene {
         // DASH avec ESPACE
         this.input.keyboard.on('keydown-SPACE', () => {
             this.performDash();
+        });
+
+        // ULTIMATE (F): hold to charge, release to launch
+        this.input.keyboard.on('keydown-F', () => {
+            this.weapon?.startUltimateCharge(this.worldMouseX, this.worldMouseY);
+        });
+
+        this.input.keyboard.on('keyup-F', () => {
+            this.weapon?.releaseUltimate(this.worldMouseX, this.worldMouseY);
         });
         
         this.input.keyboard.on('keydown-T', () => {
@@ -705,6 +726,9 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         }
+
+        // Ultimate charging/launch update (weapon specific)
+        this.weapon?.updateUltimate(time, delta, this.worldMouseX, this.worldMouseY);
         
         // Ligne de visée
         this.aimLine.clear();
@@ -806,6 +830,10 @@ export class GameScene extends Phaser.Scene {
 
                     const finalDamage = proj.damage * damageMultiplier;
                     this.boss.takeDamage(finalDamage);
+                    this.weapon?.gainUltimateGaugeFromDamage(finalDamage, {
+                        charged: !!proj.isCharged,
+                        dot: !!proj.isDot
+                    });
                     
                     if (proj.knockback) {
                         const angle = Math.atan2(proj.vy, proj.vx);
@@ -908,6 +936,10 @@ export class GameScene extends Phaser.Scene {
 
             this.staminaBar.width = 250 * this.displayStaminaRatio;
             this.staminaText.setText(`${Math.floor(this.player.stamina)}`);
+
+            const ultimateRatio = (this.player.ultimateGauge || 0) / (this.player.ultimateGaugeMax || 100);
+            this.ultimateBar.width = 250 * ultimateRatio;
+            this.ultimateText.setText(`ULT ${Math.floor(ultimateRatio * 100)}%`);
         }
 
         if (this.boss) {

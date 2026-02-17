@@ -31,6 +31,10 @@ export class Player extends Phaser.GameObjects.Container {
         this.multishotCount = 0;
         this.backstabReady = false;
         this.untargetable = false;
+
+        // Ultimate gauge (future weapon ultimate skill)
+        this.ultimateGauge = 0;
+        this.ultimateGaugeMax = 100;
         
         // Créer la classe
         this.createClass();

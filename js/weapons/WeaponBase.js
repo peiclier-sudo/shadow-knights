@@ -150,6 +150,54 @@ export class WeaponBase {
         });
     }
     
+
+    gainUltimateGaugeFromDamage(damageDealt, options = {}) {
+        if (!this.player) return 0;
+
+        const charged = !!options.charged;
+        const dot = !!options.dot;
+        const amount = Math.max(0, Number(damageDealt) || 0);
+
+        if (amount <= 0) return 0;
+
+        // Tuned for boss-rush pacing: basics fill steadily, charged bursts fill faster, DoT contributes less.
+        const baseRatio = 0.32;
+        const chargedBonus = charged ? 1.35 : 1;
+        const dotPenalty = dot ? 0.45 : 1;
+        const gain = Math.max(1, Math.round(amount * baseRatio * chargedBonus * dotPenalty));
+
+        const maxGauge = this.player.ultimateGaugeMax || 100;
+        const previous = this.player.ultimateGauge || 0;
+        this.player.ultimateGauge = Phaser.Math.Clamp(previous + gain, 0, maxGauge);
+
+        return this.player.ultimateGauge - previous;
+    }
+
+
+    canUseUltimate() {
+        const max = this.player?.ultimateGaugeMax || 100;
+        return (this.player?.ultimateGauge || 0) >= max;
+    }
+
+    consumeUltimate(amount) {
+        if (!this.player) return false;
+        const max = this.player.ultimateGaugeMax || 100;
+        const cost = amount ?? max;
+        if ((this.player.ultimateGauge || 0) < cost) return false;
+        this.player.ultimateGauge = Math.max(0, this.player.ultimateGauge - cost);
+        return true;
+    }
+
+    startUltimateCharge() {
+        return false;
+    }
+
+    updateUltimate() {}
+
+    releaseUltimate() {
+        return false;
+    }
+
     // Réinitialiser la charge (quand annulée)
     resetCharge() {
         this.isCharging = false;
