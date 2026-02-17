@@ -30,33 +30,41 @@ export class BossSelectScene extends Phaser.Scene {
             strokeThickness: 2
         }).setOrigin(0.5);
         
-        const startX = width/2 - 300;
-        const cardWidth = 250;
-        
-        [1, 2, 3].forEach((bossId, index) => {
+        // Layout: 4 cards centered, each 210 px wide with 30 px gap (step = 240)
+        const cardWidth = 210;
+        const step = 240;
+        const startX = width / 2 - step * 1.5;
+
+        [1, 2, 3, 4].forEach((bossId, index) => {
             const bossData = BOSSES[bossId];
             const unlocked = bossId <= GameData.unlockedBosses;
-            const x = startX + index * (cardWidth + 50);
-            const y = height/2;
-            
+            const x = startX + index * step;
+            const y = height / 2;
+
             // Card
             const card = this.add.rectangle(x, y, cardWidth, 300, bossData.color, unlocked ? 0.3 : 0.1);
             card.setStrokeStyle(4, bossData.glowColor, unlocked ? 1 : 0.3);
-            
+
             // Boss name
-            this.add.text(x, y - 100, bossData.name, {
-                fontSize: '28px',
+            this.add.text(x, y - 110, bossData.name, {
+                fontSize: '24px',
                 fill: unlocked ? '#fff' : '#666',
                 fontStyle: 'bold'
             }).setOrigin(0.5);
-            
-            // Boss preview (simulated)
-            const preview = this.add.circle(x, y - 30, 40, bossData.color, unlocked ? 0.5 : 0.2);
+
+            // Attack type label
+            this.add.text(x, y - 82, bossData.attackType || '', {
+                fontSize: '13px',
+                fill: unlocked ? bossData.glowColor > 0 ? '#' + bossData.glowColor.toString(16).padStart(6, '0') : '#aaa' : '#555'
+            }).setOrigin(0.5);
+
+            // Boss preview circle
+            const preview = this.add.circle(x, y - 22, 38, bossData.color, unlocked ? 0.5 : 0.2);
             preview.setStrokeStyle(3, bossData.glowColor, unlocked ? 0.8 : 0.3);
-            
+
             // HP
-            this.add.text(x, y + 40, `HP: ${bossData.hp}`, {
-                fontSize: '20px',
+            this.add.text(x, y + 42, `HP: ${bossData.hp}`, {
+                fontSize: '18px',
                 fill: unlocked ? '#ffaa00' : '#666'
             }).setOrigin(0.5);
             
