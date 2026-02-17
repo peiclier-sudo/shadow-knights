@@ -173,6 +173,31 @@ export class WeaponBase {
         return this.player.ultimateGauge - previous;
     }
 
+
+    canUseUltimate() {
+        const max = this.player?.ultimateGaugeMax || 100;
+        return (this.player?.ultimateGauge || 0) >= max;
+    }
+
+    consumeUltimate(amount) {
+        if (!this.player) return false;
+        const max = this.player.ultimateGaugeMax || 100;
+        const cost = amount ?? max;
+        if ((this.player.ultimateGauge || 0) < cost) return false;
+        this.player.ultimateGauge = Math.max(0, this.player.ultimateGauge - cost);
+        return true;
+    }
+
+    startUltimateCharge() {
+        return false;
+    }
+
+    updateUltimate() {}
+
+    releaseUltimate() {
+        return false;
+    }
+
     // Réinitialiser la charge (quand annulée)
     resetCharge() {
         this.isCharging = false;

@@ -462,6 +462,15 @@ export class GameScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-SPACE', () => {
             this.performDash();
         });
+
+        // ULTIMATE (F): hold to charge, release to launch
+        this.input.keyboard.on('keydown-F', () => {
+            this.weapon?.startUltimateCharge(this.worldMouseX, this.worldMouseY);
+        });
+
+        this.input.keyboard.on('keyup-F', () => {
+            this.weapon?.releaseUltimate(this.worldMouseX, this.worldMouseY);
+        });
         
         this.input.keyboard.on('keydown-T', () => {
             this.toggleAttackRangePreview();
@@ -717,6 +726,9 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         }
+
+        // Ultimate charging/launch update (weapon specific)
+        this.weapon?.updateUltimate(time, delta, this.worldMouseX, this.worldMouseY);
         
         // Ligne de visée
         this.aimLine.clear();
