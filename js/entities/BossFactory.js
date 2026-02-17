@@ -6,6 +6,9 @@ import { DasherBoss } from './bosses/DasherBoss.js';
 import { PhantomBoss } from './bosses/PhantomBoss.js';
 import { NebulaBoss } from './bosses/NebulaBoss.js';
 import { OverclockBoss } from './bosses/OverclockBoss.js';
+import { VortexBoss } from './bosses/VortexBoss.js';
+import { EmberCrownBoss } from './bosses/EmberCrownBoss.js';
+import { AuroraJudgeBoss } from './bosses/AuroraJudgeBoss.js';
 
 export class BossFactory {
     static createBoss(scene, bossId) {
@@ -22,6 +25,12 @@ export class BossFactory {
                 return new NebulaBoss(scene);
             case 6:
                 return new OverclockBoss(scene);
+            case 7:
+                return new VortexBoss(scene);
+            case 8:
+                return new EmberCrownBoss(scene);
+            case 9:
+                return new AuroraJudgeBoss(scene);
             default:
                 return new Boss(scene, bossId);
         }

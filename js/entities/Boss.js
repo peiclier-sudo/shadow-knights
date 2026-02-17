@@ -214,6 +214,91 @@ export class Boss extends Phaser.GameObjects.Container {
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
+        } else if (this.bossId === 7) {
+            // Vortex - The Event Horizon
+            const body = this.scene.add.circle(0, 0, 34, this.bossData.color, 0.78);
+            body.setStrokeStyle(2, this.bossData.glowColor, 1);
+
+            const ring1 = this.scene.add.ellipse(0, 0, 78, 48, this.bossData.secondaryColor, 0.35);
+            const ring2 = this.scene.add.ellipse(0, 0, 96, 58, this.bossData.secondaryColor, 0.22);
+            ring1.setStrokeStyle(2, this.bossData.glowColor, 0.85);
+            ring2.setStrokeStyle(2, this.bossData.glowColor, 0.6);
+
+            const eye = this.scene.add.circle(0, -6, 8, 0xffffff, 0.9);
+
+            this.add([ring2, ring1, body, eye]);
+
+            this.scene.tweens.add({
+                targets: ring1,
+                angle: 360,
+                duration: 1800,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: ring2,
+                angle: -360,
+                duration: 2300,
+                repeat: -1,
+                ease: 'Linear'
+            });
+        } else if (this.bossId === 8) {
+            // Ember Crown - The Ash Sovereign
+            const body = this.scene.add.rectangle(0, 8, 66, 90, this.bossData.color, 0.8);
+            body.setStrokeStyle(3, this.bossData.glowColor, 0.95);
+
+            const crown = this.scene.add.triangle(0, -58, -26, -42, 0, -74, 26, -42, this.bossData.glowColor, 0.9);
+            const core = this.scene.add.circle(0, -12, 11, 0xfff0e6, 0.95);
+            const armL = this.scene.add.rectangle(-40, 10, 12, 34, this.bossData.secondaryColor, 0.75);
+            const armR = this.scene.add.rectangle(40, 10, 12, 34, this.bossData.secondaryColor, 0.75);
+
+            this.add([body, crown, core, armL, armR]);
+
+            this.scene.tweens.add({
+                targets: crown,
+                y: '-=4',
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
+
+            this.scene.tweens.add({
+                targets: [armL, armR],
+                angle: 7,
+                duration: 400,
+                yoyo: true,
+                repeat: -1
+            });
+        } else if (this.bossId === 9) {
+            // Aurora Judge - The Final Arbiter
+            const body = this.scene.add.ellipse(0, 6, 70, 96, this.bossData.color, 0.76);
+            body.setStrokeStyle(3, this.bossData.glowColor, 0.95);
+
+            const halo = this.scene.add.ellipse(0, -50, 72, 22, this.bossData.secondaryColor, 0.34);
+            halo.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const crystalL = this.scene.add.triangle(-34, -10, -48, -10, -24, -24, -24, 4, this.bossData.glowColor, 0.9);
+            const crystalR = this.scene.add.triangle(34, -10, 48, -10, 24, -24, 24, 4, this.bossData.glowColor, 0.9);
+            const core = this.scene.add.circle(0, -10, 12, 0xffffff, 0.95);
+
+            this.add([body, halo, crystalL, crystalR, core]);
+
+            this.scene.tweens.add({
+                targets: halo,
+                angle: 360,
+                duration: 2600,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [crystalL, crystalR],
+                alpha: 0.35,
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
         }
         
         // Add glow effects

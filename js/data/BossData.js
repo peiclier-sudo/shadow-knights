@@ -47,5 +47,29 @@ export const BOSSES = {
         glowColor: 0xffef99,
         secondaryColor: 0x8a5d00,
         attackType: 'TIME SPLIT DASH'
+    },
+    7: {
+        name: 'VORTEX',
+        hp: 1120,
+        color: 0x3aa7ff,
+        glowColor: 0x8fd3ff,
+        secondaryColor: 0x114c78,
+        attackType: 'SINGULARITY ORBS'
+    },
+    8: {
+        name: 'EMBER CROWN',
+        hp: 1260,
+        color: 0xff3d1f,
+        glowColor: 0xffa07a,
+        secondaryColor: 0x7c1f10,
+        attackType: 'SCORCH PATTERN'
+    },
+    9: {
+        name: 'AURORA JUDGE',
+        hp: 1400,
+        color: 0x84ff6b,
+        glowColor: 0xc7ffbf,
+        secondaryColor: 0x2f6a2c,
+        attackType: 'PRISM SENTENCE'
     }
 };
