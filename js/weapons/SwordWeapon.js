@@ -130,25 +130,24 @@ export class SwordWeapon extends WeaponBase {
         } = options;
 
         const sword = this.scene.add.container(startX, startY).setDepth(150);
-        const scale = 0.3 + size / 40;
+        const scale = 0.26 + size / 44;
 
         const blade = this.scene.add.polygon(0, 0, [
-            -56 * scale, -5.5 * scale,
-            76 * scale, -5.5 * scale,
-            94 * scale, 0,
-            76 * scale, 5.5 * scale,
-            -56 * scale, 5.5 * scale
-        ], 0xfff1dc, 0.99).setStrokeStyle(1.4 * scale, 0xffffff, 0.94);
+            -42 * scale, -4.4 * scale,
+            58 * scale, -4.4 * scale,
+            72 * scale, 0,
+            58 * scale, 4.4 * scale,
+            -42 * scale, 4.4 * scale
+        ], 0xfff1dc, 0.99).setStrokeStyle(1.6 * scale, 0xffffff, 0.9);
 
-        const fuller = this.scene.add.rectangle(14 * scale, 0, 84 * scale, 1.9 * scale, 0xf5ddbc, 0.86);
-        const guard = this.scene.add.rectangle(-59 * scale, 0, 16 * scale, 12 * scale, 0xd08b3c, 0.95)
-            .setStrokeStyle(1.2 * scale, 0xf0bf7a, 0.75);
-        const grip = this.scene.add.rectangle(-73 * scale, 0, 16 * scale, 7 * scale, 0x684522, 0.95)
-            .setStrokeStyle(1 * scale, 0xc58c4f, 0.65);
-        const pommel = this.scene.add.circle(-84 * scale, 0, 4.2 * scale, 0x8d5c2c, 0.95)
-            .setStrokeStyle(1.1 * scale, 0xe0a761, 0.85);
+        const guard = this.scene.add.rectangle(-44 * scale, 0, 12 * scale, 10 * scale, 0xd3944e, 0.96)
+            .setStrokeStyle(1 * scale, 0xf1c489, 0.72);
+        const grip = this.scene.add.rectangle(-55 * scale, 0, 12 * scale, 6 * scale, 0x714b25, 0.96)
+            .setStrokeStyle(0.9 * scale, 0xc79558, 0.64);
+        const pommel = this.scene.add.circle(-63 * scale, 0, 3.2 * scale, 0x946031, 0.96)
+            .setStrokeStyle(1 * scale, 0xddae6f, 0.84);
 
-        sword.add([blade, fuller, guard, grip, pommel]);
+        sword.add([blade, guard, grip, pommel]);
         sword.rotation = angle;
 
         sword.vx = Math.cos(angle) * speed;
@@ -169,7 +168,6 @@ export class SwordWeapon extends WeaponBase {
 
         sword.on('destroy', () => {
             blade.destroy();
-            fuller.destroy();
             guard.destroy();
             grip.destroy();
             pommel.destroy();
@@ -433,12 +431,33 @@ export class SwordWeapon extends WeaponBase {
 
         const aimX = targetX ?? this.player.x + 1;
         const aimY = targetY ?? this.player.y;
+        const angle = Math.atan2(aimY - this.player.y, aimX - this.player.x);
+
+        const makeSummonedSword = (sign) => {
+            const container = this.scene.add.container(this.player.x, this.player.y).setDepth(188);
+            const parts = this.createProceduralSwordParts(1.1, {
+                aura: 0x7a73c7,
+                blade: 0xe6e7ff,
+                edge: 0xffffff,
+                guard: 0x5f57a8,
+                rune: 0xc0c6ff,
+                pommelCore: 0x302858,
+                pommelRing: 0x908ad3
+            }, {
+                darkKnight: true,
+                largePommel: 1.1
+            });
+            container.add(parts.all);
+            container.rotation = angle + (sign < 0 ? 0.22 : -0.22);
+            return { sign, container, parts, phase: Math.random() * Math.PI * 2 };
+        };
 
         this.ultimateState = {
             phase: 'charge',
             targetX: aimX,
             targetY: aimY,
-            sigil: this.scene.add.graphics().setDepth(186)
+            sigil: this.scene.add.graphics().setDepth(186),
+            swords: [makeSummonedSword(-1), makeSummonedSword(1)]
         };
 
         return true;
@@ -456,6 +475,9 @@ export class SwordWeapon extends WeaponBase {
             state.targetX = clamped.x;
             state.targetY = clamped.y;
 
+            const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+            const sideDist = 60;
+
             state.sigil.clear();
             state.sigil.lineStyle(3, 0xffd07a, 0.38);
             state.sigil.strokeCircle(this.player.x, this.player.y, 54 + Math.sin(time * 0.01) * 5);
@@ -464,6 +486,13 @@ export class SwordWeapon extends WeaponBase {
             state.sigil.lineStyle(2, 0xfff0cd, 0.76);
             state.sigil.lineBetween(this.player.x, this.player.y, state.targetX, state.targetY);
             state.sigil.strokeCircle(state.targetX, state.targetY, 18 + Math.sin(time * 0.015) * 3);
+
+            for (const sword of state.swords) {
+                sword.phase += 0.08;
+                sword.container.x = this.player.x + sword.sign * sideDist;
+                sword.container.y = this.player.y + Math.sin(sword.phase) * 4;
+                sword.container.rotation = angle + (sword.sign < 0 ? 0.28 : -0.28);
+            }
         }
     }
 
@@ -484,24 +513,24 @@ export class SwordWeapon extends WeaponBase {
         state.targetX = clamped.x;
         state.targetY = clamped.y;
 
-        const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
         const ultimateRange = 520;
-        const travelDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, state.targetX, state.targetY);
-        const velocityScale = Phaser.Math.Clamp(travelDistance / ultimateRange, 0.55, 1);
 
-        this.launchSwordProjectile(angle, {
-            startX: this.player.x + Math.cos(angle) * 46,
-            startY: this.player.y + Math.sin(angle) * 46,
-            speed: 1200 * velocityScale,
-            damage: 220,
-            range: ultimateRange,
-            size: this.data.projectile.size,
-            color: 0xdedbff,
-            piercing: true,
-            trailSize: this.data.projectile.size + 2
-        });
+        for (const summoned of state.swords) {
+            const angle = Math.atan2(state.targetY - summoned.container.y, state.targetX - summoned.container.x);
+            this.launchSwordProjectile(angle, {
+                startX: summoned.container.x + Math.cos(angle) * 38,
+                startY: summoned.container.y + Math.sin(angle) * 38,
+                speed: 1280,
+                damage: 120,
+                range: ultimateRange,
+                size: this.data.projectile.size + 6,
+                color: 0xdedbff,
+                piercing: true,
+                trailSize: this.data.projectile.size + 4
+            });
+        }
 
-        this.spawnUltimateImpact(this.player.x + Math.cos(angle) * 44, this.player.y + Math.sin(angle) * 44);
+        this.spawnUltimateImpact(state.targetX, state.targetY);
 
         this.scene.cameras.main.flash(140, 255, 205, 120);
         this.scene.cameras.main.shake(180, 0.008);
@@ -540,6 +569,10 @@ export class SwordWeapon extends WeaponBase {
         if (!state) return;
 
         state.sigil?.destroy();
+        for (const sword of state.swords || []) {
+            sword.parts?.all?.forEach((part) => part.destroy());
+            sword.container?.destroy();
+        }
 
         this.ultimateState = null;
     }
