@@ -105,25 +105,46 @@ export class SwordWeapon extends WeaponBase {
         this.createSlashCastFX(startX, startY, angle, data);
 
         const slash = this.scene.add.container(startX, startY).setDepth(150);
-        const swordParts = this.createProceduralSwordParts(0.22 + data.size / 52, {
-            aura: 0xff8f1f,
-            blade: 0xffedd3,
-            edge: 0xffffff,
-            guard: 0xe19135,
-            rune: 0xffdba2,
-            pommelCore: 0x5f3a1a,
-            pommelRing: 0xd19856
-        }, {
-            darkKnight: false,
-            largePommel: 1.22
-        });
+        const scale = 0.22 + data.size / 52;
+
+        const auraBlade = this.scene.add.polygon(0, 0, [
+            -96 * scale, -10 * scale,
+            72 * scale, -10 * scale,
+            112 * scale, 0,
+            72 * scale, 10 * scale,
+            -96 * scale, 10 * scale
+        ], 0xffa63f, 0.24);
+
+        const blade = this.scene.add.polygon(0, 0, [
+            -86 * scale, -7.2 * scale,
+            64 * scale, -7.2 * scale,
+            94 * scale, 0,
+            64 * scale, 7.2 * scale,
+            -86 * scale, 7.2 * scale
+        ], 0xffe7ca, 0.98).setStrokeStyle(1.2 * scale, 0xffffff, 0.9);
+
+        const fuller = this.scene.add.polygon(0, 0, [
+            -44 * scale, -2.3 * scale,
+            54 * scale, -2.3 * scale,
+            73 * scale, 0,
+            54 * scale, 2.3 * scale,
+            -44 * scale, 2.3 * scale
+        ], 0xb7b7c8, 0.74);
+
+        const guard = this.scene.add.rectangle(-72 * scale, 0, 32 * scale, 19 * scale, 0xd58d3a, 0.92);
+        const grip = this.scene.add.rectangle(-96 * scale, 0, 26 * scale, 10 * scale, 0x5d3919, 0.96)
+            .setStrokeStyle(1 * scale, 0xc58a49, 0.72);
+        const pommel = this.scene.add.circle(-114 * scale, 0, 8.6 * scale, 0x6f451e, 0.98)
+            .setStrokeStyle(1.7 * scale, 0xd7a260, 0.88);
+        const pommelCore = this.scene.add.circle(-114 * scale, 0, 3.2 * scale, 0xffddac, 0.55);
+
         const spinRing = this.scene.add.circle(0, 0, data.size * 2.45, 0x000000, 0).setStrokeStyle(1.8, 0xffd487, 0.62);
+        slash.add([auraBlade, blade, fuller, guard, grip, pommel, pommelCore, spinRing]);
 
         slash.rotation = angle;
-        slash.add([...swordParts.all, spinRing]);
 
         this.scene.tweens.add({
-            targets: [swordParts.aura, swordParts.blade],
+            targets: [auraBlade, blade],
             alpha: { from: 0.95, to: 0.62 },
             scaleX: { from: 1, to: 1.08 },
             duration: 90,
@@ -151,9 +172,9 @@ export class SwordWeapon extends WeaponBase {
             slash.visualAngle = Phaser.Math.Angle.RotateTo(slash.visualAngle, targetAngle, 0.24);
             slash.rotation = slash.visualAngle;
             spinRing.rotation += 0.2;
-            swordParts.runeArc.alpha = 0.45 + Math.sin(slash.flightTick * 1.7) * 0.28;
-            swordParts.aura.alpha = 0.2 + Math.sin(slash.flightTick * 1.1) * 0.1;
-            swordParts.pommelCoreGlow.alpha = 0.35 + Math.sin(slash.flightTick * 1.5) * 0.2;
+            fuller.alpha = 0.45 + Math.sin(slash.flightTick * 1.7) * 0.2;
+            auraBlade.alpha = 0.16 + Math.sin(slash.flightTick * 1.1) * 0.09;
+            pommelCore.alpha = 0.28 + Math.sin(slash.flightTick * 1.5) * 0.2;
 
             if (Math.random() > 0.6) {
                 this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
@@ -164,7 +185,13 @@ export class SwordWeapon extends WeaponBase {
         };
 
         slash.on('destroy', () => {
-            swordParts.all.forEach((part) => part.destroy());
+            auraBlade.destroy();
+            blade.destroy();
+            fuller.destroy();
+            guard.destroy();
+            grip.destroy();
+            pommel.destroy();
+            pommelCore.destroy();
             spinRing.destroy();
         });
 
