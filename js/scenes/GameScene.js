@@ -7,6 +7,7 @@ import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
 import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
+import { ThunderGauntletWeapon } from '../weapons/ThunderGauntletWeapon.js';
 import { SkillUI } from '../ui/SkillUI.js';
 
 export class GameScene extends Phaser.Scene {
@@ -170,6 +171,9 @@ export class GameScene extends Phaser.Scene {
             case 'GREATSWORD':
                 this.weapon = new GreatswordWeapon(this, this.player);
                 break;
+            case 'THUNDER_GAUNTLET':
+                this.weapon = new ThunderGauntletWeapon(this, this.player);
+                break;
             default:
                 this.weapon = new SwordWeapon(this, this.player);
         }
@@ -309,6 +313,7 @@ export class GameScene extends Phaser.Scene {
         if (charged.arrows) chargedExtras.push(`Arrows: ${charged.arrows}`);
         if (charged.slow) chargedExtras.push('Slow effect');
         if (charged.stun) chargedExtras.push('Stun effect');
+        if (charged.vulnerabilityMultiplier) chargedExtras.push(`Vulnerability: +${Math.round((charged.vulnerabilityMultiplier - 1) * 100)}% damage taken`);
 
         const line1 = `${this.weapon?.data?.name || 'WEAPON'} ${this.weapon?.data?.icon || ''}`;
         const line2 = `Basic: ${projectile.type || 'shot'} | dmg ${projectile.damage ?? '?'} | cd ${projectile.cooldown ?? '?'}ms`;

@@ -34,7 +34,7 @@ export class WeaponSelectScene extends Phaser.Scene {
             fill: '#aaa'
         }).setOrigin(0.5);
         
-        const weaponKeys = ['SWORD', 'BOW', 'STAFF', 'DAGGERS', 'GREATSWORD'];
+        const weaponKeys = ['SWORD', 'BOW', 'STAFF', 'DAGGERS', 'GREATSWORD', 'THUNDER_GAUNTLET'];
         const startX = width/2 - 450;
         const cardWidth = 200;
         const cardHeight = 250;
