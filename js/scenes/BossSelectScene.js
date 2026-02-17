@@ -30,12 +30,12 @@ export class BossSelectScene extends Phaser.Scene {
             strokeThickness: 2
         }).setOrigin(0.5);
         
-        // Layout: 4 cards centered, each 210 px wide with 30 px gap (step = 240)
-        const cardWidth = 210;
-        const step = 240;
-        const startX = width / 2 - step * 1.5;
+        const bossIds = Object.keys(BOSSES).map(Number).sort((a, b) => a - b);
+        const cardWidth = 180;
+        const step = Math.min(220, Math.max(170, Math.floor((width - 120) / Math.max(1, bossIds.length - 1))));
+        const startX = width / 2 - (step * (bossIds.length - 1)) / 2;
 
-        [1, 2, 3, 4].forEach((bossId, index) => {
+        bossIds.forEach((bossId, index) => {
             const bossData = BOSSES[bossId];
             const unlocked = bossId <= GameData.unlockedBosses;
             const x = startX + index * step;

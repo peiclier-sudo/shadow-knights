@@ -9,7 +9,7 @@ export const GameData = {
     },
     
     unlockNextBoss() {
-        if (this.currentBossId === this.unlockedBosses && this.currentBossId < 4) {
+        if (this.currentBossId === this.unlockedBosses && this.currentBossId < 5) {
             this.unlockedBosses++;
             this.saveProgress();
         }

@@ -96,7 +96,7 @@ export class GameOverScene extends Phaser.Scene {
         });
         
         // Next boss button if victory and boss not last
-        if (this.victory && GameData.currentBossId < 3) {
+        if (this.victory && GameData.currentBossId < 5) {
             const nextBtn = this.add.text(width/2, height/2 + 160, 'NEXT BOSS', {
                 ...buttonStyle,
                 fill: '#00ff88'

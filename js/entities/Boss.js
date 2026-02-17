@@ -139,6 +139,48 @@ export class Boss extends Phaser.GameObjects.Container {
                 yoyo: true,
                 repeat: -1
             });
+        } else if (this.bossId === 5) {
+            // Nebula - The Void Architect
+            const outerRing = this.scene.add.circle(0, 0, 44, this.bossData.secondaryColor, 0.42);
+            outerRing.setStrokeStyle(3, this.bossData.glowColor, 0.85);
+
+            const body = this.scene.add.ellipse(0, 0, 60, 82, this.bossData.color, 0.78);
+            body.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            const core = this.scene.add.circle(0, -8, 13, 0xffffff, 0.95);
+            const eyeL = this.scene.add.circle(-10, -20, 5, this.bossData.glowColor, 0.95);
+            const eyeR = this.scene.add.circle(10, -20, 5, this.bossData.glowColor, 0.95);
+
+            const shardTop = this.scene.add.triangle(0, -56, 0, -70, -8, -50, 8, -50, this.bossData.glowColor, 0.9);
+            const shardLeft = this.scene.add.triangle(-46, -2, -60, -2, -40, -12, -40, 8, this.bossData.glowColor, 0.8);
+            const shardRight = this.scene.add.triangle(46, -2, 60, -2, 40, -12, 40, 8, this.bossData.glowColor, 0.8);
+
+            this.add([outerRing, body, core, eyeL, eyeR, shardTop, shardLeft, shardRight]);
+
+            this.scene.tweens.add({
+                targets: outerRing,
+                angle: 360,
+                duration: 4000,
+                repeat: -1,
+                ease: 'Linear'
+            });
+
+            this.scene.tweens.add({
+                targets: [eyeL, eyeR],
+                alpha: 0.35,
+                duration: 600,
+                yoyo: true,
+                repeat: -1
+            });
+
+            this.scene.tweens.add({
+                targets: body,
+                y: -6,
+                duration: 1400,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
         }
         
         // Add glow effects

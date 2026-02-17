@@ -31,5 +31,13 @@ export const BOSSES = {
         glowColor: 0x33ffee,
         secondaryColor: 0x009977,
         attackType: 'ECHO BOLT'
+    },
+    5: {
+        name: 'NEBULA',
+        hp: 820,
+        color: 0x7b61ff,
+        glowColor: 0xb5a6ff,
+        secondaryColor: 0x2d1a63,
+        attackType: 'GRAVITY LATTICE'
     }
 };
