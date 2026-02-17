@@ -325,9 +325,16 @@ export class SwordWeapon extends WeaponBase {
         const makeSummonedSword = (sign) => {
             const container = this.scene.add.container(this.player.x + sign * 60, this.player.y).setDepth(188);
             const visual = this.createSimpleSwordVisual(1.35);
-            container.add(visual.all);
+            const aura = this.scene.add.ellipse(0, 0, 140, 32, 0x8f86ff, 0.18)
+                .setStrokeStyle(2, 0xd9d6ff, 0.45);
+            const rune = this.scene.add.graphics();
+            rune.lineStyle(2, 0xc7c3ff, 0.58);
+            rune.beginPath();
+            rune.arc(-4, 0, 26, -0.52, 0.52);
+            rune.strokePath();
+            container.add([aura, ...visual.all, rune]);
             container.rotation = angle + (sign < 0 ? 0.24 : -0.24);
-            return { sign, container, visual, phase: Math.random() * Math.PI * 2 };
+            return { sign, container, visual, aura, rune, phase: Math.random() * Math.PI * 2 };
         };
 
         this.ultimateState = {
@@ -356,20 +363,35 @@ export class SwordWeapon extends WeaponBase {
             const angle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
             const sideDist = 60;
 
+            const spin = time * 0.004;
             state.sigil.clear();
-            state.sigil.lineStyle(3, 0xffd07a, 0.38);
+            state.sigil.lineStyle(3, 0xffd07a, 0.4);
             state.sigil.strokeCircle(this.player.x, this.player.y, 54 + Math.sin(time * 0.01) * 5);
-            state.sigil.lineStyle(1.5, 0xfff0cd, 0.32);
+            state.sigil.lineStyle(1.5, 0xfff0cd, 0.3);
             state.sigil.strokeCircle(this.player.x, this.player.y, 80 + Math.sin(time * 0.008) * 6);
+            state.sigil.lineStyle(1.6, 0xd4cbff, 0.55);
+            state.sigil.beginPath();
+            state.sigil.arc(this.player.x, this.player.y, 68, spin, spin + 1.2);
+            state.sigil.strokePath();
+            state.sigil.beginPath();
+            state.sigil.arc(this.player.x, this.player.y, 68, spin + Math.PI, spin + Math.PI + 1.2);
+            state.sigil.strokePath();
             state.sigil.lineStyle(2, 0xfff0cd, 0.76);
             state.sigil.lineBetween(this.player.x, this.player.y, state.targetX, state.targetY);
             state.sigil.strokeCircle(state.targetX, state.targetY, 18 + Math.sin(time * 0.015) * 3);
+            state.sigil.lineStyle(1.2, 0xd4cbff, 0.62);
+            state.sigil.lineBetween(state.targetX - 12, state.targetY, state.targetX + 12, state.targetY);
+            state.sigil.lineBetween(state.targetX, state.targetY - 12, state.targetX, state.targetY + 12);
 
             for (const sword of state.swords) {
                 sword.phase += 0.08;
                 sword.container.x = this.player.x + sword.sign * sideDist;
-                sword.container.y = this.player.y + Math.sin(sword.phase) * 4;
-                sword.container.rotation = angle + (sword.sign < 0 ? 0.28 : -0.28);
+                sword.container.y = this.player.y + Math.sin(sword.phase) * 5;
+                sword.container.rotation = angle + (sword.sign < 0 ? 0.32 : -0.32);
+                sword.aura.scaleX = 1 + Math.sin(time * 0.013 + sword.sign) * 0.18;
+                sword.aura.scaleY = 1 + Math.cos(time * 0.011 + sword.sign) * 0.12;
+                sword.aura.alpha = 0.16 + (Math.sin(time * 0.018 + sword.sign) + 1) * 0.07;
+                sword.rune.rotation += 0.05 * sword.sign;
             }
         }
     }
@@ -408,7 +430,7 @@ export class SwordWeapon extends WeaponBase {
         }
 
         this.scene.cameras.main.flash(120, 255, 205, 120);
-        this.scene.cameras.main.shake(160, 0.007);
+        this.scene.cameras.main.shake(130, 0.0035);
         this.destroyUltimateState();
         return true;
     }
@@ -420,6 +442,8 @@ export class SwordWeapon extends WeaponBase {
         state.sigil?.destroy();
         for (const sword of state.swords || []) {
             sword.visual?.all?.forEach((part) => part.destroy());
+            sword.aura?.destroy();
+            sword.rune?.destroy();
             sword.container?.destroy();
         }
 
