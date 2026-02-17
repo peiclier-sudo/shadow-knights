@@ -32,9 +32,9 @@ export class StaffWeapon extends WeaponBase {
 
         if (!this.scene.textures.exists('staff-dark-flame')) {
             const darkFlame = this.scene.add.graphics();
-            darkFlame.fillGradientStyle(0x440044, 0x220022, 0x660033, 0x000000, 1);
+            darkFlame.fillGradientStyle(0x7a0008, 0x2a0003, 0xb3001b, 0x050000, 1);
             darkFlame.fillTriangle(8, 1, 13, 15, 3, 15);
-            darkFlame.lineStyle(1.5, 0x990099, 0.82);
+            darkFlame.lineStyle(1.5, 0xff3355, 0.9);
             darkFlame.strokeTriangle(8, 1, 13, 15, 3, 15);
             darkFlame.generateTexture('staff-dark-flame', 16, 16);
             darkFlame.destroy();
@@ -42,9 +42,9 @@ export class StaffWeapon extends WeaponBase {
 
         if (!this.scene.textures.exists('staff-dark-spark')) {
             const darkSpark = this.scene.add.graphics();
-            darkSpark.fillGradientStyle(0x880088, 0x440044, 0x220022, 0x000000, 1);
+            darkSpark.fillGradientStyle(0xcc2233, 0x7a0011, 0x2a0005, 0x000000, 1);
             darkSpark.fillCircle(6, 6, 4);
-            darkSpark.lineStyle(1, 0xff0066, 0.72);
+            darkSpark.lineStyle(1, 0xff5577, 0.85);
             darkSpark.strokeCircle(6, 6, 5);
             darkSpark.generateTexture('staff-dark-spark', 12, 12);
             darkSpark.destroy();
@@ -360,8 +360,8 @@ export class StaffWeapon extends WeaponBase {
         state.targetX = clamped.x;
         state.targetY = clamped.y;
 
-        state.flames.stop();
-        state.sparks.stop();
+        state.flames?.stop?.();
+        state.sparks?.stop?.();
 
         const radius = 92 + power * 34;
         const dirs = [
@@ -441,10 +441,10 @@ export class StaffWeapon extends WeaponBase {
             const progress = Phaser.Math.Clamp((time - state.startedAt) / 2300, 0, 1);
             state.power = 1 + progress * 1.25;
 
-            state.flames.setPosition(state.centerX, state.centerY);
-            state.sparks.setPosition(state.centerX, state.centerY);
-            state.flames.setFrequency(30 - Math.floor(progress * 22));
-            state.sparks.setFrequency(70 - Math.floor(progress * 45));
+            state.flames?.setPosition?.(state.centerX, state.centerY);
+            state.sparks?.setPosition?.(state.centerX, state.centerY);
+            state.flames?.setFrequency?.(30 - Math.floor(progress * 22));
+            state.sparks?.setFrequency?.(70 - Math.floor(progress * 45));
 
             state.ring.setPosition(state.centerX, state.centerY);
             state.ring.alpha = 0.18 + progress * 0.16;
@@ -459,7 +459,7 @@ export class StaffWeapon extends WeaponBase {
             this.drawDarkOrbCore(orb.core, orb.x, orb.y, 1 + Math.sin(orb.phase) * 0.14);
             orb.shadow.setPosition(orb.x, orb.y);
             orb.shadow.radius = 18 + Math.sin(orb.phase * 1.3) * 2.5;
-            orb.trail.setPosition(orb.x, orb.y);
+            orb.trail?.setPosition?.(orb.x, orb.y);
         }
 
         if (state.phase === 'surge' && state.beamGraphics) {
@@ -469,7 +469,7 @@ export class StaffWeapon extends WeaponBase {
             for (const orb of state.orbs) {
                 const width = 4 + Math.sin((time * 0.015) + orb.index) * 2 + t * 4;
                 const alpha = 0.5 + Math.sin((time * 0.02) + orb.index) * 0.22;
-                state.beamGraphics.lineStyle(width, 0x990066, Phaser.Math.Clamp(alpha, 0.2, 0.95));
+                state.beamGraphics.lineStyle(width, 0xff2244, Phaser.Math.Clamp(alpha, 0.28, 0.98));
                 state.beamGraphics.lineBetween(orb.x, orb.y, state.targetX, state.targetY);
 
                 if (Math.random() > 0.35) {
@@ -525,7 +525,7 @@ export class StaffWeapon extends WeaponBase {
             this.scene.time.delayedCall(1200, () => flameLine.destroy());
         }
 
-        const pullRing = this.scene.add.circle(x, y, 24, 0x220022, 0.35).setDepth(191).setBlendMode(Phaser.BlendModes.MULTIPLY);
+        const pullRing = this.scene.add.circle(x, y, 24, 0x2a0005, 0.38).setDepth(191).setBlendMode(Phaser.BlendModes.MULTIPLY);
         this.scene.tweens.add({
             targets: pullRing,
             radius: 230 + power * 40,
@@ -547,7 +547,7 @@ export class StaffWeapon extends WeaponBase {
             }
         }
 
-        this.scene.cameras.main.flash(260, 130, 0, 120);
+        this.scene.cameras.main.flash(260, 200, 20, 60);
         this.scene.cameras.main.shake(280, 0.011 + power * 0.0015);
 
         this.scene.time.delayedCall(1300, () => burst.destroy());
@@ -575,26 +575,26 @@ export class StaffWeapon extends WeaponBase {
 
     drawVoidCore(graphics, x, y, scale, tick) {
         graphics.clear();
-        graphics.fillStyle(0x000000, 0.9);
+        graphics.fillStyle(0x120000, 0.92);
         graphics.fillCircle(x, y, 15 * scale);
 
-        graphics.fillStyle(0x220022, 0.92);
+        graphics.fillStyle(0x3a0008, 0.95);
         graphics.fillCircle(x, y, 12 * scale);
 
-        graphics.fillStyle(0x660033, 0.55);
+        graphics.fillStyle(0xaa0018, 0.62);
         graphics.fillCircle(x + Math.cos(tick * 1.4) * 3, y + Math.sin(tick) * 3, 8 * scale);
 
-        graphics.lineStyle(Math.max(1, 2.2 * scale), 0xff0066, 0.36);
+        graphics.lineStyle(Math.max(1, 2.2 * scale), 0xff4466, 0.52);
         graphics.strokeCircle(x, y, 11 * scale);
     }
 
     drawDarkOrbCore(graphics, x, y, scale) {
         graphics.clear();
-        graphics.fillStyle(0x220022, 0.9);
+        graphics.fillStyle(0x2f0006, 0.94);
         graphics.fillCircle(x, y, 13 * scale);
-        graphics.fillStyle(0x660033, 0.84);
+        graphics.fillStyle(0x9e0016, 0.9);
         graphics.fillCircle(x, y, 9 * scale);
-        graphics.fillStyle(0xff0066, 0.72);
+        graphics.fillStyle(0xff4a66, 0.82);
         graphics.fillCircle(x, y, 4.8 * scale);
     }
 
