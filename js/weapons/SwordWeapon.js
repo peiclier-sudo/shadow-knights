@@ -38,11 +38,11 @@ export class SwordWeapon extends WeaponBase {
         const fuller = this.scene.add.rectangle(18 * scale, 0, 96 * scale, 2.8 * scale, darkKnight ? 0x9a99a8 : 0xe8dcc3, 0.75);
         const edgeRect = this.scene.add.rectangle(52 * scale, 0, 34 * scale, 5 * scale, edge, 0.94);
 
-        const bladeTip = this.scene.add.polygon(84 * scale, 0, [
+        const bladeTip = this.scene.add.polygon(73 * scale, 0, [
             0, -8 * scale,
             24 * scale, 0,
             0, 8 * scale,
-            -4 * scale, 0
+            -8 * scale, 0
         ], blade, 0.98).setStrokeStyle(1.5 * scale, edge, 0.9);
 
         const guardRect = this.scene.add.rectangle(-66 * scale, 0, 28 * scale, 20 * scale, guard, 0.9);
