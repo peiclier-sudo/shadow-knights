@@ -102,6 +102,7 @@ export class BowWeapon extends WeaponBase {
 
         const aura = this.scene.add.graphics().setDepth(186);
         const reticle = this.scene.add.graphics().setDepth(187);
+        const ribbons = this.scene.add.graphics().setDepth(185);
 
         const spiritBow = this.scene.add.container(this.player.x, this.player.y).setDepth(188);
         const glow = this.scene.add.ellipse(0, 0, 150, 48, 0x6f8cff, 0.16)
@@ -120,6 +121,7 @@ export class BowWeapon extends WeaponBase {
             aura,
             reticle,
             spiritBow,
+            ribbons,
             pulse: 0
         };
 
@@ -146,6 +148,30 @@ export class BowWeapon extends WeaponBase {
         state.aura.strokeCircle(this.player.x, this.player.y, 58 + Math.sin(time * 0.012) * 4);
         state.aura.lineStyle(1.5, 0xd9f2ff, 0.45);
         state.aura.strokeCircle(this.player.x, this.player.y, 82 + Math.sin(time * 0.01 + 1.2) * 5);
+        state.aura.lineStyle(1.8, 0xbde1ff, 0.42);
+        state.aura.beginPath();
+        state.aura.arc(this.player.x, this.player.y, 70, time * 0.004, time * 0.004 + 1.1);
+        state.aura.strokePath();
+        state.aura.beginPath();
+        state.aura.arc(this.player.x, this.player.y, 70, time * 0.004 + Math.PI, time * 0.004 + Math.PI + 1.1);
+        state.aura.strokePath();
+
+        state.ribbons.clear();
+        state.ribbons.lineStyle(2, 0x9fd8ff, 0.45);
+        for (let i = 0; i < 2; i++) {
+            const offset = i === 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+            const sweep = state.pulse * 0.85 + offset;
+            const sx = this.player.x + Math.cos(sweep) * 26;
+            const sy = this.player.y + Math.sin(sweep) * 26;
+            const mx = this.player.x + Math.cos(sweep + 0.75) * 68;
+            const my = this.player.y + Math.sin(sweep + 0.75) * 68;
+            const ex = this.player.x + Math.cos(sweep + 1.35) * 34;
+            const ey = this.player.y + Math.sin(sweep + 1.35) * 34;
+            state.ribbons.beginPath();
+            state.ribbons.moveTo(sx, sy);
+            state.ribbons.quadraticBezierTo(mx, my, ex, ey);
+            state.ribbons.strokePath();
+        }
 
         state.reticle.clear();
         state.reticle.lineStyle(2, 0xb6f7ff, 0.85);
@@ -173,13 +199,39 @@ export class BowWeapon extends WeaponBase {
 
         state.phase = 'release';
 
-        const recoilDistance = 70;
+        const recoilDistance = 125;
+        const startX = this.player.x;
+        const startY = this.player.y;
+        const recoilX = startX - Math.cos(aimAngle) * recoilDistance;
+        const recoilY = startY - Math.sin(aimAngle) * recoilDistance;
+
         this.scene.tweens.add({
             targets: this.player,
-            x: this.player.x - Math.cos(aimAngle) * recoilDistance,
-            y: this.player.y - Math.sin(aimAngle) * recoilDistance,
-            duration: 160,
+            x: recoilX,
+            duration: 210,
             ease: 'Cubic.easeOut'
+        });
+
+        this.scene.tweens.addCounter({
+            from: 0,
+            to: 1,
+            duration: 210,
+            ease: 'Sine.easeOut',
+            onUpdate: (tw) => {
+                const t = tw.getValue();
+                const hop = Math.sin(Math.PI * t) * 34;
+                this.player.y = Phaser.Math.Linear(startY, recoilY, t) - hop;
+            }
+        });
+
+        const releaseBurst = this.scene.add.circle(startX, startY, 40, 0xb5deff, 0.22).setDepth(175);
+        releaseBurst.setStrokeStyle(3, 0xe7f5ff, 0.85);
+        this.scene.tweens.add({
+            targets: releaseBurst,
+            scale: 2.1,
+            alpha: 0,
+            duration: 280,
+            onComplete: () => releaseBurst.destroy()
         });
 
         this.launchEclipseArrow(aimAngle, centerX, centerY);
@@ -199,7 +251,8 @@ export class BowWeapon extends WeaponBase {
         const shaft = this.scene.add.rectangle(0, 0, 58, 8, 0xdaf6ff, 0.95);
         const tip = this.scene.add.triangle(30, 0, 0, -7, 0, 7, 0x9de0ff, 1);
         const aura = this.scene.add.ellipse(0, 0, 70, 22, 0x82beff, 0.32);
-        projectile.add([aura, shaft, tip]);
+        const tail = this.scene.add.ellipse(-24, 0, 44, 14, 0xbde8ff, 0.35);
+        projectile.add([aura, tail, shaft, tip]);
         projectile.rotation = angle;
 
         const dx = centerX - startX;
@@ -259,14 +312,15 @@ export class BowWeapon extends WeaponBase {
                     const r = Math.random() * radius;
                     const x = centerX + Math.cos(a) * r;
                     const y = centerY + Math.sin(a) * r;
-                    const rain = this.scene.add.rectangle(x, y - 110, 4, 30, 0xc8f0ff, 0.95).setDepth(175);
+                    const rain = this.scene.add.rectangle(x, y - 120, 4, 34, 0xc8f0ff, 0.95).setDepth(175);
+                    const shard = this.scene.add.circle(x, y - 120, 3, 0xe9f7ff, 0.9).setDepth(176);
 
                     this.scene.tweens.add({
-                        targets: rain,
+                        targets: [rain, shard],
                         y,
-                        alpha: 0.25,
+                        alpha: 0.2,
                         duration: 180,
-                        onComplete: () => rain.destroy()
+                        onComplete: () => { rain.destroy(); shard.destroy(); }
                     });
                 }
 
@@ -304,6 +358,7 @@ export class BowWeapon extends WeaponBase {
 
         state.aura?.destroy();
         state.reticle?.destroy();
+        state.ribbons?.destroy();
         state.spiritBow?.destroy();
         this.ultimateState = null;
     }
