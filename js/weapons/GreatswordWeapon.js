@@ -326,6 +326,38 @@ export class GreatswordWeapon extends WeaponBase {
         const oldReduction = this.player.damageReduction || 0;
         this.player.damageReduction = Math.max(oldReduction, cfg.armorReduction);
 
+        const preBurst = this.scene.add.circle(this.player.x, this.player.y, 24, 0x3a1900, 0.55).setDepth(189);
+        const preRing = this.scene.add.circle(this.player.x, this.player.y, 28, 0x000000, 0)
+            .setStrokeStyle(4, 0xffd9ad, 0.82)
+            .setDepth(190);
+
+        this.scene.tweens.add({
+            targets: preBurst,
+            radius: 82,
+            alpha: 0,
+            duration: cfg.anchorDuration,
+            ease: 'Cubic.easeOut',
+            onComplete: () => preBurst.destroy()
+        });
+
+        this.scene.tweens.add({
+            targets: preRing,
+            radius: 110,
+            alpha: 0,
+            duration: cfg.anchorDuration,
+            ease: 'Sine.easeOut',
+            onComplete: () => preRing.destroy()
+        });
+
+        this.scene.tweens.add({
+            targets: this.player,
+            scaleX: 0.92,
+            scaleY: 1.12,
+            duration: cfg.anchorDuration * 0.48,
+            yoyo: true,
+            ease: 'Sine.easeInOut'
+        });
+
         const anchorTimer = this.scene.time.delayedCall(cfg.anchorDuration, () => {
             if (!this.ultimateState) return;
             this.player.damageReduction = oldReduction;
@@ -368,9 +400,23 @@ export class GreatswordWeapon extends WeaponBase {
             }
         });
 
+        this.spawnWorldsplitterCracks(startX, startY, endX, endY, angle);
+        this.spawnWorldsplitterWaveFront(startX, startY, angle);
         this.spawnWorldsplitterShards(startX, startY, endX, endY, angle);
+
+        const skyCut = this.scene.add.rectangle(centerX, centerY, cfg.cleaveLength * 1.12, 4, 0xffffff, 0.92)
+            .setRotation(angle)
+            .setDepth(199);
+        this.scene.tweens.add({
+            targets: skyCut,
+            alpha: 0,
+            scaleY: 3.5,
+            duration: 120,
+            onComplete: () => skyCut.destroy()
+        });
+
         this.scene.cameras.main.flash(180, 255, 185, 90);
-        this.scene.cameras.main.shake(280, 0.011);
+        this.scene.cameras.main.shake(320, 0.012);
 
         const boss = this.scene.boss;
         if (boss?.scene) {
@@ -447,6 +493,57 @@ export class GreatswordWeapon extends WeaponBase {
             this.gainUltimateGaugeFromDamage(damage, { charged: true });
             boss.setTint(0xffd4a2);
             this.scene.time.delayedCall(120, () => boss?.clearTint?.());
+        }
+    }
+
+
+    spawnWorldsplitterCracks(startX, startY, endX, endY, angle) {
+        const graphics = this.scene.add.graphics().setDepth(181);
+        graphics.lineStyle(3, 0xffd9b0, 0.8);
+
+        const segments = 12;
+        for (let i = 0; i < segments; i++) {
+            const t1 = i / segments;
+            const t2 = (i + 1) / segments;
+            const x1 = Phaser.Math.Linear(startX, endX, t1);
+            const y1 = Phaser.Math.Linear(startY, endY, t1);
+            const x2 = Phaser.Math.Linear(startX, endX, t2);
+            const y2 = Phaser.Math.Linear(startY, endY, t2);
+            const off = Math.sin(i * 1.7) * 10;
+            const perp = angle + Math.PI * 0.5;
+            graphics.lineBetween(
+                x1 + Math.cos(perp) * off,
+                y1 + Math.sin(perp) * off,
+                x2 + Math.cos(perp) * (off * 0.8),
+                y2 + Math.sin(perp) * (off * 0.8)
+            );
+        }
+
+        this.scene.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: 340,
+            ease: 'Cubic.easeOut',
+            onComplete: () => graphics.destroy()
+        });
+    }
+
+    spawnWorldsplitterWaveFront(startX, startY, angle) {
+        for (let i = 0; i < 3; i++) {
+            const wave = this.scene.add.arc(startX, startY, 70 + i * 14, angle - 0.3, angle + 0.3, false, 0xffe5c7, 0)
+                .setStrokeStyle(4 - i, 0xffd4a1, 0.72 - i * 0.14)
+                .setDepth(182);
+
+            this.scene.tweens.add({
+                targets: wave,
+                radius: 220 + i * 48,
+                x: startX + Math.cos(angle) * (90 + i * 16),
+                y: startY + Math.sin(angle) * (90 + i * 16),
+                alpha: 0,
+                duration: 260 + i * 45,
+                ease: 'Sine.easeOut',
+                onComplete: () => wave.destroy()
+            });
         }
     }
 
