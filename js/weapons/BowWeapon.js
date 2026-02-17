@@ -13,30 +13,45 @@ export class BowWeapon extends WeaponBase {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
-        
+
         this.createMuzzleFlash(startX, startY, this.data.color);
-        
-        // Créer la flèche
-        const arrow = this.scene.add.container(startX, startY);
-        const shaft = this.scene.add.rectangle(0, 0, data.size * 2, data.size * 0.8, data.color);
-        shaft.rotation = angle;
-        const tip = this.scene.add.triangle(
-            data.size, 0,
-            0, -3,
-            0, 3,
-            data.color
-        );
-        tip.rotation = angle;
-        arrow.add([shaft, tip]);
-        arrow.setDepth(150);
-        
+
+        // Wind streaks radiating forward at spawn
+        for (let i = 0; i < 4; i++) {
+            const spread = Phaser.Math.FloatBetween(-0.3, 0.3);
+            const streak = this.scene.add.rectangle(
+                startX, startY,
+                Phaser.Math.Between(14, 28), 2, 0xd0ffe8, 0.7
+            ).setDepth(152);
+            streak.rotation = angle + spread;
+            this.scene.tweens.add({
+                targets: streak,
+                x: streak.x + Math.cos(angle + spread) * Phaser.Math.Between(22, 44),
+                y: streak.y + Math.sin(angle + spread) * Phaser.Math.Between(22, 44),
+                alpha: 0,
+                scaleX: 0.15,
+                duration: Phaser.Math.Between(110, 200),
+                onComplete: () => streak.destroy()
+            });
+        }
+
+        // Enhanced arrow — container rotated by angle so all parts align with direction
+        const arrow = this.scene.add.container(startX, startY).setDepth(150);
+        arrow.rotation = angle;
+        const hs = data.size;
+        const aura = this.scene.add.ellipse(0, 0, hs * 3.5, hs * 1.6, data.color, 0.2);
+        const shaft = this.scene.add.rectangle(0, 0, hs * 2.2, hs * 0.95, 0xc8ffd4, 0.95);
+        const tip = this.scene.add.triangle(hs * 1.1, 0, 0, -hs * 0.55, 0, hs * 0.55, 0xeeffcc, 1);
+        const tipGlow = this.scene.add.circle(hs * 1.3, 0, hs * 0.55, 0xffffff, 0.5);
+        arrow.add([aura, shaft, tip, tipGlow]);
+
         arrow.vx = Math.cos(angle) * data.speed;
         arrow.vy = Math.sin(angle) * data.speed;
         arrow.damage = data.damage;
         arrow.range = data.range;
         arrow.startX = startX;
         arrow.startY = startY;
-        
+
         this.scene.projectiles.push(arrow);
         this.addTrail(arrow, data.color, data.size);
     }
@@ -56,15 +71,46 @@ export class BowWeapon extends WeaponBase {
             this.scene.time.delayedCall(wave * 180, () => {
                 // Visual rainfall per wave
                 for (let i = 0; i < Math.ceil(charged.arrows / waves); i++) {
-                    const x = centerX + (Math.random() - 0.5) * charged.radius * 2;
-                    const y = centerY + (Math.random() - 0.5) * charged.radius * 2;
-                    const arrow = this.scene.add.rectangle(x, y - 70, 4, 18, 0x88dd88).setDepth(155);
+                    const ax = centerX + (Math.random() - 0.5) * charged.radius * 2;
+                    const ay = centerY + (Math.random() - 0.5) * charged.radius * 2;
 
+                    // Shadow warning on ground before arrow lands
+                    const shadow = this.scene.add.ellipse(ax, ay, 16, 7, 0x22aa44, 0.5).setDepth(120);
                     this.scene.tweens.add({
-                        targets: arrow,
-                        y,
-                        duration: 220,
-                        onComplete: () => arrow.destroy()
+                        targets: shadow,
+                        scaleX: 0.25,
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => shadow.destroy()
+                    });
+
+                    // Glowing arrow shaft falling from above
+                    const arrowShaft = this.scene.add.rectangle(ax, ay - 80, 4, 20, 0x88ee88, 0.92).setDepth(155);
+                    const arrowGlow = this.scene.add.circle(ax, ay - 90, 4.5, 0xaaffaa, 0.5).setDepth(156);
+                    this.scene.tweens.add({
+                        targets: arrowShaft,
+                        y: ay,
+                        duration: 210,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => arrowShaft.destroy()
+                    });
+                    this.scene.tweens.add({
+                        targets: arrowGlow,
+                        y: ay - 10,
+                        duration: 210,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            arrowGlow.destroy();
+                            // Per-arrow impact burst on landing
+                            const impact = this.scene.add.circle(ax, ay, 10, 0x88ff88, 0.65).setDepth(122);
+                            this.scene.tweens.add({
+                                targets: impact,
+                                scale: 2.4,
+                                alpha: 0,
+                                duration: 180,
+                                onComplete: () => impact.destroy()
+                            });
+                        }
                     });
                 }
 

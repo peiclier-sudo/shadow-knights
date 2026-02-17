@@ -75,6 +75,7 @@ export class StaffWeapon extends WeaponBase {
         orb.startX = startX;
         orb.startY = startY;
         orb.lifeTick = 0;
+        orb.hasPreHit = false;
 
         orb.update = () => {
             orb.lifeTick += 0.32;
@@ -86,16 +87,34 @@ export class StaffWeapon extends WeaponBase {
             corona.alpha = 0.12 + Math.abs(Math.sin(orb.lifeTick * 1.1)) * 0.12;
             runeRing.rotation -= 0.07;
 
-            if (Math.random() > 0.48) this.spawnEmber(orb.x, orb.y, dir + Math.PI);
-            if (Math.random() > 0.7) this.spawnSpark(orb.x, orb.y, dir + Math.PI, false);
+            const boss = this.scene.boss;
+            const bossDistFX = boss ? Math.hypot(boss.x - orb.x, boss.y - orb.y) : Infinity;
+
+            // Trail intensity scales up as orb closes in on boss
+            const nearBoss = bossDistFX < 120;
+            if (Math.random() > (nearBoss ? 0.18 : 0.48)) this.spawnEmber(orb.x, orb.y, dir + Math.PI);
+            if (Math.random() > (nearBoss ? 0.38 : 0.7)) this.spawnSpark(orb.x, orb.y, dir + Math.PI, false);
             if (Math.random() > 0.8) this.spawnSpark(orb.x, orb.y, dir + Math.PI, true);
 
-            const boss = this.scene.boss;
             if (!boss) return;
+
+            // Pre-hit blood burst when nearly touching boss
+            if (bossDistFX < 45 && !orb.hasPreHit) {
+                orb.hasPreHit = true;
+                const preHit = this.scene.add.circle(boss.x, boss.y, 20, 0xff2244, 0.7).setDepth(156);
+                this.scene.tweens.add({
+                    targets: preHit,
+                    scale: 3.8,
+                    alpha: 0,
+                    duration: 240,
+                    onComplete: () => preHit.destroy()
+                });
+                for (let i = 0; i < 8; i++) this.spawnEmber(boss.x, boss.y, Math.random() * Math.PI * 2);
+            }
 
             const dx = boss.x - orb.x;
             const dy = boss.y - orb.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dist = bossDistFX;
             if (dist < 340) {
                 orb.vx += dx * 0.028;
                 orb.vy += dy * 0.028;

@@ -38,6 +38,10 @@ export class SwordWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
 
+        this.createSlashCastFX(startX, startY, angle, data);
+        this.spawnBladeGhost(startX, startY, angle, data.size);
+        for (let i = 0; i < 5; i++) this.spawnSwordSpark(startX, startY, angle);
+
         this.launchSwordProjectile(angle, {
             startX,
             startY,
@@ -47,7 +51,7 @@ export class SwordWeapon extends WeaponBase {
             size: data.size,
             color: data.color,
             piercing: data.piercing,
-            trailSize: 0
+            trailSize: data.size
         });
     }
 
@@ -413,35 +417,57 @@ export class SwordWeapon extends WeaponBase {
         state.targetX = clamped.x;
         state.targetY = clamped.y;
 
+        // Capture launch positions before destroying state
+        const launchData = [];
         for (const summoned of state.swords) {
             const angle = Math.atan2(state.targetY - summoned.container.y, state.targetX - summoned.container.x);
-            const launchX = summoned.container.x + Math.cos(angle) * 46;
-            const launchY = summoned.container.y + Math.sin(angle) * 46;
+            const fromX = summoned.container.x;
+            const fromY = summoned.container.y;
+            launchData.push({ angle, fromX, fromY });
 
             this.scene.tweens.add({
                 targets: summoned.container,
-                x: summoned.container.x + Math.cos(angle) * 26,
-                y: summoned.container.y + Math.sin(angle) * 26,
+                x: fromX + Math.cos(angle) * 26,
+                y: fromY + Math.sin(angle) * 26,
                 duration: 55,
                 ease: 'Cubic.easeIn'
             });
-
-            this.launchSwordProjectile(angle, {
-                startX: launchX,
-                startY: launchY,
-                speed: this.data.projectile.speed * 1.85,
-                damage: 120,
-                range: 560,
-                size: this.data.projectile.size,
-                color: this.data.projectile.color,
-                piercing: true,
-                visualScale: 1.35,
-                trailSize: this.data.projectile.size + 1
-            });
         }
 
-        this.scene.cameras.main.flash(130, 255, 210, 140);
-        this.scene.cameras.main.shake(110, 0.0028);
+        // Freeze-frame: brief white flash then 70ms later fire with burst effects
+        this.scene.cameras.main.flash(55, 255, 240, 200);
+        this.scene.time.delayedCall(70, () => {
+            if (!this.scene) return;
+            for (const { angle, fromX, fromY } of launchData) {
+                const launchX = fromX + Math.cos(angle) * 46;
+                const launchY = fromY + Math.sin(angle) * 46;
+
+                const launchBurst = this.scene.add.circle(fromX, fromY, 20, 0xffe0a0, 0.75).setDepth(192);
+                this.scene.tweens.add({
+                    targets: launchBurst,
+                    scale: 3.0,
+                    alpha: 0,
+                    duration: 280,
+                    onComplete: () => launchBurst.destroy()
+                });
+                for (let i = 0; i < 6; i++) this.spawnSwordSpark(fromX, fromY, angle);
+
+                this.launchSwordProjectile(angle, {
+                    startX: launchX,
+                    startY: launchY,
+                    speed: this.data.projectile.speed * 1.85,
+                    damage: 120,
+                    range: 560,
+                    size: this.data.projectile.size,
+                    color: this.data.projectile.color,
+                    piercing: true,
+                    visualScale: 1.35,
+                    trailSize: this.data.projectile.size + 1
+                });
+            }
+            this.scene.cameras.main.shake(110, 0.0028);
+        });
+
         this.destroyUltimateState();
         return true;
     }
