@@ -5,6 +5,7 @@ import { WEAPONS } from './weaponData.js';
 export class BowWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.BOW);
+        this.ultimateState = null;
     }
     
     // Tir normal - Flèche
@@ -90,5 +91,220 @@ export class BowWeapon extends WeaponBase {
                 }
             });
         }
+    }
+
+    startUltimateCharge(targetX, targetY) {
+        if (this.ultimateState || !this.canUseUltimate()) return false;
+
+        const fallbackX = this.player.x + 1;
+        const fallbackY = this.player.y;
+        const target = this.getClampedChargedTarget(targetX ?? fallbackX, targetY ?? fallbackY);
+
+        const aura = this.scene.add.graphics().setDepth(186);
+        const reticle = this.scene.add.graphics().setDepth(187);
+
+        const spiritBow = this.scene.add.container(this.player.x, this.player.y).setDepth(188);
+        const glow = this.scene.add.ellipse(0, 0, 150, 48, 0x6f8cff, 0.16)
+            .setStrokeStyle(2, 0xcfe3ff, 0.55);
+        const bowArc = this.scene.add.arc(0, 0, 42, 90, 270, false, 0xcfe3ff, 0.18)
+            .setStrokeStyle(3, 0xe7f1ff, 0.9);
+        const bowString = this.scene.add.line(0, 0, -6, -38, -6, 38, 0xffffff, 0.85).setLineWidth(2, 2);
+        const spectralArrow = this.scene.add.rectangle(8, 0, 52, 5, 0xb6f7ff, 0.88)
+            .setStrokeStyle(1, 0xffffff, 0.85);
+        spiritBow.add([glow, bowArc, bowString, spectralArrow]);
+
+        this.ultimateState = {
+            phase: 'charge',
+            targetX: target.x,
+            targetY: target.y,
+            aura,
+            reticle,
+            spiritBow,
+            pulse: 0
+        };
+
+        return true;
+    }
+
+    updateUltimate(time, delta, targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return;
+
+        const clamped = this.getClampedChargedTarget(targetX ?? state.targetX, targetY ?? state.targetY);
+        state.targetX = clamped.x;
+        state.targetY = clamped.y;
+        state.pulse += delta * 0.008;
+
+        const aimAngle = Math.atan2(state.targetY - this.player.y, state.targetX - this.player.x);
+        state.spiritBow.x = this.player.x;
+        state.spiritBow.y = this.player.y;
+        state.spiritBow.rotation = aimAngle;
+        state.spiritBow.scale = 1 + Math.sin(time * 0.015) * 0.05;
+
+        state.aura.clear();
+        state.aura.lineStyle(2.5, 0x6f8cff, 0.5);
+        state.aura.strokeCircle(this.player.x, this.player.y, 58 + Math.sin(time * 0.012) * 4);
+        state.aura.lineStyle(1.5, 0xd9f2ff, 0.45);
+        state.aura.strokeCircle(this.player.x, this.player.y, 82 + Math.sin(time * 0.01 + 1.2) * 5);
+
+        state.reticle.clear();
+        state.reticle.lineStyle(2, 0xb6f7ff, 0.85);
+        state.reticle.strokeCircle(state.targetX, state.targetY, 34 + Math.sin(state.pulse) * 4);
+        state.reticle.lineStyle(1.2, 0xffffff, 0.68);
+        state.reticle.lineBetween(state.targetX - 16, state.targetY, state.targetX + 16, state.targetY);
+        state.reticle.lineBetween(state.targetX, state.targetY - 16, state.targetX, state.targetY + 16);
+        state.reticle.lineStyle(1.7, 0x8dd7ff, 0.55);
+        state.reticle.lineBetween(this.player.x, this.player.y, state.targetX, state.targetY);
+    }
+
+    releaseUltimate(targetX, targetY) {
+        const state = this.ultimateState;
+        if (!state || state.phase !== 'charge') return false;
+
+        if (!this.consumeUltimate()) {
+            this.destroyUltimateState();
+            return false;
+        }
+
+        const clamped = this.getClampedChargedTarget(targetX ?? state.targetX, targetY ?? state.targetY);
+        const centerX = clamped.x;
+        const centerY = clamped.y;
+        const aimAngle = Math.atan2(centerY - this.player.y, centerX - this.player.x);
+
+        state.phase = 'release';
+
+        const recoilDistance = 70;
+        this.scene.tweens.add({
+            targets: this.player,
+            x: this.player.x - Math.cos(aimAngle) * recoilDistance,
+            y: this.player.y - Math.sin(aimAngle) * recoilDistance,
+            duration: 160,
+            ease: 'Cubic.easeOut'
+        });
+
+        this.launchEclipseArrow(aimAngle, centerX, centerY);
+        this.startEclipseBarrage(centerX, centerY);
+
+        this.scene.cameras.main.flash(150, 160, 220, 255);
+        this.scene.cameras.main.shake(130, 0.003);
+        this.destroyUltimateState();
+        return true;
+    }
+
+    launchEclipseArrow(angle, centerX, centerY) {
+        const startX = this.player.x + Math.cos(angle) * 30;
+        const startY = this.player.y + Math.sin(angle) * 30;
+
+        const projectile = this.scene.add.container(startX, startY).setDepth(170);
+        const shaft = this.scene.add.rectangle(0, 0, 58, 8, 0xdaf6ff, 0.95);
+        const tip = this.scene.add.triangle(30, 0, 0, -7, 0, 7, 0x9de0ff, 1);
+        const aura = this.scene.add.ellipse(0, 0, 70, 22, 0x82beff, 0.32);
+        projectile.add([aura, shaft, tip]);
+        projectile.rotation = angle;
+
+        const dx = centerX - startX;
+        const dy = centerY - startY;
+        const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const flightDuration = Phaser.Math.Clamp(dist / 2.8, 220, 420);
+
+        this.addTrail(projectile, 0x9de0ff, 9);
+
+        this.scene.tweens.add({
+            targets: projectile,
+            x: centerX,
+            y: centerY,
+            duration: flightDuration,
+            ease: 'Cubic.easeIn',
+            onComplete: () => {
+                if (!projectile.scene) return;
+                projectile.destroy();
+
+                const boss = this.scene.boss;
+                if (!boss) return;
+
+                const hitDist = Phaser.Math.Distance.Between(centerX, centerY, boss.x, boss.y);
+                if (hitDist > 110) return;
+
+                const directDamage = 170 * (this.player.damageMultiplier || 1.0);
+                boss.takeDamage(directDamage);
+                this.gainUltimateGaugeFromDamage(directDamage, { charged: true });
+
+                boss.eclipseMarkedUntil = this.scene.time.now + 3200;
+                const markRing = this.scene.add.circle(boss.x, boss.y, 56, 0xa6d8ff, 0)
+                    .setStrokeStyle(3, 0xa6d8ff, 0.86)
+                    .setDepth(180);
+                this.scene.tweens.add({
+                    targets: markRing,
+                    alpha: 0,
+                    scale: 1.18,
+                    duration: 520,
+                    onComplete: () => markRing.destroy()
+                });
+            }
+        });
+    }
+
+    startEclipseBarrage(centerX, centerY) {
+        const waves = 8;
+        const radius = 190;
+        const baseWaveDamage = 33 * (this.player.damageMultiplier || 1.0);
+        const executeThreshold = 0.3;
+
+        for (let wave = 0; wave < waves; wave++) {
+            this.scene.time.delayedCall(220 + wave * 240, () => {
+                const boss = this.scene.boss;
+
+                for (let i = 0; i < 7; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * radius;
+                    const x = centerX + Math.cos(a) * r;
+                    const y = centerY + Math.sin(a) * r;
+                    const rain = this.scene.add.rectangle(x, y - 110, 4, 30, 0xc8f0ff, 0.95).setDepth(175);
+
+                    this.scene.tweens.add({
+                        targets: rain,
+                        y,
+                        alpha: 0.25,
+                        duration: 180,
+                        onComplete: () => rain.destroy()
+                    });
+                }
+
+                const ring = this.scene.add.circle(centerX, centerY, radius * 0.96, 0x8ec7ff, 0.08).setDepth(130);
+                ring.setStrokeStyle(2, 0xa8d6ff, 0.45);
+                this.scene.tweens.add({
+                    targets: ring,
+                    alpha: 0,
+                    scale: 1.08,
+                    duration: 210,
+                    onComplete: () => ring.destroy()
+                });
+
+                if (!boss) return;
+
+                const dist = Phaser.Math.Distance.Between(centerX, centerY, boss.x, boss.y);
+                if (dist > radius) return;
+
+                let waveDamage = baseWaveDamage;
+                const isMarked = (boss.eclipseMarkedUntil || 0) > this.scene.time.now;
+                const healthRatio = boss.maxHealth > 0 ? boss.health / boss.maxHealth : 1;
+                if (isMarked && healthRatio <= executeThreshold) {
+                    waveDamage *= 1.8;
+                }
+
+                boss.takeDamage(waveDamage);
+                this.gainUltimateGaugeFromDamage(waveDamage, { charged: true });
+            });
+        }
+    }
+
+    destroyUltimateState() {
+        const state = this.ultimateState;
+        if (!state) return;
+
+        state.aura?.destroy();
+        state.reticle?.destroy();
+        state.spiritBow?.destroy();
+        this.ultimateState = null;
     }
 }
