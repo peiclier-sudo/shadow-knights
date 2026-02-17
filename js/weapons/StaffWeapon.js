@@ -333,8 +333,13 @@ export class StaffWeapon extends WeaponBase {
             power: 1,
             targetX: targetX || this.player.x,
             targetY: targetY || this.player.y,
+            coreX: centerX,
+            coreY: centerY,
+            releaseVector: { x: 0, y: 0 },
             orbs: [],
-            beamGraphics: null
+            beamGraphics: null,
+            sigilGraphics: null,
+            launchTrail: null
         };
 
         return true;
@@ -359,10 +364,36 @@ export class StaffWeapon extends WeaponBase {
         const clamped = this.getClampedChargedTarget(state.targetX, state.targetY);
         state.targetX = clamped.x;
         state.targetY = clamped.y;
+        const dirX = state.targetX - state.centerX;
+        const dirY = state.targetY - state.centerY;
+        const dirLength = Math.max(1, Math.sqrt((dirX * dirX) + (dirY * dirY)));
+        state.releaseVector = { x: dirX / dirLength, y: dirY / dirLength };
 
         state.phase = 'launch';
         state.flames?.stop?.();
         state.sparks?.stop?.();
+
+        state.coreX = state.centerX;
+        state.coreY = state.centerY;
+
+        state.launchTrail = this.scene.add.particles(state.centerX, state.centerY, 'staff-dark-spark', {
+            speed: { min: 10, max: 40 },
+            scale: { start: 0.9, end: 0 },
+            alpha: { start: 0.8, end: 0 },
+            lifespan: { min: 180, max: 420 },
+            frequency: 22,
+            quantity: 2,
+            blendMode: 'ADD',
+            emitting: true
+        }).setDepth(186);
+
+        this.scene.tweens.add({
+            targets: state,
+            centerX: state.targetX,
+            centerY: state.targetY,
+            duration: 430,
+            ease: 'Cubic.easeInOut'
+        });
 
         const radius = 92 + power * 34;
         const dirs = [
@@ -420,6 +451,9 @@ export class StaffWeapon extends WeaponBase {
             state.phase = 'surge';
             state.surgeStartedAt = this.scene.time.now;
             state.beamGraphics = this.scene.add.graphics().setDepth(187);
+            state.sigilGraphics = this.scene.add.graphics().setDepth(186);
+            state.launchTrail?.destroy();
+            state.launchTrail = null;
         });
 
         this.scene.time.delayedCall(1720, () => {
@@ -443,6 +477,8 @@ export class StaffWeapon extends WeaponBase {
 
             const progress = Phaser.Math.Clamp((time - state.startedAt) / 2300, 0, 1);
             state.power = 1 + progress * 1.25;
+            state.coreX = state.centerX;
+            state.coreY = state.centerY;
 
             state.flames?.setPosition?.(state.centerX, state.centerY);
             state.sparks?.setPosition?.(state.centerX, state.centerY);
@@ -471,15 +507,43 @@ export class StaffWeapon extends WeaponBase {
             orb.trail?.setPosition?.(orb.x, orb.y);
         }
 
+        if (state.phase === 'launch' && state.core?.scene) {
+            state.coreX = Phaser.Math.Linear(state.coreX, state.targetX, 0.16);
+            state.coreY = Phaser.Math.Linear(state.coreY, state.targetY, 0.16);
+            this.drawVoidCore(state.core, state.coreX, state.coreY, 1.35 + Math.sin(time * 0.03) * 0.2, time * 0.012);
+            state.launchTrail?.setPosition?.(state.coreX, state.coreY);
+        }
+
         if (state.phase === 'surge' && state.beamGraphics) {
             const t = Phaser.Math.Clamp((time - state.surgeStartedAt) / 1000, 0, 1);
             state.beamGraphics.clear();
+            state.sigilGraphics?.clear?.();
+
+            const spin = time * 0.0015;
+            for (let i = 0; i < 2; i++) {
+                const radius = 42 + t * 58 + (i * 28);
+                const alpha = 0.22 + (i * 0.08) + t * 0.1;
+                state.sigilGraphics.lineStyle(2 + i, 0xff4470, alpha);
+                state.sigilGraphics.strokeCircle(state.targetX, state.targetY, radius);
+
+                for (let p = 0; p < 12; p++) {
+                    const a = spin * (i === 0 ? 1 : -0.8) + ((Math.PI * 2 * p) / 12);
+                    const px = state.targetX + Math.cos(a) * radius;
+                    const py = state.targetY + Math.sin(a) * radius;
+                    state.sigilGraphics.fillStyle(0xff6688, alpha * 0.95);
+                    state.sigilGraphics.fillCircle(px, py, 2.4 + i);
+                }
+            }
 
             for (const orb of state.orbs) {
                 const width = 4 + Math.sin((time * 0.015) + orb.index) * 2 + t * 4;
                 const alpha = 0.5 + Math.sin((time * 0.02) + orb.index) * 0.22;
                 state.beamGraphics.lineStyle(width, 0xff2244, Phaser.Math.Clamp(alpha, 0.28, 0.98));
                 state.beamGraphics.lineBetween(orb.x, orb.y, state.targetX, state.targetY);
+
+                const tangent = ((Math.PI * 2) / state.orbs.length) * orb.index + spin * 2;
+                orb.x += Math.cos(tangent) * 0.45;
+                orb.y += Math.sin(tangent) * 0.45;
 
                 if (Math.random() > 0.35) {
                     const ember = this.scene.add.image(orb.x, orb.y, 'staff-dark-spark').setDepth(188);
@@ -501,6 +565,7 @@ export class StaffWeapon extends WeaponBase {
         state.phase = 'impact';
 
         if (state.beamGraphics) state.beamGraphics.destroy();
+        if (state.sigilGraphics) state.sigilGraphics.destroy();
 
         const x = state.targetX;
         const y = state.targetY;
@@ -543,6 +608,18 @@ export class StaffWeapon extends WeaponBase {
             onComplete: () => pullRing.destroy()
         });
 
+        for (let i = 0; i < 10; i++) {
+            const ring = this.scene.add.circle(x, y, 30 + i * 4, 0xff3358, 0).setDepth(191).setStrokeStyle(2, 0xff86a2, 0.45);
+            this.scene.tweens.add({
+                targets: ring,
+                radius: 120 + i * 26 + power * 22,
+                alpha: { from: 0.55, to: 0 },
+                duration: 320 + i * 28,
+                ease: 'Sine.easeOut',
+                onComplete: () => ring.destroy()
+            });
+        }
+
         const boss = this.scene.boss;
         if (boss) {
             const dist = Phaser.Math.Distance.Between(x, y, boss.x, boss.y);
@@ -572,6 +649,8 @@ export class StaffWeapon extends WeaponBase {
         state.flames?.destroy();
         state.sparks?.destroy();
         state.beamGraphics?.destroy();
+        state.sigilGraphics?.destroy();
+        state.launchTrail?.destroy();
 
         for (const orb of state.orbs || []) {
             orb.core?.destroy();
