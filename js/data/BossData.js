@@ -20,5 +20,12 @@ export const BOSSES = {
         color: 0xcc00ff, 
         glowColor: 0xdd33ff, 
         secondaryColor: 0x9900cc
+    },
+    4: {
+        name: 'OVERLORD',
+        hp: 1400,
+        color: 0x1f88d6,
+        glowColor: 0x83d9ff,
+        secondaryColor: 0x0f4f82
     }
 };

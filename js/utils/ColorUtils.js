@@ -73,7 +73,8 @@ export const ColorUtils = {
         const colors = {
             1: 0xff0051, // Sentinel
             2: 0xff6600, // Gunner
-            3: 0xcc00ff  // Dasher
+            3: 0xcc00ff, // Dasher
+            4: 0x1f88d6  // Overlord
         };
         return colors[bossId] || 0xffffff;
     },
