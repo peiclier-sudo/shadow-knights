@@ -67,16 +67,78 @@ export class Boss extends Phaser.GameObjects.Container {
             // Dasher
             const body = this.scene.add.ellipse(0, 0, 70, 100, this.bossData.color);
             body.setStrokeStyle(3, this.bossData.glowColor);
-            
+
             const head = this.scene.add.circle(0, -60, 25, this.bossData.color);
             head.setStrokeStyle(2, this.bossData.glowColor);
-            
+
             const bladeL = this.scene.add.triangle(-35, -20, -45, -30, -45, -10, this.bossData.glowColor);
             const bladeR = this.scene.add.triangle(35, -20, 45, -30, 45, -10, this.bossData.glowColor);
-            
+
             const visor = this.scene.add.rectangle(0, -65, 30, 5, 0xff0000);
-            
+
             this.add([body, head, bladeL, bladeR, visor]);
+
+        } else if (this.bossId === 4) {
+            // Phantom - The Echo Wraith
+            // Ghostly wisps forming a tail
+            const wispL = this.scene.add.ellipse(-16, 55, 18, 40, this.bossData.color, 0.35);
+            const wispC = this.scene.add.ellipse(0, 62, 20, 46, this.bossData.color, 0.45);
+            const wispR = this.scene.add.ellipse(16, 55, 18, 40, this.bossData.color, 0.35);
+
+            // Semi-transparent floating body
+            const body = this.scene.add.ellipse(0, 5, 58, 88, this.bossData.color, 0.68);
+            body.setStrokeStyle(2, this.bossData.glowColor, 0.9);
+
+            // Ghostly arm appendages
+            const armL = this.scene.add.rectangle(-38, 12, 12, 36, this.bossData.secondaryColor, 0.5);
+            const armR = this.scene.add.rectangle(38, 12, 12, 36, this.bossData.secondaryColor, 0.5);
+
+            // Dark mask face
+            const face = this.scene.add.circle(0, -28, 26, 0x001418, 0.88);
+            face.setStrokeStyle(2, this.bossData.glowColor, 0.7);
+
+            // Glowing teal eyes
+            const eyeL = this.scene.add.ellipse(-9, -28, 10, 13, this.bossData.glowColor, 1.0);
+            const eyeR = this.scene.add.ellipse(9, -28, 10, 13, this.bossData.glowColor, 1.0);
+
+            // Bright white pupils
+            const pupilL = this.scene.add.circle(-9, -28, 3, 0xffffff, 0.9);
+            const pupilR = this.scene.add.circle(9, -28, 3, 0xffffff, 0.9);
+
+            this.add([wispL, wispC, wispR, body, armL, armR, face, eyeL, eyeR, pupilL, pupilR]);
+
+            // Animate wisps floating downward
+            [wispL, wispC, wispR].forEach((wisp, i) => {
+                this.scene.tweens.add({
+                    targets: wisp,
+                    y: wisp.y + 10,
+                    scaleX: 0.8,
+                    alpha: 0.12,
+                    duration: 900 + i * 180,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            });
+
+            // Body float up/down
+            this.scene.tweens.add({
+                targets: body,
+                y: body.y - 7,
+                duration: 1600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // Eyes pulse
+            this.scene.tweens.add({
+                targets: [eyeL, eyeR],
+                alpha: 0.25,
+                duration: 700,
+                yoyo: true,
+                repeat: -1
+            });
         }
         
         // Add glow effects
