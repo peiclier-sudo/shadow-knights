@@ -22,6 +22,15 @@ export class GreatswordWeapon extends WeaponBase {
         };
     }
 
+    getUltimatePreviewConfig() {
+        const cfg = this.worldsplitterConfig;
+        return {
+            targeting: 'line',
+            maxRange: cfg.cleaveLength,
+            width: cfg.cleaveWidth
+        };
+    }
+
     // Basic attack - animated crescent shockwave
     fire(angle) {
         const data = this.data.projectile;

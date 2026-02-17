@@ -21,6 +21,13 @@ export class DaggerWeapon extends WeaponBase {
         };
     }
     
+    getUltimatePreviewConfig() {
+        return {
+            targeting: 'self',
+            aoeRadius: 260
+        };
+    }
+
     // Tir normal - 3 dagues en éventail
     fire(angle) {
         const data = this.data.projectile;
