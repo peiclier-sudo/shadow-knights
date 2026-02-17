@@ -38,7 +38,6 @@ export class SwordWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
 
-        this.createMuzzleFlash(startX, startY, this.data.color);
         this.launchSwordProjectile(angle, {
             startX,
             startY,
@@ -48,7 +47,7 @@ export class SwordWeapon extends WeaponBase {
             size: data.size,
             color: data.color,
             piercing: data.piercing,
-            trailSize: data.size
+            trailSize: 0
         });
     }
 
@@ -62,11 +61,12 @@ export class SwordWeapon extends WeaponBase {
             size,
             color,
             piercing,
-            trailSize
+            trailSize,
+            visualScale
         } = options;
 
         const sword = this.scene.add.container(startX, startY).setDepth(150);
-        const scale = 0.26 + size / 44;
+        const scale = visualScale ?? (0.26 + size / 44);
         const swordVisual = this.createSimpleSwordVisual(scale);
 
         sword.add(swordVisual.all);
@@ -93,7 +93,10 @@ export class SwordWeapon extends WeaponBase {
         });
 
         this.scene.projectiles.push(sword);
-        this.addTrail(sword, color, trailSize ?? size);
+        const finalTrailSize = trailSize ?? size;
+        if (finalTrailSize > 0) {
+            this.addTrail(sword, color, finalTrailSize);
+        }
     }
 
     executeChargedAttack(angle) {
@@ -396,10 +399,11 @@ export class SwordWeapon extends WeaponBase {
                 speed: this.data.projectile.speed,
                 damage: 120,
                 range: 520,
-                size: this.data.projectile.size + 6,
+                size: this.data.projectile.size,
                 color: this.data.projectile.color,
                 piercing: true,
-                trailSize: this.data.projectile.size + 2
+                visualScale: 1.35,
+                trailSize: 0
             });
         }
 
