@@ -10,39 +10,45 @@ export class StaffWeapon extends WeaponBase {
     }
 
     ensureProceduralTextures() {
-        if (this.scene.textures.exists('staff-spark')) return;
+        if (!this.scene.textures.exists('staff-spark')) {
+            const spark = this.scene.add.graphics();
+            spark.fillStyle(0xffffff, 1);
+            spark.fillCircle(4, 4, 2.1);
+            spark.fillStyle(0xffaa33, 0.85);
+            spark.fillCircle(4, 4, 3.2);
+            spark.lineStyle(1, 0xff5500, 0.95);
+            spark.strokeCircle(4, 4, 3.8);
+            spark.generateTexture('staff-spark', 8, 8);
+            spark.destroy();
+        }
 
-        const spark = this.scene.add.graphics();
-        spark.fillStyle(0xffffff, 1);
-        spark.fillCircle(4, 4, 2.1);
-        spark.fillStyle(0xffaa33, 0.85);
-        spark.fillCircle(4, 4, 3.2);
-        spark.lineStyle(1, 0xff5500, 0.95);
-        spark.strokeCircle(4, 4, 3.8);
-        spark.generateTexture('staff-spark', 8, 8);
-        spark.destroy();
+        if (!this.scene.textures.exists('staff-flame')) {
+            const flame = this.scene.add.graphics();
+            flame.fillGradientStyle(0xfff3b0, 0xffb347, 0xff6622, 0x552000, 1);
+            flame.fillTriangle(8, 1, 13, 15, 3, 15);
+            flame.generateTexture('staff-flame', 16, 16);
+            flame.destroy();
+        }
 
-        const flame = this.scene.add.graphics();
-        flame.fillGradientStyle(0xfff3b0, 0xffb347, 0xff6622, 0x552000, 1);
-        flame.fillTriangle(8, 1, 13, 15, 3, 15);
-        flame.generateTexture('staff-flame', 16, 16);
-        flame.destroy();
+        if (!this.scene.textures.exists('staff-dark-flame')) {
+            const darkFlame = this.scene.add.graphics();
+            darkFlame.fillGradientStyle(0x440044, 0x220022, 0x660033, 0x000000, 1);
+            darkFlame.fillTriangle(8, 1, 13, 15, 3, 15);
+            darkFlame.lineStyle(1.5, 0x990099, 0.82);
+            darkFlame.strokeTriangle(8, 1, 13, 15, 3, 15);
+            darkFlame.generateTexture('staff-dark-flame', 16, 16);
+            darkFlame.destroy();
+        }
 
-        const darkFlame = this.scene.add.graphics();
-        darkFlame.fillGradientStyle(0x440044, 0x220022, 0x660033, 0x000000, 1);
-        darkFlame.fillTriangle(8, 1, 13, 15, 3, 15);
-        darkFlame.lineStyle(1.5, 0x990099, 0.82);
-        darkFlame.strokeTriangle(8, 1, 13, 15, 3, 15);
-        darkFlame.generateTexture('staff-dark-flame', 16, 16);
-        darkFlame.destroy();
-
-        const darkSpark = this.scene.add.graphics();
-        darkSpark.fillGradientStyle(0x880088, 0x440044, 0x220022, 0x000000, 1);
-        darkSpark.fillCircle(6, 6, 4);
-        darkSpark.lineStyle(1, 0xff0066, 0.72);
-        darkSpark.strokeCircle(6, 6, 5);
-        darkSpark.generateTexture('staff-dark-spark', 12, 12);
-        darkSpark.destroy();
+        if (!this.scene.textures.exists('staff-dark-spark')) {
+            const darkSpark = this.scene.add.graphics();
+            darkSpark.fillGradientStyle(0x880088, 0x440044, 0x220022, 0x000000, 1);
+            darkSpark.fillCircle(6, 6, 4);
+            darkSpark.lineStyle(1, 0xff0066, 0.72);
+            darkSpark.strokeCircle(6, 6, 5);
+            darkSpark.generateTexture('staff-dark-spark', 12, 12);
+            darkSpark.destroy();
+        }
     }
 
     // Basic attack - fast living orb with procedural flame wobble
