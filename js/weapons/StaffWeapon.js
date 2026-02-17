@@ -12,11 +12,11 @@ export class StaffWeapon extends WeaponBase {
     ensureProceduralTextures() {
         if (!this.scene.textures.exists('staff-spark')) {
             const spark = this.scene.add.graphics();
-            spark.fillStyle(0xffffff, 1);
+            spark.fillStyle(0xffd2de, 1);
             spark.fillCircle(4, 4, 2.1);
-            spark.fillStyle(0xffaa33, 0.85);
+            spark.fillStyle(0xd23861, 0.88);
             spark.fillCircle(4, 4, 3.2);
-            spark.lineStyle(1, 0xff5500, 0.95);
+            spark.lineStyle(1, 0xff6b92, 0.95);
             spark.strokeCircle(4, 4, 3.8);
             spark.generateTexture('staff-spark', 8, 8);
             spark.destroy();
@@ -24,7 +24,7 @@ export class StaffWeapon extends WeaponBase {
 
         if (!this.scene.textures.exists('staff-flame')) {
             const flame = this.scene.add.graphics();
-            flame.fillGradientStyle(0xfff3b0, 0xffb347, 0xff6622, 0x552000, 1);
+            flame.fillGradientStyle(0xffb5c9, 0xd23861, 0x7e1030, 0x220006, 1);
             flame.fillTriangle(8, 1, 13, 15, 3, 15);
             flame.generateTexture('staff-flame', 16, 16);
             flame.destroy();
@@ -57,13 +57,16 @@ export class StaffWeapon extends WeaponBase {
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
 
-        this.createMuzzleFlash(startX, startY, 0xff8e3f);
+        this.createMuzzleFlash(startX, startY, 0xff4a6f);
         this.spawnMiniFlare(startX, startY, angle);
 
         const orb = this.scene.add.container(startX, startY).setDepth(150);
         const core = this.scene.add.graphics();
-        const shell = this.scene.add.circle(0, 0, data.size * 1.1, 0xff5d1f, 0.35);
-        orb.add([shell, core]);
+        const shell = this.scene.add.circle(0, 0, data.size * 1.1, 0x5e0a1c, 0.4);
+        const corona = this.scene.add.circle(0, 0, data.size * 1.55, 0xb1002f, 0.22);
+        const runeRing = this.scene.add.circle(0, 0, data.size * 1.35, 0x000000, 0)
+            .setStrokeStyle(1.5, 0xff6f92, 0.75);
+        orb.add([corona, shell, runeRing, core]);
 
         orb.vx = Math.cos(angle) * data.speed;
         orb.vy = Math.sin(angle) * data.speed;
@@ -80,9 +83,12 @@ export class StaffWeapon extends WeaponBase {
             this.drawBasicCore(core, data.size, orb.lifeTick);
             orb.rotation += 0.12;
             shell.alpha = 0.2 + Math.abs(Math.sin(orb.lifeTick * 1.5)) * 0.16;
+            corona.alpha = 0.12 + Math.abs(Math.sin(orb.lifeTick * 1.1)) * 0.12;
+            runeRing.rotation -= 0.07;
 
             if (Math.random() > 0.48) this.spawnEmber(orb.x, orb.y, dir + Math.PI);
             if (Math.random() > 0.7) this.spawnSpark(orb.x, orb.y, dir + Math.PI, false);
+            if (Math.random() > 0.8) this.spawnSpark(orb.x, orb.y, dir + Math.PI, true);
 
             const boss = this.scene.boss;
             if (!boss) return;
@@ -104,10 +110,12 @@ export class StaffWeapon extends WeaponBase {
         orb.on('destroy', () => {
             core.destroy();
             shell.destroy();
+            corona.destroy();
+            runeRing.destroy();
         });
 
         this.scene.projectiles.push(orb);
-        this.addTrail(orb, 0xff7a2c, data.size + 1.2);
+        this.addTrail(orb, 0xaa1b45, data.size + 1.3);
     }
 
     // Charged attack - rebuilt: charge burst + comet flight + huge explosion
@@ -126,9 +134,10 @@ export class StaffWeapon extends WeaponBase {
         );
 
         const core = this.scene.add.graphics().setDepth(158);
-        const aura = this.scene.add.circle(startX, startY, 24, 0xff7a1f, 0.2).setDepth(156);
+        const aura = this.scene.add.circle(startX, startY, 24, 0xaa1f46, 0.24).setDepth(156);
+        const sigil = this.scene.add.graphics().setDepth(157);
 
-        const flames = this.scene.add.particles(startX, startY, 'staff-flame', {
+        const flames = this.scene.add.particles(startX, startY, 'staff-dark-flame', {
             speed: { min: 28, max: 120 + 120 * chargePower },
             angle: { min: 0, max: 360 },
             scale: { start: 0.8 + 0.6 * chargePower, end: 0 },
@@ -140,7 +149,7 @@ export class StaffWeapon extends WeaponBase {
             emitting: true
         }).setDepth(157);
 
-        const sparks = this.scene.add.particles(startX, startY, 'staff-spark', {
+        const sparks = this.scene.add.particles(startX, startY, 'staff-dark-spark', {
             speed: { min: 20, max: 70 + 70 * chargePower },
             gravityY: -15,
             scale: { start: 0.8, end: 0 },
@@ -171,9 +180,9 @@ export class StaffWeapon extends WeaponBase {
             flames.stop();
             sparks.stop();
 
-            const blast = this.scene.add.circle(x, y, charged.radius * (0.48 + chargePower * 0.24), 0xff6b1c, 0.62).setDepth(154);
-            const shock = this.scene.add.circle(x, y, 24, 0xffd5a1, 0)
-                .setStrokeStyle(4, 0xffefca, 0.9)
+            const blast = this.scene.add.circle(x, y, charged.radius * (0.48 + chargePower * 0.24), 0x8d1236, 0.62).setDepth(154);
+            const shock = this.scene.add.circle(x, y, 24, 0xff8db0, 0)
+                .setStrokeStyle(4, 0xff9fbe, 0.9)
                 .setDepth(155);
 
             this.scene.tweens.add({
@@ -194,7 +203,7 @@ export class StaffWeapon extends WeaponBase {
                 onComplete: () => shock.destroy()
             });
 
-            const explosion = this.scene.add.particles(x, y, 'staff-spark', {
+            const explosion = this.scene.add.particles(x, y, 'staff-dark-spark', {
                 speed: { min: 160, max: 460 },
                 angle: { min: 0, max: 360 },
                 scale: { start: 1.8 + chargePower * 0.8, end: 0 },
@@ -206,7 +215,7 @@ export class StaffWeapon extends WeaponBase {
             }).setDepth(160);
             explosion.explode();
 
-            const flameBurst = this.scene.add.particles(x, y, 'staff-flame', {
+            const flameBurst = this.scene.add.particles(x, y, 'staff-dark-flame', {
                 speed: { min: 120, max: 340 },
                 angle: { min: 0, max: 360 },
                 scale: { start: 1.2 + chargePower * 0.6, end: 0 },
@@ -241,7 +250,7 @@ export class StaffWeapon extends WeaponBase {
                             const dotDamage = charged.dotDamage * (this.player.damageMultiplier || 1.0);
                             boss.takeDamage(dotDamage);
                             this.gainUltimateGaugeFromDamage(dotDamage, { charged: true, dot: true });
-                            boss.setTint(0xff7f3a);
+                            boss.setTint(0xc02244);
                             this.scene.time.delayedCall(120, () => boss.clearTint());
                             tick++;
                         }, charged.dotInterval);
@@ -249,7 +258,8 @@ export class StaffWeapon extends WeaponBase {
                 }
             }
 
-            this.scene.cameras.main.flash(180, 255, 170, 95);
+            sigil.destroy();
+            this.scene.cameras.main.flash(180, 220, 70, 120);
             this.scene.cameras.main.shake(160, 0.006 + chargePower * 0.0014);
 
             core.destroy();
@@ -266,6 +276,7 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 flight.tick += 0.5;
                 this.drawChargedCore(core, flight.x, flight.y, chargePower, flight.tick);
+                this.drawChargedSigil(sigil, flight.x, flight.y, chargePower, flight.tick);
 
                 flames.setPosition(flight.x, flight.y);
                 sparks.setPosition(flight.x, flight.y);
@@ -690,14 +701,17 @@ export class StaffWeapon extends WeaponBase {
         graphics.clear();
 
         const pulse = 1 + Math.sin(tick * 1.8) * 0.16;
-        graphics.fillStyle(0xff3e14, 0.85);
+        graphics.fillStyle(0x4c0013, 0.85);
         graphics.fillCircle(0, 0, baseSize * pulse);
 
-        graphics.fillStyle(0xff8a2b, 0.84);
+        graphics.fillStyle(0xab1741, 0.84);
         graphics.fillCircle(Math.cos(tick) * 2, Math.sin(tick * 0.8) * 2, baseSize * 0.66 * pulse);
 
-        graphics.fillStyle(0xfff3bf, 0.98);
+        graphics.fillStyle(0xffb3c8, 0.98);
         graphics.fillCircle(0, 0, baseSize * 0.34 * pulse);
+
+        graphics.lineStyle(1.5, 0xff6f92, 0.62);
+        graphics.strokeCircle(0, 0, baseSize * (1.25 + Math.sin(tick * 1.7) * 0.08));
     }
 
     drawChargedCore(graphics, x, y, power, tick) {
@@ -706,33 +720,55 @@ export class StaffWeapon extends WeaponBase {
         const pulse = 1 + Math.sin(tick * 1.35) * (0.18 + power * 0.08);
 
         graphics.clear();
-        graphics.fillStyle(0xff3d0f, 0.25);
+        graphics.fillStyle(0x4a0014, 0.3);
         graphics.fillCircle(x, y, halo * pulse);
 
-        graphics.fillStyle(0xff7a1f, 0.8);
+        graphics.fillStyle(0x8e1238, 0.8);
         graphics.fillCircle(x, y, main * pulse);
 
-        graphics.fillStyle(0xffb347, 0.86);
+        graphics.fillStyle(0xd33561, 0.86);
         graphics.fillCircle(
             x + Math.cos(tick * 1.2) * (2 + power * 2),
             y + Math.sin(tick * 1.1) * (2 + power * 2),
             (main * 0.66) * pulse
         );
 
-        graphics.fillStyle(0xfff7dc, 0.98);
+        graphics.fillStyle(0xffbfd1, 0.98);
         graphics.fillCircle(x, y, (main * 0.34) * pulse);
 
         for (let i = 0; i < 3; i++) {
             const a = tick * 1.7 + (Math.PI * 2 * i) / 3;
-            graphics.fillStyle(0xffdc8f, 0.62);
+            graphics.fillStyle(0xff7fa2, 0.62);
             graphics.fillCircle(x + Math.cos(a) * (main * 0.65), y + Math.sin(a) * (main * 0.65), 2.4 + power);
+        }
+
+        graphics.lineStyle(2, 0xff86a7, 0.38);
+        graphics.strokeCircle(x, y, main * (1.22 + Math.sin(tick) * 0.08));
+    }
+
+    drawChargedSigil(graphics, x, y, power, tick) {
+        graphics.clear();
+        const spin = tick * 0.09;
+        const radius = 18 + power * 9;
+
+        graphics.lineStyle(1.6, 0xff6f92, 0.54);
+        graphics.strokeCircle(x, y, radius);
+        graphics.lineStyle(1, 0xff9cbc, 0.4);
+        graphics.strokeCircle(x, y, radius * 1.35);
+
+        for (let i = 0; i < 6; i++) {
+            const a = spin + ((Math.PI * 2 * i) / 6);
+            const px = x + Math.cos(a) * radius;
+            const py = y + Math.sin(a) * radius;
+            graphics.fillStyle(0xff7fa2, 0.68);
+            graphics.fillCircle(px, py, 2.2 + power * 0.7);
         }
     }
 
     spawnMiniFlare(x, y, angle) {
         for (let i = 0; i < 5; i++) {
             const dir = angle + Phaser.Math.FloatBetween(-0.7, 0.7);
-            const spike = this.scene.add.triangle(x, y, 0, -7, -2, 6, 2, 6, 0xffcf88, 0.85).setDepth(160);
+            const spike = this.scene.add.triangle(x, y, 0, -7, -2, 6, 2, 6, 0xff7ca4, 0.85).setDepth(160);
             spike.rotation = dir;
 
             this.scene.tweens.add({
@@ -773,7 +809,7 @@ export class StaffWeapon extends WeaponBase {
             x + Phaser.Math.Between(-5, 5),
             y + Phaser.Math.Between(-5, 5),
             Phaser.Math.FloatBetween(1.4, 3.2),
-            Phaser.Math.RND.pick([0xfff0c5, 0xffcd84, 0xffa55a, 0xff7331]),
+            Phaser.Math.RND.pick([0xff9bbb, 0xff6f98, 0xd23861, 0x7f1132]),
             0.9
         ).setDepth(154);
 
