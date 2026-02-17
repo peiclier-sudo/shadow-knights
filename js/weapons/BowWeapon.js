@@ -169,7 +169,14 @@ export class BowWeapon extends WeaponBase {
             const ey = this.player.y + Math.sin(sweep + 1.35) * 34;
             state.ribbons.beginPath();
             state.ribbons.moveTo(sx, sy);
-            state.ribbons.quadraticCurveTo(mx, my, ex, ey);
+            const segments = 14;
+            for (let j = 1; j <= segments; j++) {
+                const t = j / segments;
+                const inv = 1 - t;
+                const cx = (inv * inv * sx) + (2 * inv * t * mx) + (t * t * ex);
+                const cy = (inv * inv * sy) + (2 * inv * t * my) + (t * t * ey);
+                state.ribbons.lineTo(cx, cy);
+            }
             state.ribbons.strokePath();
         }
 
