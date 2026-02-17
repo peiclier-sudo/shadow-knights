@@ -3,8 +3,8 @@ import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 
 export class DasherBoss extends Boss {
-    constructor(scene) {
-        super(scene, 3);
+    constructor(scene, towerFloor = 1) {
+        super(scene, 3, towerFloor);
     }
     
     attack(player) {
@@ -66,7 +66,7 @@ export class DasherBoss extends Boss {
                         if (!this.frozen) {
                             const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
                             if (dist < 60 && !player.isInvulnerable) {
-                                player.takeDamage(20);
+                                this.dealDamage(player, 20);
                             }
                         }
                         this.isAttacking = false;
@@ -81,7 +81,7 @@ export class DasherBoss extends Boss {
         
         if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
-            this.nextAttackTime = time + 3000;
+            this.nextAttackTime = time + this.adjustCooldown(3000);
         }
     }
 }

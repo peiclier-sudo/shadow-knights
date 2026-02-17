@@ -2,6 +2,8 @@
 import { GameData } from '../data/GameData.js';
 import { BOSSES } from '../data/BossData.js';
 
+const TOTAL_BOSSES = Object.keys(BOSSES).length;
+
 export class GameOverScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameOverScene' });
@@ -10,6 +12,8 @@ export class GameOverScene extends Phaser.Scene {
     init(data) {
         this.victory = data.victory || false;
         this.bossId = data.bossId || 1;
+        this.playerConfig = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.towerFloor = data.towerFloor || 1;
     }
     
     create() {
@@ -79,8 +83,9 @@ export class GameOverScene extends Phaser.Scene {
         retryBtn.on('pointerout', () => retryBtn.setStyle({ fill: '#fff' }));
         retryBtn.on('pointerdown', () => {
             this.scene.start('GameScene', {
-                playerConfig: { class: 'WARRIOR', weapon: 'SWORD' },
-                bossId: GameData.currentBossId
+                playerConfig: this.playerConfig,
+                bossId: this.bossId,
+                towerFloor: this.towerFloor
             });
         });
         
@@ -96,7 +101,8 @@ export class GameOverScene extends Phaser.Scene {
         });
         
         // Next boss button if victory and boss not last
-        if (this.victory && GameData.currentBossId < 3) {
+        const hasNextInTower = (this.towerFloor < 2) || (this.bossId < TOTAL_BOSSES);
+        if (this.victory && hasNextInTower) {
             const nextBtn = this.add.text(width/2, height/2 + 160, 'NEXT BOSS', {
                 ...buttonStyle,
                 fill: '#00ff88'
@@ -105,11 +111,21 @@ export class GameOverScene extends Phaser.Scene {
             nextBtn.on('pointerover', () => nextBtn.setStyle({ fill: '#88ffaa' }));
             nextBtn.on('pointerout', () => nextBtn.setStyle({ fill: '#00ff88' }));
             nextBtn.on('pointerdown', () => {
-                GameData.currentBossId++;
+                let nextFloor = this.towerFloor;
+                let nextBossId = this.bossId + 1;
+
+                if (nextBossId > TOTAL_BOSSES) {
+                    nextFloor = Math.min(2, this.towerFloor + 1);
+                    nextBossId = 1;
+                }
+
+                GameData.currentTowerFloor = nextFloor;
+                GameData.currentBossId = nextBossId;
                 GameData.saveProgress();
                 this.scene.start('GameScene', {
-                    playerConfig: { class: 'WARRIOR', weapon: 'SWORD' },
-                    bossId: GameData.currentBossId
+                    playerConfig: this.playerConfig,
+                    bossId: nextBossId,
+                    towerFloor: nextFloor
                 });
             });
         }

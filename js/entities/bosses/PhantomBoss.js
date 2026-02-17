@@ -11,8 +11,8 @@
 import { Boss } from '../Boss.js';
 
 export class PhantomBoss extends Boss {
-    constructor(scene) {
-        super(scene, 4);
+    constructor(scene, towerFloor = 1) {
+        super(scene, 4, towerFloor);
         this.phaseTransitioned = false;
     }
 
@@ -164,7 +164,7 @@ export class PhantomBoss extends Boss {
         // Override with phase-appropriate cooldown after each attack trigger.
         if (this.nextAttackTime !== prevNextAttack) {
             const isPhase2 = this.health <= this.maxHealth * 0.5;
-            this.nextAttackTime = time + (isPhase2 ? 2200 : 3000);
+            this.nextAttackTime = time + this.adjustCooldown(isPhase2 ? 2200 : 3000);
         }
     }
 }

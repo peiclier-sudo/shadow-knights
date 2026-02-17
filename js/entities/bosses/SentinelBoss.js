@@ -3,8 +3,8 @@ import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 
 export class SentinelBoss extends Boss {
-    constructor(scene) {
-        super(scene, 1);
+    constructor(scene, towerFloor = 1) {
+        super(scene, 1, towerFloor);
     }
     
     attack(player) {
@@ -34,7 +34,7 @@ export class SentinelBoss extends Boss {
                 if (!this.frozen) {
                     const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
                     if (dist < 120 && !player.isInvulnerable) {
-                        player.takeDamage(15);
+                        this.dealDamage(player, 15);
                     }
                 }
                 
@@ -57,7 +57,7 @@ export class SentinelBoss extends Boss {
         // Attack cooldown
         if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
-            this.nextAttackTime = time + 2000;
+            this.nextAttackTime = time + this.adjustCooldown(2000);
         }
     }
 }

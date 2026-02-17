@@ -3,8 +3,8 @@ import { Boss } from '../Boss.js';
 import { BOSSES } from '../../data/BossData.js';
 
 export class GunnerBoss extends Boss {
-    constructor(scene) {
-        super(scene, 2);
+    constructor(scene, towerFloor = 1) {
+        super(scene, 2, towerFloor);
     }
     
     attack(player) {
@@ -55,7 +55,7 @@ export class GunnerBoss extends Boss {
         
         if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
-            this.nextAttackTime = time + 2500;
+            this.nextAttackTime = time + this.adjustCooldown(2500);
         }
     }
 }

@@ -21,6 +21,9 @@ export class GameScene extends Phaser.Scene {
             weapon: 'SWORD'
         };
         this.bossId = data.bossId || GameData.currentBossId;
+        this.towerFloor = data.towerFloor || GameData.currentTowerFloor || 1;
+        GameData.currentBossId = this.bossId;
+        GameData.currentTowerFloor = this.towerFloor;
     }
     
     create() {
@@ -34,7 +37,7 @@ export class GameScene extends Phaser.Scene {
         this.player = new Player(this, this.playerConfig);
         
         // Boss
-        this.boss = BossFactory.createBoss(this, this.bossId);
+        this.boss = BossFactory.createBoss(this, this.bossId, this.towerFloor);
         
         // Projectiles arrays
         this.projectiles = [];
@@ -217,7 +220,7 @@ export class GameScene extends Phaser.Scene {
         }).setScrollFactor(0).setOrigin(0, 0.5);
         
         // Boss health
-        this.bossName = this.add.text(width - 200, 15, this.boss?.bossData?.name || 'BOSS', {
+        this.bossName = this.add.text(width - 240, 15, `${this.boss?.bossData?.name || 'BOSS'} • F${this.towerFloor}`, {
             fontSize: '20px',
             fill: '#ff5555',
             fontStyle: 'bold',
@@ -978,7 +981,7 @@ export class GameScene extends Phaser.Scene {
             
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
             if (dist < 25 && !this.player.isInvulnerable && !this.player.untargetable) {
-                this.player.takeDamage(10);
+                this.player.takeDamage(Math.round(10 * (this.boss?.damageScale || 1)));
                 
                 const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);
                 this.tweens.add({
@@ -1044,12 +1047,19 @@ export class GameScene extends Phaser.Scene {
         
         // Game over
         if (this.player.health <= 0) {
-            this.scene.start('GameOverScene', { victory: false });
+            this.scene.start('GameOverScene', {
+                victory: false,
+                bossId: this.bossId,
+                towerFloor: this.towerFloor,
+                playerConfig: this.playerConfig
+            });
         } else if (this.boss?.health <= 0) {
             GameData.unlockNextBoss();
-            this.scene.start('GameOverScene', { 
-                victory: true, 
-                bossId: this.bossId 
+            this.scene.start('GameOverScene', {
+                victory: true,
+                bossId: this.bossId,
+                towerFloor: this.towerFloor,
+                playerConfig: this.playerConfig
             });
         }
     }
