@@ -1,4 +1,4 @@
-// SwordWeapon.js - Procedural sword VFX with cinematic slash + laser
+// SwordWeapon.js - Procedural sword VFX with smoother badass blade projection
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,7 +7,6 @@ export class SwordWeapon extends WeaponBase {
         super(scene, player, WEAPONS.SWORD);
     }
 
-    // Tir normal - Slash procédural enrichi
     fire(angle) {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
@@ -18,30 +17,24 @@ export class SwordWeapon extends WeaponBase {
 
         const slash = this.scene.add.container(startX, startY).setDepth(150);
 
-        const arcCore = this.scene.add.graphics();
-        arcCore.lineStyle(4, 0xffcc66, 0.95);
-        arcCore.beginPath();
-        arcCore.arc(0, 0, data.size * 2.35, -0.9, 0.9);
-        arcCore.strokePath();
+        const bladeGlow = this.scene.add.rectangle(0, 0, data.size * 3.1, data.size * 0.95, 0xffb84d, 0.28);
+        const bladeCore = this.scene.add.rectangle(0, 0, data.size * 2.45, data.size * 0.45, 0xfff2d3, 0.95);
+        const bladeEdge = this.scene.add.rectangle(data.size * 1.22, 0, data.size * 0.85, data.size * 0.26, 0xffffff, 0.92);
+        const guard = this.scene.add.rectangle(-data.size * 0.95, 0, data.size * 0.65, data.size * 0.55, 0xffa645, 0.78);
 
-        const arcGlow = this.scene.add.graphics();
-        arcGlow.lineStyle(9, 0xffaa00, 0.3);
-        arcGlow.beginPath();
-        arcGlow.arc(0, 0, data.size * 2.1, -0.84, 0.84);
-        arcGlow.strokePath();
-
-        const arcEdge = this.scene.add.graphics();
-        arcEdge.lineStyle(2, 0xffffff, 0.72);
-        arcEdge.beginPath();
-        arcEdge.arc(0, 0, data.size * 2.6, -0.76, 0.76);
-        arcEdge.strokePath();
+        const arc = this.scene.add.graphics();
+        arc.lineStyle(3, 0xffd07f, 0.82);
+        arc.beginPath();
+        arc.arc(0, 0, data.size * 2.55, -0.7, 0.7);
+        arc.strokePath();
 
         slash.rotation = angle;
-        slash.add([arcGlow, arcCore, arcEdge]);
+        slash.add([bladeGlow, bladeCore, bladeEdge, guard, arc]);
 
         this.scene.tweens.add({
-            targets: [arcCore, arcGlow, arcEdge],
-            alpha: { from: 1, to: 0.65 },
+            targets: [bladeGlow, bladeCore],
+            alpha: { from: 0.95, to: 0.62 },
+            scaleX: { from: 1, to: 1.08 },
             duration: 90,
             yoyo: true,
             repeat: -1,
@@ -56,26 +49,35 @@ export class SwordWeapon extends WeaponBase {
         slash.startY = startY;
         slash.piercing = data.piercing;
         slash.hasHit = false;
+        slash.visualAngle = angle;
 
         slash.update = () => {
             if (!slash.scene) return;
-            slash.rotation = Math.atan2(slash.vy, slash.vx);
-            if (Math.random() > 0.62) {
-                this.spawnSwordSpark(slash.x, slash.y, slash.rotation);
+
+            const targetAngle = Math.atan2(slash.vy, slash.vx);
+            slash.visualAngle = Phaser.Math.Angle.RotateTo(slash.visualAngle, targetAngle, 0.24);
+            slash.rotation = slash.visualAngle;
+
+            if (Math.random() > 0.6) {
+                this.spawnSwordSpark(slash.x, slash.y, slash.visualAngle);
+            }
+            if (Math.random() > 0.72) {
+                this.spawnBladeGhost(slash.x, slash.y, slash.visualAngle, data.size);
             }
         };
 
         slash.on('destroy', () => {
-            arcGlow.destroy();
-            arcCore.destroy();
-            arcEdge.destroy();
+            bladeGlow.destroy();
+            bladeCore.destroy();
+            bladeEdge.destroy();
+            guard.destroy();
+            arc.destroy();
         });
 
         this.scene.projectiles.push(slash);
         this.addTrail(slash, data.color, data.size);
     }
 
-    // Attaque chargée - Laser perforant plus cinématique
     executeChargedAttack(angle) {
         const charged = this.data.charged;
 
@@ -86,25 +88,29 @@ export class SwordWeapon extends WeaponBase {
 
         let hasHit = false;
 
-        const beamCore = this.scene.add.graphics().setDepth(161);
-        beamCore.lineStyle(charged.width, 0xffe8b3, 1);
-        beamCore.lineBetween(startX, startY, endX, endY);
-
         const beamAura = this.scene.add.graphics().setDepth(160);
-        beamAura.lineStyle(charged.width * 2.7, 0xffaa00, 0.3);
+        beamAura.lineStyle(charged.width * 3.1, 0xff9f2f, 0.24);
         beamAura.lineBetween(startX, startY, endX, endY);
 
-        const beamCrackle = this.scene.add.graphics().setDepth(162);
-        this.drawCrackleLine(beamCrackle, startX, startY, endX, endY, 0xfff0cf, 0.8);
+        const beamCore = this.scene.add.graphics().setDepth(161);
+        beamCore.lineStyle(charged.width, 0xfff0c9, 0.98);
+        beamCore.lineBetween(startX, startY, endX, endY);
 
-        beamCore.alpha = 0;
-        beamAura.alpha = 0;
-        beamCrackle.alpha = 0;
+        const beamEdge = this.scene.add.graphics().setDepth(162);
+        beamEdge.lineStyle(2.5, 0xffffff, 0.88);
+        beamEdge.lineBetween(startX, startY, endX, endY);
+
+        const crackleA = this.scene.add.graphics().setDepth(163);
+        const crackleB = this.scene.add.graphics().setDepth(163);
+        this.drawCrackleLine(crackleA, startX, startY, endX, endY, 0xfff3d2, 0.72, 5);
+        this.drawCrackleLine(crackleB, startX, startY, endX, endY, 0xffc87d, 0.52, 9);
+
+        [beamAura, beamCore, beamEdge, crackleA, crackleB].forEach(v => { v.alpha = 0; });
 
         this.scene.tweens.add({
-            targets: [beamCore, beamAura, beamCrackle],
+            targets: [beamAura, beamCore, beamEdge, crackleA, crackleB],
             alpha: 1,
-            duration: 45,
+            duration: 40,
             onComplete: () => {
                 if (!hasHit) {
                     this.checkLaserHit(startX, startY, endX, endY, angle, charged);
@@ -112,14 +118,16 @@ export class SwordWeapon extends WeaponBase {
                 }
 
                 this.scene.tweens.add({
-                    targets: [beamCore, beamAura, beamCrackle],
+                    targets: [beamAura, beamCore, beamEdge, crackleA, crackleB],
                     alpha: 0,
-                    duration: 150,
+                    duration: 170,
                     delay: 70,
                     onComplete: () => {
-                        beamCore.destroy();
                         beamAura.destroy();
-                        beamCrackle.destroy();
+                        beamCore.destroy();
+                        beamEdge.destroy();
+                        crackleA.destroy();
+                        crackleB.destroy();
                     }
                 });
             }
@@ -139,7 +147,6 @@ export class SwordWeapon extends WeaponBase {
 
         const unitX = dx / length;
         const unitY = dy / length;
-
         const toBossX = boss.x - startX;
         const toBossY = boss.y - startY;
 
@@ -148,7 +155,6 @@ export class SwordWeapon extends WeaponBase {
 
         const projX = startX + unitX * (t * length);
         const projY = startY + unitY * (t * length);
-
         const perpDist = Phaser.Math.Distance.Between(boss.x, boss.y, projX, projY);
 
         if (perpDist < 50) {
@@ -158,26 +164,30 @@ export class SwordWeapon extends WeaponBase {
             if (charged.knockback) {
                 this.scene.tweens.add({
                     targets: boss,
-                    x: boss.x + Math.cos(angle) * 170,
-                    y: boss.y + Math.sin(angle) * 170,
-                    duration: 190,
+                    x: boss.x + Math.cos(angle) * 175,
+                    y: boss.y + Math.sin(angle) * 175,
+                    duration: 180,
                     ease: 'Power2'
                 });
             }
 
-            const impact = this.scene.add.circle(boss.x, boss.y, 26, 0xffc06b, 0.75).setDepth(170);
-            const ring = this.scene.add.circle(boss.x, boss.y, 18, 0xffefc8, 0)
-                .setStrokeStyle(3, 0xffefc8, 0.95)
+            const impact = this.scene.add.circle(boss.x, boss.y, 28, 0xffb566, 0.78).setDepth(170);
+            const ring1 = this.scene.add.circle(boss.x, boss.y, 16, 0xffefcb, 0)
+                .setStrokeStyle(3, 0xffefcb, 0.95)
                 .setDepth(171);
+            const ring2 = this.scene.add.circle(boss.x, boss.y, 24, 0xff9f3a, 0)
+                .setStrokeStyle(2, 0xff9f3a, 0.7)
+                .setDepth(170);
 
             this.scene.tweens.add({
-                targets: [impact, ring],
+                targets: [impact, ring1, ring2],
                 alpha: 0,
-                scale: 2,
-                duration: 280,
+                scale: 2.15,
+                duration: 300,
                 onComplete: () => {
                     impact.destroy();
-                    ring.destroy();
+                    ring1.destroy();
+                    ring2.destroy();
                 }
             });
         }
@@ -185,35 +195,40 @@ export class SwordWeapon extends WeaponBase {
 
     createSlashCastFX(x, y, angle, data) {
         const castArc = this.scene.add.graphics().setDepth(158);
-        castArc.lineStyle(3, 0xffce80, 0.85);
+        castArc.lineStyle(3, 0xffd89b, 0.84);
         castArc.beginPath();
-        castArc.arc(x, y, data.size * 2.3, angle - 0.95, angle + 0.95);
+        castArc.arc(x, y, data.size * 2.5, angle - 1.02, angle + 1.02);
         castArc.strokePath();
 
+        const flash = this.scene.add.circle(x, y, 14, 0xfff0ce, 0.62).setDepth(159);
+
         this.scene.tweens.add({
-            targets: castArc,
+            targets: [castArc, flash],
             alpha: 0,
-            scale: 1.25,
-            duration: 130,
+            scale: 1.3,
+            duration: 145,
             ease: 'Cubic.easeOut',
-            onComplete: () => castArc.destroy()
+            onComplete: () => {
+                castArc.destroy();
+                flash.destroy();
+            }
         });
 
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 8; i++) {
             const spark = this.scene.add.circle(
                 x + Phaser.Math.Between(-10, 10),
                 y + Phaser.Math.Between(-10, 10),
-                Phaser.Math.FloatBetween(1.8, 3.5),
-                0xffe2ac,
-                0.85
+                Phaser.Math.FloatBetween(1.8, 3.8),
+                Phaser.Math.RND.pick([0xfff2d4, 0xffd79c, 0xffb55a]),
+                0.88
             ).setDepth(159);
 
             this.scene.tweens.add({
                 targets: spark,
-                x: spark.x + Math.cos(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(18, 32),
-                y: spark.y + Math.sin(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(18, 32),
+                x: spark.x + Math.cos(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(20, 36),
+                y: spark.y + Math.sin(angle + Phaser.Math.FloatBetween(-0.5, 0.5)) * Phaser.Math.Between(20, 36),
                 alpha: 0,
-                duration: Phaser.Math.Between(100, 170),
+                duration: Phaser.Math.Between(90, 170),
                 onComplete: () => spark.destroy()
             });
         }
@@ -223,32 +238,44 @@ export class SwordWeapon extends WeaponBase {
         const spark = this.scene.add.circle(
             x + Phaser.Math.Between(-5, 5),
             y + Phaser.Math.Between(-5, 5),
-            Phaser.Math.FloatBetween(1.6, 3),
-            0xffedc4,
-            0.88
+            Phaser.Math.FloatBetween(1.5, 3),
+            Phaser.Math.RND.pick([0xffefcb, 0xffd89b, 0xffb861]),
+            0.9
         ).setDepth(156);
 
         this.scene.tweens.add({
             targets: spark,
-            x: spark.x + Math.cos(angle + Phaser.Math.FloatBetween(-0.35, 0.35)) * Phaser.Math.Between(12, 22),
-            y: spark.y + Math.sin(angle + Phaser.Math.FloatBetween(-0.35, 0.35)) * Phaser.Math.Between(12, 22),
+            x: spark.x + Math.cos(angle + Phaser.Math.FloatBetween(-0.35, 0.35)) * Phaser.Math.Between(12, 24),
+            y: spark.y + Math.sin(angle + Phaser.Math.FloatBetween(-0.35, 0.35)) * Phaser.Math.Between(12, 24),
             alpha: 0,
             scale: 0.3,
-            duration: Phaser.Math.Between(80, 140),
+            duration: Phaser.Math.Between(80, 145),
             onComplete: () => spark.destroy()
         });
     }
 
-    drawCrackleLine(graphics, x1, y1, x2, y2, color, alpha) {
+    spawnBladeGhost(x, y, angle, size) {
+        const ghost = this.scene.add.rectangle(x, y, size * 2.4, size * 0.4, 0xffd49a, 0.2).setDepth(148);
+        ghost.rotation = angle;
+        this.scene.tweens.add({
+            targets: ghost,
+            alpha: 0,
+            scaleX: 0.6,
+            duration: 120,
+            onComplete: () => ghost.destroy()
+        });
+    }
+
+    drawCrackleLine(graphics, x1, y1, x2, y2, color, alpha, variance = 6) {
         graphics.clear();
-        graphics.lineStyle(2.5, color, alpha);
+        graphics.lineStyle(2.3, color, alpha);
         graphics.beginPath();
 
-        const segments = 16;
+        const segments = 18;
         for (let i = 0; i <= segments; i++) {
             const t = i / segments;
             const x = Phaser.Math.Linear(x1, x2, t);
-            const y = Phaser.Math.Linear(y1, y2, t) + Phaser.Math.Between(-6, 6);
+            const y = Phaser.Math.Linear(y1, y2, t) + Phaser.Math.Between(-variance, variance);
             if (i === 0) graphics.moveTo(x, y);
             else graphics.lineTo(x, y);
         }
@@ -257,19 +284,26 @@ export class SwordWeapon extends WeaponBase {
     }
 
     spawnBeamParticles(startX, startY, angle, charged) {
-        for (let i = 0; i < 16; i++) {
-            const dist = i * (charged.length / 16);
+        for (let i = 0; i < 20; i++) {
+            const dist = i * (charged.length / 20);
             const px = startX + Math.cos(angle) * dist;
             const py = startY + Math.sin(angle) * dist;
 
-            const spark = this.scene.add.circle(px, py, Phaser.Math.FloatBetween(2, 3.7), 0xffd28d, 0.8).setDepth(163);
+            const spark = this.scene.add.circle(
+                px,
+                py,
+                Phaser.Math.FloatBetween(1.8, 3.8),
+                Phaser.Math.RND.pick([0xfff0d0, 0xffd08a, 0xffa84a]),
+                0.84
+            ).setDepth(163);
+
             this.scene.tweens.add({
                 targets: spark,
-                x: px + Math.cos(angle + Math.PI / 2) * Phaser.Math.Between(-14, 14),
-                y: py + Math.sin(angle + Math.PI / 2) * Phaser.Math.Between(-14, 14),
+                x: px + Math.cos(angle + Math.PI / 2) * Phaser.Math.Between(-16, 16),
+                y: py + Math.sin(angle + Math.PI / 2) * Phaser.Math.Between(-16, 16),
                 alpha: 0,
-                scale: 0.4,
-                duration: Phaser.Math.Between(110, 190),
+                scale: 0.35,
+                duration: Phaser.Math.Between(100, 200),
                 onComplete: () => spark.destroy()
             });
         }

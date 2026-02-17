@@ -1,4 +1,4 @@
-// StaffWeapon.js - Bâton avec orbes et boule de feu (crisp procedural fire aesthetics)
+// StaffWeapon.js - Bâton avec orbes et boule de feu (alive, realistic procedural fire)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -7,21 +7,24 @@ export class StaffWeapon extends WeaponBase {
         super(scene, player, WEAPONS.STAFF);
     }
 
-    // Tir normal - Orbe incendié téléguidé
+    // Tir normal - Orbe igné vivant avec turbulence
     fire(angle) {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
 
         this.createMuzzleFlash(startX, startY, this.data.color);
+        this.spawnHeatPulse(startX, startY, 18, 0.26);
 
         const orb = this.scene.add.container(startX, startY).setDepth(150);
-        const shell = this.scene.add.circle(0, 0, data.size, 0xff7a2e, 0.92);
-        const hotCore = this.scene.add.circle(0, 0, data.size * 0.46, 0xfff1ba, 0.95);
-        const halo = this.scene.add.circle(0, 0, data.size * 1.9, 0xff5a1a, 0.28);
-        const flicker = this.scene.add.triangle(0, -data.size * 0.9, 0, 0, -4, 10, 4, 10, 0xffd18c, 0.75);
+        const shell = this.scene.add.circle(0, 0, data.size, 0xff7a2f, 0.9);
+        const magma = this.scene.add.circle(0, 0, data.size * 0.7, 0xff5316, 0.76);
+        const hotCore = this.scene.add.circle(0, 0, data.size * 0.44, 0xfff4c7, 0.97);
+        const halo = this.scene.add.circle(0, 0, data.size * 1.95, 0xff4e14, 0.25);
+        const crownA = this.scene.add.triangle(0, -data.size * 0.95, 0, 0, -4, 10, 4, 10, 0xffc985, 0.74);
+        const crownB = this.scene.add.triangle(0, data.size * 0.92, 0, 0, -3, 8, 3, 8, 0xff8a42, 0.6);
 
-        orb.add([halo, shell, hotCore, flicker]);
+        orb.add([halo, shell, magma, hotCore, crownA, crownB]);
 
         orb.vx = Math.cos(angle) * data.speed;
         orb.vy = Math.sin(angle) * data.speed;
@@ -31,22 +34,30 @@ export class StaffWeapon extends WeaponBase {
         orb.startY = startY;
 
         this.scene.tweens.add({
-            targets: [shell, halo],
+            targets: [shell, magma, halo],
             scale: { from: 1, to: 1.12 },
-            alpha: { from: 0.95, to: 0.72 },
-            duration: 110,
+            alpha: { from: 0.9, to: 0.66 },
+            duration: 95,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
 
         orb.update = () => {
-            orb.rotation += 0.14;
-            flicker.rotation += 0.28;
-            flicker.y = -data.size * Phaser.Math.FloatBetween(0.75, 1.05);
+            orb.rotation += 0.16;
+            crownA.rotation += 0.35;
+            crownB.rotation -= 0.28;
 
-            if (Math.random() > 0.6) {
+            crownA.y = -data.size * Phaser.Math.FloatBetween(0.76, 1.06);
+            crownB.y = data.size * Phaser.Math.FloatBetween(0.72, 0.98);
+            hotCore.alpha = Phaser.Math.FloatBetween(0.78, 0.98);
+            halo.alpha = Phaser.Math.FloatBetween(0.16, 0.28);
+
+            if (Math.random() > 0.52) {
                 this.spawnEmber(orb.x, orb.y, Math.atan2(orb.vy, orb.vx));
+            }
+            if (Math.random() > 0.78) {
+                this.spawnSmokePuff(orb.x, orb.y, Math.atan2(orb.vy, orb.vx) + Math.PI);
             }
 
             const boss = this.scene.boss;
@@ -56,7 +67,7 @@ export class StaffWeapon extends WeaponBase {
             const dy = boss.y - orb.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < 320) {
+            if (dist < 340) {
                 orb.vx += dx * 0.028;
                 orb.vy += dy * 0.028;
 
@@ -68,16 +79,18 @@ export class StaffWeapon extends WeaponBase {
 
         orb.on('destroy', () => {
             shell.destroy();
+            magma.destroy();
             hotCore.destroy();
             halo.destroy();
-            flicker.destroy();
+            crownA.destroy();
+            crownB.destroy();
         });
 
         this.scene.projectiles.push(orb);
-        this.addTrail(orb, 0xff7a2e, data.size + 1);
+        this.addTrail(orb, 0xff7428, data.size + 1.1);
     }
 
-    // Attaque chargée - Lance infernale procédurale
+    // Attaque chargée - Firestaff infernal détaillé
     executeChargedAttack(angle) {
         const charged = this.data.charged;
         const startX = this.player.x + Math.cos(angle) * 40;
@@ -85,23 +98,26 @@ export class StaffWeapon extends WeaponBase {
 
         const fireball = this.scene.add.container(startX, startY).setDepth(155);
         const body = this.scene.add.circle(0, 0, 20, 0xff5a16, 0.95);
-        const core = this.scene.add.circle(0, 0, 9, 0xfff0bd, 0.95);
-        const corona = this.scene.add.circle(0, 0, 36, 0xff4a00, 0.32);
-        const tail = this.scene.add.triangle(-18, 0, 0, 0, -28, -9, -28, 9, 0xffb266, 0.66);
-        fireball.add([corona, body, core, tail]);
+        const magma = this.scene.add.circle(0, 0, 13, 0xff7f24, 0.85);
+        const core = this.scene.add.circle(0, 0, 8, 0xfff3c7, 0.96);
+        const corona = this.scene.add.circle(0, 0, 38, 0xff4400, 0.28);
+        const tail = this.scene.add.triangle(-18, 0, 0, 0, -30, -10, -30, 10, 0xffbe6e, 0.72);
+        const tailGlow = this.scene.add.rectangle(-24, 0, 18, 8, 0xffd89a, 0.42);
+
+        fireball.add([corona, body, magma, core, tailGlow, tail]);
 
         this.scene.tweens.add({
-            targets: [body, corona],
-            scale: { from: 1, to: 1.14 },
-            duration: 85,
+            targets: [body, magma, corona],
+            scale: { from: 1, to: 1.16 },
+            duration: 82,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
 
         const targetPoint = this.getClampedChargedTarget(
-            this.player.x + Math.cos(angle) * this.data.charged.maxRange,
-            this.player.y + Math.sin(angle) * this.data.charged.maxRange
+            this.player.x + Math.cos(angle) * charged.maxRange,
+            this.player.y + Math.sin(angle) * charged.maxRange
         );
         const targetX = targetPoint.x;
         const targetY = targetPoint.y;
@@ -112,13 +128,18 @@ export class StaffWeapon extends WeaponBase {
             if (exploded) return;
             exploded = true;
 
-            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff641e, 0.65).setDepth(150);
-            const hotRing = this.scene.add.circle(x, y, charged.radius * 0.45, 0xffd189, 0)
-                .setStrokeStyle(4, 0xffe2ab, 0.95)
+            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff6118, 0.68).setDepth(150);
+            const hotRing = this.scene.add.circle(x, y, charged.radius * 0.45, 0xffd79c, 0)
+                .setStrokeStyle(4, 0xffe2ad, 0.95)
                 .setDepth(151);
-            const darkRing = this.scene.add.circle(x, y, charged.radius * 0.68, 0x000000, 0)
-                .setStrokeStyle(2, 0x5b1d00, 0.45)
+            const pressureRing = this.scene.add.circle(x, y, charged.radius * 0.66, 0xff8f32, 0)
+                .setStrokeStyle(2, 0xff8f32, 0.62)
+                .setDepth(150);
+            const sootRing = this.scene.add.circle(x, y, charged.radius * 0.76, 0x000000, 0)
+                .setStrokeStyle(2, 0x4a1a00, 0.45)
                 .setDepth(149);
+
+            this.spawnHeatPulse(x, y, charged.radius * 0.55, 0.24);
 
             const boss = this.scene.boss;
             if (boss) {
@@ -145,60 +166,72 @@ export class StaffWeapon extends WeaponBase {
                 }
             }
 
-            for (let i = 0; i < 22; i++) {
-                const emberAngle = (i / 22) * Math.PI * 2;
-                const ember = this.scene.add.circle(x, y, Phaser.Math.FloatBetween(2.5, 5.2), 0xff9a48, 0.85).setDepth(152);
+            for (let i = 0; i < 26; i++) {
+                const emberAngle = (i / 26) * Math.PI * 2;
+                const ember = this.scene.add.circle(
+                    x,
+                    y,
+                    Phaser.Math.FloatBetween(2.2, 5.4),
+                    Phaser.Math.RND.pick([0xffe0ad, 0xffbf73, 0xff9347, 0xff6a2c]),
+                    0.88
+                ).setDepth(152);
                 this.scene.tweens.add({
                     targets: ember,
-                    x: x + Math.cos(emberAngle) * Phaser.Math.Between(55, 140),
-                    y: y + Math.sin(emberAngle) * Phaser.Math.Between(55, 140),
+                    x: x + Math.cos(emberAngle) * Phaser.Math.Between(58, 150),
+                    y: y + Math.sin(emberAngle) * Phaser.Math.Between(58, 150),
                     alpha: 0,
-                    scale: 0.35,
-                    duration: Phaser.Math.Between(180, 320),
+                    scale: 0.32,
+                    duration: Phaser.Math.Between(180, 340),
                     onComplete: () => ember.destroy()
                 });
             }
 
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < 10; i++) {
                 const tongue = this.scene.add.triangle(
                     x,
                     y,
                     0,
-                    -16,
+                    -18,
                     -6,
-                    8,
+                    9,
                     6,
-                    8,
-                    0xffc67e,
-                    0.78
+                    9,
+                    0xffcb86,
+                    0.8
                 ).setDepth(153);
-                tongue.rotation = (i / 9) * Math.PI * 2;
+                const dir = (i / 10) * Math.PI * 2;
+                tongue.rotation = dir;
 
                 this.scene.tweens.add({
                     targets: tongue,
-                    x: x + Math.cos(tongue.rotation) * Phaser.Math.Between(40, 90),
-                    y: y + Math.sin(tongue.rotation) * Phaser.Math.Between(40, 90),
+                    x: x + Math.cos(dir) * Phaser.Math.Between(45, 94),
+                    y: y + Math.sin(dir) * Phaser.Math.Between(45, 94),
                     alpha: 0,
-                    scaleY: 0.4,
-                    duration: Phaser.Math.Between(170, 280),
+                    scaleY: 0.35,
+                    duration: Phaser.Math.Between(160, 290),
                     onComplete: () => tongue.destroy()
                 });
             }
 
+            for (let i = 0; i < 6; i++) {
+                this.spawnSmokePuff(x, y, Phaser.Math.FloatBetween(-Math.PI, Math.PI), true);
+            }
+
             this.scene.tweens.add({
-                targets: [explosion, hotRing, darkRing, fireball],
+                targets: [explosion, hotRing, pressureRing, sootRing, fireball],
                 alpha: 0,
-                scale: 1.5,
-                duration: 300,
+                scale: 1.55,
+                duration: 320,
                 onComplete: () => {
                     explosion.destroy();
                     hotRing.destroy();
-                    darkRing.destroy();
+                    pressureRing.destroy();
+                    sootRing.destroy();
                     fireball.destroy();
                 }
             });
 
-            this.scene.cameras.main.shake(180, 0.013);
+            this.scene.cameras.main.shake(190, 0.0135);
         };
 
         const travelTween = this.scene.tweens.add({
@@ -210,9 +243,16 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 const dir = Math.atan2(targetY - fireball.y, targetX - fireball.x);
                 tail.rotation = dir;
+                tailGlow.rotation = dir;
 
-                if (Math.random() > 0.5) {
+                core.alpha = Phaser.Math.FloatBetween(0.75, 0.98);
+                corona.alpha = Phaser.Math.FloatBetween(0.18, 0.34);
+
+                if (Math.random() > 0.44) {
                     this.spawnEmber(fireball.x, fireball.y, dir + Math.PI);
+                }
+                if (Math.random() > 0.77) {
+                    this.spawnSmokePuff(fireball.x, fireball.y, dir + Math.PI);
                 }
 
                 const boss = this.scene.boss;
@@ -221,7 +261,7 @@ export class StaffWeapon extends WeaponBase {
                 const distToBoss = Phaser.Math.Distance.Between(fireball.x, fireball.y, boss.x, boss.y);
                 if (distToBoss <= 52) {
                     travelTween.stop();
-                    const stickTime = 120;
+                    const stickTime = 125;
 
                     fireball.setPosition(boss.x, boss.y);
 
@@ -245,22 +285,54 @@ export class StaffWeapon extends WeaponBase {
 
     spawnEmber(x, y, angle) {
         const ember = this.scene.add.circle(
-            x + Phaser.Math.Between(-4, 4),
-            y + Phaser.Math.Between(-4, 4),
-            Phaser.Math.FloatBetween(1.6, 3.4),
-            Phaser.Math.RND.pick([0xffe1a3, 0xffba69, 0xff8f45]),
-            0.9
+            x + Phaser.Math.Between(-5, 5),
+            y + Phaser.Math.Between(-5, 5),
+            Phaser.Math.FloatBetween(1.6, 3.8),
+            Phaser.Math.RND.pick([0xfff0c5, 0xffcd84, 0xffa55a, 0xff7331]),
+            0.92
         ).setDepth(154);
 
-        const drift = angle + Phaser.Math.FloatBetween(-0.6, 0.6);
+        const drift = angle + Phaser.Math.FloatBetween(-0.65, 0.65);
         this.scene.tweens.add({
             targets: ember,
-            x: ember.x + Math.cos(drift) * Phaser.Math.Between(12, 28),
-            y: ember.y + Math.sin(drift) * Phaser.Math.Between(12, 28),
+            x: ember.x + Math.cos(drift) * Phaser.Math.Between(12, 32),
+            y: ember.y + Math.sin(drift) * Phaser.Math.Between(12, 32),
             alpha: 0,
-            scale: 0.35,
-            duration: Phaser.Math.Between(90, 170),
+            scale: 0.34,
+            duration: Phaser.Math.Between(90, 190),
             onComplete: () => ember.destroy()
+        });
+    }
+
+    spawnSmokePuff(x, y, angle, thick = false) {
+        const smoke = this.scene.add.circle(
+            x + Phaser.Math.Between(-6, 6),
+            y + Phaser.Math.Between(-6, 6),
+            Phaser.Math.FloatBetween(thick ? 5 : 3, thick ? 10 : 6),
+            0x2e1a12,
+            thick ? 0.26 : 0.18
+        ).setDepth(146);
+
+        const drift = angle + Phaser.Math.FloatBetween(-0.45, 0.45);
+        this.scene.tweens.add({
+            targets: smoke,
+            x: smoke.x + Math.cos(drift) * Phaser.Math.Between(14, 38),
+            y: smoke.y + Math.sin(drift) * Phaser.Math.Between(14, 38),
+            alpha: 0,
+            scale: Phaser.Math.FloatBetween(1.25, 1.75),
+            duration: Phaser.Math.Between(180, 340),
+            onComplete: () => smoke.destroy()
+        });
+    }
+
+    spawnHeatPulse(x, y, radius, alpha) {
+        const pulse = this.scene.add.circle(x, y, radius, 0xff8f3a, alpha).setDepth(145);
+        this.scene.tweens.add({
+            targets: pulse,
+            alpha: 0,
+            scale: 1.5,
+            duration: 170,
+            onComplete: () => pulse.destroy()
         });
     }
 }
