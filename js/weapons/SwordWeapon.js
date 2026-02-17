@@ -415,22 +415,33 @@ export class SwordWeapon extends WeaponBase {
 
         for (const summoned of state.swords) {
             const angle = Math.atan2(state.targetY - summoned.container.y, state.targetX - summoned.container.x);
+            const launchX = summoned.container.x + Math.cos(angle) * 46;
+            const launchY = summoned.container.y + Math.sin(angle) * 46;
+
+            this.scene.tweens.add({
+                targets: summoned.container,
+                x: summoned.container.x + Math.cos(angle) * 26,
+                y: summoned.container.y + Math.sin(angle) * 26,
+                duration: 55,
+                ease: 'Cubic.easeIn'
+            });
+
             this.launchSwordProjectile(angle, {
-                startX: summoned.container.x + Math.cos(angle) * 34,
-                startY: summoned.container.y + Math.sin(angle) * 34,
-                speed: this.data.projectile.speed,
+                startX: launchX,
+                startY: launchY,
+                speed: this.data.projectile.speed * 1.85,
                 damage: 120,
-                range: 520,
+                range: 560,
                 size: this.data.projectile.size,
                 color: this.data.projectile.color,
                 piercing: true,
                 visualScale: 1.35,
-                trailSize: 0
+                trailSize: this.data.projectile.size + 1
             });
         }
 
-        this.scene.cameras.main.flash(120, 255, 205, 120);
-        this.scene.cameras.main.shake(130, 0.0035);
+        this.scene.cameras.main.flash(130, 255, 210, 140);
+        this.scene.cameras.main.shake(110, 0.0028);
         this.destroyUltimateState();
         return true;
     }

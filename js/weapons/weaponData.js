@@ -8,7 +8,7 @@ export const WEAPONS = {
         projectile: {
             type: 'slash',
             size: 13,
-            speed: 800,
+            speed: 980,
             damage: 22,
             color: 0xffaa00,
             count: 1,
