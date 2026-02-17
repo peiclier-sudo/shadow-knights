@@ -161,7 +161,7 @@ export class WeaponBase {
         if (amount <= 0) return 0;
 
         // Tuned for boss-rush pacing: basics fill steadily, charged bursts fill faster, DoT contributes less.
-        const baseRatio = 0.16;
+        const baseRatio = 0.32;
         const chargedBonus = charged ? 1.35 : 1;
         const dotPenalty = dot ? 0.45 : 1;
         const gain = Math.max(1, Math.round(amount * baseRatio * chargedBonus * dotPenalty));

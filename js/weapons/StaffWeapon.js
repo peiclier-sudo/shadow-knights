@@ -244,7 +244,7 @@ export class StaffWeapon extends WeaponBase {
             }
 
             this.scene.cameras.main.flash(180, 255, 170, 95);
-            this.scene.cameras.main.shake(200, 0.009 + chargePower * 0.002);
+            this.scene.cameras.main.shake(160, 0.006 + chargePower * 0.0014);
 
             core.destroy();
             flames.destroy();
