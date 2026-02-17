@@ -64,6 +64,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
         const dashLine = new Phaser.Geom.Line(startX, startY, targetPoint.x, targetPoint.y);
 
         this.createDashLineFX(dashLine, angle);
+        this.createSparkleNova(startX, startY, 0xb9ecff);
 
         const hadInvulnerability = this.player.isInvulnerable;
         this.player.isCharging = true;
@@ -78,6 +79,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Expo.easeIn',
             onUpdate: () => this.spawnDashSpark(this.player.x, this.player.y, false),
             onComplete: () => {
+                this.createThunderBurst(targetPoint.x, targetPoint.y, angle);
                 this.hitBossOnDashPath(dashLine, charged, angle);
 
                 this.scene.time.delayedCall(charged.snapDelay, () => {
@@ -127,6 +129,24 @@ export class ThunderGauntletWeapon extends WeaponBase {
             boss.vulnerabilityTimer = null;
         });
 
+        const debuffText = this.scene.add.text(boss.x, boss.y - 82, '+20% DMG TAKEN', {
+            fontFamily: 'Arial',
+            fontSize: '18px',
+            fontStyle: 'bold',
+            color: '#c6f0ff',
+            stroke: '#062133',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(210);
+
+        this.scene.tweens.add({
+            targets: debuffText,
+            y: debuffText.y - 36,
+            alpha: 0,
+            duration: 850,
+            ease: 'Sine.easeOut',
+            onComplete: () => debuffText.destroy()
+        });
+
         this.scene.tweens.add({
             targets: boss,
             x: boss.x + Math.cos(angle) * 95,
@@ -164,6 +184,9 @@ export class ThunderGauntletWeapon extends WeaponBase {
                 onComplete: () => spark.destroy()
             });
         }
+
+        this.createSparkleNova(boss.x, boss.y, 0xd8f6ff);
+        this.createThunderBurst(boss.x, boss.y, angle);
     }
 
     createDashLineFX(dashLine, angle) {
@@ -275,5 +298,58 @@ export class ThunderGauntletWeapon extends WeaponBase {
                 ring.destroy();
             }
         });
+
+        this.createSparkleNova(x, y, 0xedfcff);
+    }
+
+    createSparkleNova(x, y, color) {
+        for (let i = 0; i < 14; i++) {
+            const sparkle = this.scene.add.star(
+                x + Phaser.Math.Between(-8, 8),
+                y + Phaser.Math.Between(-8, 8),
+                4,
+                Phaser.Math.FloatBetween(1.4, 2.4),
+                Phaser.Math.FloatBetween(3.4, 5.4),
+                color,
+                0.95
+            ).setDepth(158);
+
+            this.scene.tweens.add({
+                targets: sparkle,
+                x: sparkle.x + Phaser.Math.Between(-42, 42),
+                y: sparkle.y + Phaser.Math.Between(-42, 42),
+                angle: Phaser.Math.Between(80, 280),
+                alpha: 0,
+                duration: Phaser.Math.Between(170, 280),
+                ease: 'Cubic.easeOut',
+                onComplete: () => sparkle.destroy()
+            });
+        }
+    }
+
+    createThunderBurst(x, y, angle) {
+        for (let i = 0; i < 3; i++) {
+            const offsetAngle = angle + Phaser.Math.FloatBetween(-0.9, 0.9);
+            const bolt = this.scene.add.graphics().setDepth(157);
+            bolt.lineStyle(3 - i * 0.5, 0xd4f4ff, 0.9 - i * 0.2);
+            bolt.beginPath();
+            bolt.moveTo(x + Phaser.Math.Between(-8, 8), y + Phaser.Math.Between(-8, 8));
+
+            let cx = x;
+            let cy = y;
+            for (let j = 0; j < 4; j++) {
+                cx += Math.cos(offsetAngle) * Phaser.Math.Between(12, 24) + Phaser.Math.Between(-10, 10);
+                cy += Math.sin(offsetAngle) * Phaser.Math.Between(12, 24) + Phaser.Math.Between(-10, 10);
+                bolt.lineTo(cx, cy);
+            }
+
+            bolt.strokePath();
+            this.scene.tweens.add({
+                targets: bolt,
+                alpha: 0,
+                duration: 120,
+                onComplete: () => bolt.destroy()
+            });
+        }
     }
 }
