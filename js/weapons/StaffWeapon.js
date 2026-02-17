@@ -1,4 +1,4 @@
-// StaffWeapon.js - Bâton avec orbes et boule de feu (FIXED - damage multiplier)
+// StaffWeapon.js - Bâton avec orbes et boule de feu (procedural VFX)
 import { WeaponBase } from './WeaponBase.js';
 import { WEAPONS } from './weaponData.js';
 
@@ -6,110 +6,91 @@ export class StaffWeapon extends WeaponBase {
     constructor(scene, player) {
         super(scene, player, WEAPONS.STAFF);
     }
-    
+
     // Tir normal - Orbe téléguidé
     fire(angle) {
         const data = this.data.projectile;
         const startX = this.player.x + Math.cos(angle) * 30;
         const startY = this.player.y + Math.sin(angle) * 30;
-        
+
         this.createMuzzleFlash(startX, startY, this.data.color);
-        
-        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
 
-        // Créer l'orbe (spritesheet when available, star fallback otherwise)
-        const orb = hasFirestaffSprite
-            ? this.scene.add.sprite(startX, startY, 'firestaff', 5)
-                .setScale(0.35)
-                .setBlendMode(Phaser.BlendModes.ADD)
-            : this.scene.add.star(startX, startY, 5, data.size * 0.7, data.size, data.color);
-        orb.setDepth(150);
+        const orb = this.scene.add.star(startX, startY, 5, data.size * 0.65, data.size, data.color)
+            .setDepth(150);
+        const glow = this.scene.add.circle(startX, startY, data.size * 1.8, 0x88aaff, 0.28).setDepth(149);
 
-        if (hasFirestaffSprite) {
-            if (this.scene.anims.exists('fire-comet')) {
-                orb.play('fire-comet');
-            } else if (this.scene.anims.exists('fireball-grow')) {
-                orb.play('fireball-grow');
-            }
-        }
-        
         orb.vx = Math.cos(angle) * data.speed;
         orb.vy = Math.sin(angle) * data.speed;
         orb.damage = data.damage;
         orb.range = data.range;
         orb.startX = startX;
         orb.startY = startY;
-        
-        // Comportement de homing
+
         orb.update = () => {
-            if (hasFirestaffSprite) {
-                orb.rotation = Math.atan2(orb.vy, orb.vx);
-            }
+            orb.rotation += 0.22;
+            glow.x = orb.x;
+            glow.y = orb.y;
+            glow.alpha = Phaser.Math.FloatBetween(0.14, 0.28);
+
             const boss = this.scene.boss;
             if (!boss) return;
-            
+
             const dx = boss.x - orb.x;
             const dy = boss.y - orb.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (dist < 300) {
                 orb.vx += dx * 0.03;
                 orb.vy += dy * 0.03;
-                
+
                 const speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
                 orb.vx = (orb.vx / speed) * data.speed;
                 orb.vy = (orb.vy / speed) * data.speed;
             }
         };
-        
+
+        orb.on('destroy', () => glow?.destroy());
+
         this.scene.projectiles.push(orb);
         this.addTrail(orb, data.color, data.size);
     }
-    
+
     // Attaque chargée - Boule de feu (directionnelle)
     executeChargedAttack(angle) {
         const charged = this.data.charged;
-        
         const startX = this.player.x + Math.cos(angle) * 40;
         const startY = this.player.y + Math.sin(angle) * 40;
-        
-        const hasFirestaffSprite = this.scene.textures.exists('firestaff');
-        const fireball = hasFirestaffSprite
-            ? this.scene.add.sprite(startX, startY, 'firestaff', 0)
-                .setScale(0.5)
-                .setBlendMode(Phaser.BlendModes.ADD)
-            : this.scene.add.circle(startX, startY, 20, 0xff6600);
-        const glow = this.scene.add.circle(startX, startY, 35, 0xff6600, 0.4);
 
-        if (hasFirestaffSprite) {
-            fireball.rotation = angle;
+        const fireball = this.scene.add.circle(startX, startY, 18, 0xff6d2d, 0.95).setDepth(155);
+        const core = this.scene.add.circle(startX, startY, 8, 0xffecaf, 0.9).setDepth(156);
+        const glow = this.scene.add.circle(startX, startY, 34, 0xff6600, 0.4).setDepth(154);
 
-            if (this.scene.anims.exists('fireball-grow')) {
-                fireball.play('fireball-grow');
-                fireball.once('animationcomplete-fireball-grow', () => {
-                    if (fireball.active && this.scene.anims.exists('fire-comet')) {
-                        fireball.play('fire-comet');
-                    }
-                });
-            } else if (this.scene.anims.exists('fire-comet')) {
-                fireball.play('fire-comet');
-            }
-        }
-        
+        this.scene.tweens.add({
+            targets: [fireball, glow],
+            scale: 1.1,
+            duration: 90,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
         const targetPoint = this.getClampedChargedTarget(
             this.player.x + Math.cos(angle) * this.data.charged.maxRange,
             this.player.y + Math.sin(angle) * this.data.charged.maxRange
         );
         const targetX = targetPoint.x;
         const targetY = targetPoint.y;
-        
+
         let exploded = false;
 
         const explodeAt = (x, y) => {
             if (exploded) return;
             exploded = true;
 
-            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff6600, 0.7);
+            const explosion = this.scene.add.circle(x, y, charged.radius, 0xff6600, 0.65).setDepth(150);
+            const ring = this.scene.add.circle(x, y, charged.radius * 0.55, 0xffc273, 0)
+                .setStrokeStyle(3, 0xffdba3, 0.9)
+                .setDepth(151);
 
             const boss = this.scene.boss;
             if (boss) {
@@ -136,48 +117,31 @@ export class StaffWeapon extends WeaponBase {
                 }
             }
 
-            for (let i = 0; i < 12; i++) {
-                const particleAngle = (i / 12) * Math.PI * 2;
-                const particle = this.scene.add.circle(
-                    x, y,
-                    5 + Math.random() * 5,
-                    0xff6600,
-                    0.6
-                );
+            for (let i = 0; i < 14; i++) {
+                const particleAngle = (i / 14) * Math.PI * 2;
+                const ember = this.scene.add.circle(x, y, 4 + Math.random() * 5, 0xff8f43, 0.8).setDepth(152);
 
                 this.scene.tweens.add({
-                    targets: particle,
-                    x: x + Math.cos(particleAngle) * 100,
-                    y: y + Math.sin(particleAngle) * 100,
+                    targets: ember,
+                    x: x + Math.cos(particleAngle) * Phaser.Math.Between(70, 120),
+                    y: y + Math.sin(particleAngle) * Phaser.Math.Between(70, 120),
                     alpha: 0,
-                    duration: 300,
-                    onComplete: () => particle.destroy()
+                    duration: 280,
+                    onComplete: () => ember.destroy()
                 });
-            }
-
-            if (hasFirestaffSprite && this.scene.anims.exists('fire-explode')) {
-                fireball.play('fire-explode');
-                fireball.once('animationcomplete-fire-explode', () => {
-                    if (fireball.active) {
-                        fireball.destroy();
-                    }
-                });
-            } else if (fireball.active) {
-                fireball.destroy();
             }
 
             this.scene.tweens.add({
-                targets: [explosion, glow],
+                targets: [explosion, ring, fireball, core, glow],
                 alpha: 0,
-                scale: 1.5,
-                duration: 300,
+                scale: 1.45,
+                duration: 260,
                 onComplete: () => {
                     explosion.destroy();
+                    ring.destroy();
+                    fireball.destroy();
+                    core.destroy();
                     glow.destroy();
-
-                    if (!hasFirestaffSprite && fireball.active) {
-                        fireball.destroy();
-                    }
                 }
             });
 
@@ -185,7 +149,7 @@ export class StaffWeapon extends WeaponBase {
         };
 
         const travelTween = this.scene.tweens.add({
-            targets: [fireball, glow],
+            targets: [fireball, core, glow],
             x: targetX,
             y: targetY,
             duration: 420,
@@ -193,32 +157,26 @@ export class StaffWeapon extends WeaponBase {
             onUpdate: () => {
                 glow.x = fireball.x;
                 glow.y = fireball.y;
-
-                if (hasFirestaffSprite) {
-                    fireball.rotation = Phaser.Math.Angle.Between(
-                        fireball.x,
-                        fireball.y,
-                        targetX,
-                        targetY
-                    );
-                }
+                core.x = fireball.x;
+                core.y = fireball.y;
 
                 const boss = this.scene.boss;
                 if (!boss || exploded) return;
 
                 const distToBoss = Phaser.Math.Distance.Between(fireball.x, fireball.y, boss.x, boss.y);
                 if (distToBoss <= 52) {
-                    // Stop on contact and glue shortly to the boss before exploding.
                     travelTween.stop();
                     const stickTime = 140;
 
                     fireball.setPosition(boss.x, boss.y);
                     glow.setPosition(boss.x, boss.y);
+                    core.setPosition(boss.x, boss.y);
 
                     const followHandler = () => {
                         if (!boss.scene || exploded) return;
                         fireball.setPosition(boss.x, boss.y);
                         glow.setPosition(boss.x, boss.y);
+                        core.setPosition(boss.x, boss.y);
                     };
                     this.scene.events.on('update', followHandler);
 

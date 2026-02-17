@@ -184,8 +184,9 @@ export const WEAPONS = {
             targeting: 'line',
             maxRange: 460,
             fullChargeRequired: true,
-            dashDuration: 160,
-            returnDuration: 180,
+            dashDuration: 95,
+            returnDuration: 110,
+            snapDelay: 20,
             hitRadius: 90,
             vulnerabilityMultiplier: 1.2,
             vulnerabilityDuration: 2400
