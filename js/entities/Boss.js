@@ -77,6 +77,21 @@ export class Boss extends Phaser.GameObjects.Container {
             const visor = this.scene.add.rectangle(0, -65, 30, 5, 0xff0000);
             
             this.add([body, head, bladeL, bladeR, visor]);
+        } else if (this.bossId === 4) {
+            // Overlord
+            const core = this.scene.add.ellipse(0, 0, 96, 120, this.bossData.color);
+            core.setStrokeStyle(4, this.bossData.glowColor);
+
+            const crown = this.scene.add.triangle(0, -86, -24, 6, 0, -20, 24, 6, this.bossData.secondaryColor);
+            crown.setStrokeStyle(2, this.bossData.glowColor);
+
+            const eye = this.scene.add.rectangle(0, -26, 34, 7, 0xdfffff);
+            const pylonL = this.scene.add.rectangle(-48, -14, 16, 52, this.bossData.secondaryColor);
+            const pylonR = this.scene.add.rectangle(48, -14, 16, 52, this.bossData.secondaryColor);
+            pylonL.setStrokeStyle(2, this.bossData.glowColor);
+            pylonR.setStrokeStyle(2, this.bossData.glowColor);
+
+            this.add([core, crown, eye, pylonL, pylonR]);
         }
         
         // Add glow effects
