@@ -299,8 +299,59 @@ export class Boss extends Phaser.GameObjects.Container {
                 yoyo: true,
                 repeat: -1
             });
+        } else if (this.bossId === 10) {
+            // Chronarch - The Eternal Sovereign
+            // Outer temporal rings
+            const outerRing = this.scene.add.ellipse(0, 0, 110, 110, this.bossData.secondaryColor, 0.2);
+            outerRing.setStrokeStyle(2, this.bossData.glowColor, 0.6);
+            const midRing = this.scene.add.ellipse(0, 0, 80, 80, this.bossData.secondaryColor, 0.25);
+            midRing.setStrokeStyle(2, this.bossData.glowColor, 0.8);
+
+            // Main body - ethereal hourglass form
+            const bodyTop = this.scene.add.triangle(0, -18, -30, 0, 30, 0, 0, -52, this.bossData.color, 0.82);
+            bodyTop.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+            const bodyBot = this.scene.add.triangle(0, 18, -30, 0, 30, 0, 0, 52, this.bossData.color, 0.82);
+            bodyBot.setStrokeStyle(2, this.bossData.glowColor, 0.95);
+
+            // Central core nexus
+            const core = this.scene.add.circle(0, 0, 14, 0xffffff, 0.98);
+            const coreGlow = this.scene.add.circle(0, 0, 22, this.bossData.glowColor, 0.35);
+
+            // Crown spires
+            const spireL = this.scene.add.triangle(-22, -60, -30, -48, -14, -48, -22, -78, this.bossData.glowColor, 0.9);
+            const spireR = this.scene.add.triangle(22, -60, 14, -48, 30, -48, 22, -78, this.bossData.glowColor, 0.9);
+            const spireC = this.scene.add.triangle(0, -64, -8, -52, 8, -52, 0, -84, 0xffffff, 0.9);
+
+            // Floating orbs at cardinal points
+            const orbN = this.scene.add.circle(0, -48, 5, 0xffffff, 0.85);
+            const orbS = this.scene.add.circle(0, 48, 5, 0xffffff, 0.85);
+            const orbE = this.scene.add.circle(48, 0, 5, 0xffffff, 0.85);
+            const orbW = this.scene.add.circle(-48, 0, 5, 0xffffff, 0.85);
+
+            this.add([outerRing, midRing, bodyTop, bodyBot, coreGlow, core, spireL, spireR, spireC, orbN, orbS, orbE, orbW]);
+
+            // Rings rotate in opposite directions
+            this.scene.tweens.add({ targets: outerRing, angle: 360, duration: 5000, repeat: -1, ease: 'Linear' });
+            this.scene.tweens.add({ targets: midRing, angle: -360, duration: 3200, repeat: -1, ease: 'Linear' });
+
+            // Core pulse
+            this.scene.tweens.add({ targets: coreGlow, scale: 1.4, alpha: 0.15, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+            // Floating orbs orbit
+            [orbN, orbS, orbE, orbW].forEach((orb, i) => {
+                this.scene.tweens.add({
+                    targets: orb,
+                    alpha: 0.3,
+                    duration: 600 + i * 150,
+                    yoyo: true,
+                    repeat: -1
+                });
+            });
+
+            // Spires pulse
+            this.scene.tweens.add({ targets: [spireL, spireR, spireC], y: '-=4', duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         }
-        
+
         // Add glow effects
         this.glow1 = this.scene.add.circle(this.x, this.y, 90, this.bossData.glowColor, 0.2);
         this.glow2 = this.scene.add.circle(this.x, this.y, 120, this.bossData.glowColor, 0.1);

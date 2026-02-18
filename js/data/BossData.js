@@ -71,5 +71,13 @@ export const BOSSES = {
         glowColor: 0xc7ffbf,
         secondaryColor: 0x2f6a2c,
         attackType: 'PRISM SENTENCE'
+    },
+    10: {
+        name: 'CHRONARCH',
+        hp: 1600,
+        color: 0xe0b0ff,
+        glowColor: 0xf5e6ff,
+        secondaryColor: 0x2a0845,
+        attackType: 'ANNIHILATION WAVE'
     }
 };

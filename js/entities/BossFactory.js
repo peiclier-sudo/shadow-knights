@@ -9,6 +9,7 @@ import { OverclockBoss } from './bosses/OverclockBoss.js';
 import { VortexBoss } from './bosses/VortexBoss.js';
 import { EmberCrownBoss } from './bosses/EmberCrownBoss.js';
 import { AuroraJudgeBoss } from './bosses/AuroraJudgeBoss.js';
+import { ChronarchBoss } from './bosses/ChronarchBoss.js';
 
 export class BossFactory {
     static createBoss(scene, bossId) {
@@ -31,6 +32,8 @@ export class BossFactory {
                 return new EmberCrownBoss(scene);
             case 9:
                 return new AuroraJudgeBoss(scene);
+            case 10:
+                return new ChronarchBoss(scene);
             default:
                 return new Boss(scene, bossId);
         }

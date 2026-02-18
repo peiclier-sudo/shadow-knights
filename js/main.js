@@ -6,6 +6,7 @@ import { GameScene } from './scenes/GameScene.js';
 import { ClassSelectScene } from './scenes/ClassSelectScene.js';
 import { WeaponSelectScene } from './scenes/WeaponSelectScene.js';
 import { BossSelectScene } from './scenes/BossSelectScene.js';
+import { TowerScene } from './scenes/TowerScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 
 // Game configuration with all scenes
@@ -16,6 +17,7 @@ const config = {
         MenuScene,
         ClassSelectScene,
         WeaponSelectScene,
+        TowerScene,
         BossSelectScene,
         GameScene,
         GameOverScene
