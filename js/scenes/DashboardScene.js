@@ -3,6 +3,16 @@ import { GameData } from '../data/GameData.js';
 import { BOSSES } from '../data/BossData.js';
 import { authManager } from '../data/AuthManager.js';
 
+const COLORS = {
+    bgTop: 0x060b18,
+    bgBottom: 0x131f38,
+    panel: 0x101d35,
+    panelBorder: 0x2f4a74,
+    accent: '#67e8f9',
+    text: '#ecf4ff',
+    muted: '#8ea6cc'
+};
+
 export class DashboardScene extends Phaser.Scene {
     constructor() {
         super({ key: 'DashboardScene' });
@@ -13,18 +23,7 @@ export class DashboardScene extends Phaser.Scene {
         const height = this.cameras.main.height;
 
         this.createBackground(width, height);
-
-        this.add.text(80, 48, 'DASHBOARD COMMAND CENTER', {
-            fontSize: '34px',
-            fill: '#e9f6ff',
-            fontStyle: 'bold'
-        });
-
-        this.add.text(80, 96, 'Vue globale de ta progression et de tes performances', {
-            fontSize: '18px',
-            fill: '#7f92b8'
-        });
-
+        this.createHeader(width);
         this.createTopStats(width);
         this.createBossTable(width, height);
         this.createActionButtons(width, height);
@@ -32,11 +31,11 @@ export class DashboardScene extends Phaser.Scene {
 
     createBackground(width, height) {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x060913, 0x060913, 0x0d1428, 0x0d1428, 1);
+        bg.fillGradientStyle(COLORS.bgTop, COLORS.bgTop, COLORS.bgBottom, COLORS.bgBottom, 1);
         bg.fillRect(0, 0, width, height);
 
-        for (let i = 0; i < 120; i++) {
-            const star = this.add.circle(
+        for (let i = 0; i < 90; i++) {
+            const dot = this.add.circle(
                 Phaser.Math.Between(0, width),
                 Phaser.Math.Between(0, height),
                 Phaser.Math.Between(1, 2),
@@ -45,13 +44,33 @@ export class DashboardScene extends Phaser.Scene {
             );
 
             this.tweens.add({
-                targets: star,
-                alpha: { from: star.alpha, to: Phaser.Math.FloatBetween(0.2, 0.7) },
-                duration: Phaser.Math.Between(1800, 4200),
-                repeat: -1,
-                yoyo: true
+                targets: dot,
+                alpha: Phaser.Math.FloatBetween(0.1, 0.55),
+                duration: Phaser.Math.Between(1500, 3600),
+                yoyo: true,
+                repeat: -1
             });
         }
+    }
+
+    createHeader(width) {
+        this.add.text(70, 48, 'PLAYER DASHBOARD', {
+            fontSize: '38px',
+            fill: COLORS.text,
+            fontStyle: 'bold'
+        });
+
+        this.add.text(72, 95, 'Progression, performances et état du compte', {
+            fontSize: '18px',
+            fill: COLORS.muted
+        });
+
+        this.add.text(width - 300, 58, 'LIVE SESSION', {
+            fontSize: '14px',
+            fill: '#d9f99d',
+            backgroundColor: '#365314',
+            padding: { x: 10, y: 5 }
+        });
     }
 
     createTopStats(width) {
@@ -61,115 +80,116 @@ export class DashboardScene extends Phaser.Scene {
         const user = authManager.getCurrentUser();
 
         const cards = [
-            {
-                label: 'Compte',
-                value: user?.email || 'Invité',
-                color: 0x00d4ff
-            },
-            {
-                label: 'Boss vaincus',
-                value: `${defeated}/${totalBosses}`,
-                color: 0x22c55e
-            },
-            {
-                label: 'Complétion',
-                value: `${completion}%`,
-                color: 0xf59e0b
-            },
-            {
-                label: 'Record Tour Infinie',
-                value: `${GameData.infiniteBest || 0}`,
-                color: 0xa855f7
-            }
+            { label: 'Compte', value: user?.email || 'Invité', color: 0x22d3ee },
+            { label: 'Boss vaincus', value: `${defeated}/${totalBosses}`, color: 0x34d399 },
+            { label: 'Complétion', value: `${completion}%`, color: 0xfbbf24 },
+            { label: 'Record tour', value: `${GameData.infiniteBest || 0}`, color: 0xa78bfa }
         ];
 
-        const cardWidth = 300;
-        const gap = 20;
+        const margin = 70;
+        const gap = 16;
+        const cardWidth = Math.floor((width - margin * 2 - gap * 3) / 4);
 
         cards.forEach((card, index) => {
-            const x = 80 + (cardWidth + gap) * index;
-            const y = 150;
+            const x = margin + index * (cardWidth + gap);
+            const y = 140;
 
-            const container = this.add.container(x, y);
-            const panel = this.add.rectangle(0, 0, cardWidth, 125, 0x0f1a33, 0.9).setOrigin(0);
+            const panel = this.add.rectangle(x, y, cardWidth, 120, COLORS.panel, 0.92).setOrigin(0);
             panel.setStrokeStyle(1, card.color, 0.8);
 
-            const label = this.add.text(18, 16, card.label, {
-                fontSize: '16px',
-                fill: '#7f92b8'
+            this.add.text(x + 16, y + 14, card.label, {
+                fontSize: '15px',
+                fill: COLORS.muted
             });
 
-            const value = this.add.text(18, 56, card.value, {
-                fontSize: '28px',
-                fill: '#f8fbff',
-                fontStyle: 'bold'
+            const valueText = this.add.text(x + 16, y + 50, card.value, {
+                fontSize: card.label === 'Compte' ? '22px' : '30px',
+                fill: COLORS.text,
+                fontStyle: 'bold',
+                wordWrap: { width: cardWidth - 30 }
             });
 
-            const glow = this.add.rectangle(cardWidth - 40, 22, 10, 10, card.color, 1).setOrigin(0.5);
-            container.add([panel, label, value, glow]);
+            this.tweens.add({
+                targets: valueText,
+                alpha: { from: 0.85, to: 1 },
+                duration: 1300,
+                yoyo: true,
+                repeat: -1
+            });
         });
     }
 
     createBossTable(width, height) {
-        const panelX = 80;
-        const panelY = 305;
-        const panelW = width - 160;
-        const panelH = height - 430;
+        const x = 70;
+        const y = 290;
+        const w = width - 140;
+        const h = height - 390;
 
-        const panel = this.add.rectangle(panelX, panelY, panelW, panelH, 0x0f1a33, 0.85).setOrigin(0);
-        panel.setStrokeStyle(1, 0x2d4672, 0.9);
+        const panel = this.add.rectangle(x, y, w, h, COLORS.panel, 0.9).setOrigin(0);
+        panel.setStrokeStyle(1, COLORS.panelBorder, 0.95);
 
-        this.add.text(panelX + 20, panelY + 18, 'BOSSES & STATUT', {
+        this.add.text(x + 20, y + 18, 'BOSSES STATUS', {
             fontSize: '20px',
-            fill: '#d8e8ff',
+            fill: COLORS.accent,
             fontStyle: 'bold'
         });
 
-        const bossEntries = Object.entries(BOSSES);
-        const colX = [panelX + 30, panelX + 520, panelX + 810];
+        const headers = ['Boss', 'ID', 'Statut'];
+        const colX = [x + 28, x + w * 0.62, x + w * 0.78];
 
-        bossEntries.forEach(([bossId, boss], idx) => {
-            const y = panelY + 70 + idx * 32;
+        headers.forEach((label, idx) => {
+            this.add.text(colX[idx], y + 56, label, {
+                fontSize: '16px',
+                fill: '#9fb5d8',
+                fontStyle: 'bold'
+            });
+        });
+
+        const entries = Object.entries(BOSSES);
+        entries.forEach(([bossId, boss], idx) => {
+            const rowY = y + 90 + idx * 33;
             const defeated = GameData.isBossDefeated(Number(bossId));
-            const status = defeated ? 'Vaincu' : 'En attente';
-            const statusColor = defeated ? '#22c55e' : '#f59e0b';
 
-            this.add.text(colX[0], y, boss.name || `Boss ${bossId}`, {
-                fontSize: '17px',
-                fill: '#f8fbff'
+            if (idx % 2 === 0) {
+                this.add.rectangle(x + 12, rowY - 4, w - 24, 28, 0x152545, 0.35).setOrigin(0);
+            }
+
+            this.add.text(colX[0], rowY, boss.name || `Boss ${bossId}`, {
+                fontSize: '16px',
+                fill: COLORS.text
             });
 
-            this.add.text(colX[1], y, `ID: ${bossId}`, {
+            this.add.text(colX[1], rowY, `${bossId}`, {
                 fontSize: '16px',
-                fill: '#7f92b8'
+                fill: '#9fb5d8'
             });
 
-            this.add.text(colX[2], y, status, {
+            this.add.text(colX[2], rowY, defeated ? 'Vaincu' : 'Non vaincu', {
                 fontSize: '16px',
-                fill: statusColor,
+                fill: defeated ? '#34d399' : '#fbbf24',
                 fontStyle: 'bold'
             });
         });
     }
 
     createActionButtons(width, height) {
-        const backBtn = this.createButton(width - 220, height - 74, '← RETOUR MENU', () => {
-            this.scene.start('MenuScene');
-        });
-
-        const startBtn = this.createButton(220, height - 74, 'LANCER UNE RUN', () => {
+        const startBtn = this.createButton(180, height - 60, 'LANCER UNE RUN', () => {
             this.scene.start('ClassSelectScene');
         });
 
-        [backBtn, startBtn].forEach((btn) => {
+        const backBtn = this.createButton(width - 180, height - 60, 'RETOUR MENU', () => {
+            this.scene.start('MenuScene');
+        });
+
+        [startBtn, backBtn].forEach((btn) => {
             btn.on('pointerover', () => {
-                btn.setScale(1.04);
-                btn.setStyle({ backgroundColor: '#0ea5e9' });
+                btn.setScale(1.03);
+                btn.setStyle({ backgroundColor: '#0ea5e9', fill: '#041322' });
             });
 
             btn.on('pointerout', () => {
                 btn.setScale(1);
-                btn.setStyle({ backgroundColor: '#1e293b' });
+                btn.setStyle({ backgroundColor: '#1a2b4f', fill: '#f8fbff' });
             });
         });
     }
@@ -178,8 +198,8 @@ export class DashboardScene extends Phaser.Scene {
         const button = this.add.text(x, y, label, {
             fontSize: '20px',
             fill: '#f8fbff',
-            backgroundColor: '#1e293b',
-            padding: { x: 20, y: 12 },
+            backgroundColor: '#1a2b4f',
+            padding: { x: 18, y: 10 },
             stroke: '#38bdf8',
             strokeThickness: 1
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });

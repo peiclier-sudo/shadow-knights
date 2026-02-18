@@ -12,6 +12,7 @@ Boss Rush Soulslike en 2D avec contrôles mobiles et desktop.
 - ✅ Statistiques de victoires
 - ✅ Authentification Email (Register/Login Supabase)
 - ✅ Dashboard joueur avec progression
+- ✅ Interface premium style studio (menu + dashboard)
 
 ## 🚀 Déploiement Vercel (GRATUIT)
 
