@@ -1,0 +1,13 @@
+[gd_resource type="ActorStats" load_steps=1 format=3 uid="uid://bstats001"]
+
+[resource]
+max_hp = 1200.0
+max_stamina = 0.0
+stamina_regen_rate = 0.0
+stamina_regen_delay = 0.0
+move_speed = 3.0
+dodge_distance = 0.0
+dodge_duration = 0.0
+dodge_iframe_start = 0.0
+dodge_iframe_end = 0.0
+dodge_stamina_cost = 0.0

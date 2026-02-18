@@ -1,0 +1,17 @@
+[gd_resource type="AttackDefinition" load_steps=1 format=3 uid="uid://platk001"]
+
+[resource]
+damage = 25.0
+stamina_cost = 0.0
+startup_s = 0.18
+active_s = 0.10
+recovery_s = 0.32
+forward_lunge_m = 1.5
+knockback_strength = 3.0
+hitstop_attacker_s = 0.035
+hitstop_victim_s = 0.055
+camera_impulse_strength = 0.3
+hitbox_radius = 0.6
+hitbox_offset = Vector3(0, 0.5, -0.8)
+telegraph_duration = 0.0
+attack_id = "player_light"

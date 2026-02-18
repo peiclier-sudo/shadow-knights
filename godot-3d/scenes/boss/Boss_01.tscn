@@ -1,0 +1,115 @@
+[gd_scene load_steps=22 format=3 uid="uid://boss001"]
+
+[ext_resource type="Script" path="res://scripts/boss/boss_controller.gd" id="1_boss"]
+[ext_resource type="Script" path="res://scripts/core/state_machine.gd" id="2_sm"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_idle.gd" id="3_idle"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_chase.gd" id="4_chase"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_windup_attack_a.gd" id="5_wa"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_windup_attack_b.gd" id="6_wb"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_windup_attack_c.gd" id="7_wc"]
+[ext_resource type="Script" path="res://scripts/boss/states/b_recover.gd" id="8_recover"]
+[ext_resource type="Script" path="res://scripts/boss/boss_attack_selector.gd" id="9_selector"]
+[ext_resource type="Script" path="res://scripts/actors/health_component.gd" id="10_health"]
+[ext_resource type="Script" path="res://scripts/actors/hitbox.gd" id="11_hitbox"]
+[ext_resource type="Script" path="res://scripts/actors/hurtbox.gd" id="12_hurtbox"]
+[ext_resource type="Script" path="res://scripts/actors/lockon_target.gd" id="13_lockon"]
+[ext_resource type="Resource" path="res://data/actors/boss_stats.tres" id="14_stats"]
+[ext_resource type="Resource" path="res://data/attacks/boss_attack_a_slam.tres" id="15_slam"]
+[ext_resource type="Resource" path="res://data/attacks/boss_attack_b_thrust.tres" id="16_thrust"]
+[ext_resource type="Resource" path="res://data/attacks/boss_attack_c_aoe.tres" id="17_aoe"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.55
+height = 2.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_boss"]
+radius = 0.55
+height = 2.4
+
+[sub_resource type="StandardMaterial3D" id="Mat_boss"]
+albedo_color = Color(0.6, 0.1, 0.1)
+emission_enabled = true
+emission = Color(0.4, 0.05, 0.05)
+emission_energy_multiplier = 0.8
+roughness = 0.7
+metallic = 0.3
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hitbox_melee"]
+radius = 1.2
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hitbox_aoe"]
+radius = 3.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hurtbox"]
+radius = 0.6
+
+[node name="Boss01" type="CharacterBody3D"]
+script = ExtResource("1_boss")
+stats = ExtResource("14_stats")
+attack_def_slam = ExtResource("15_slam")
+attack_def_thrust = ExtResource("16_thrust")
+attack_def_aoe = ExtResource("17_aoe")
+collision_layer = 2
+collision_mask = 65
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_body")
+position = Vector3(0, 1.2, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("CapsuleMesh_boss")
+surface_material_override/0 = SubResource("Mat_boss")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="StateMachine" type="Node" parent="."]
+script = ExtResource("2_sm")
+initial_state_name = "Idle"
+
+[node name="Idle" type="Node" parent="StateMachine"]
+script = ExtResource("3_idle")
+
+[node name="Chase" type="Node" parent="StateMachine"]
+script = ExtResource("4_chase")
+
+[node name="WindupA" type="Node" parent="StateMachine"]
+script = ExtResource("5_wa")
+
+[node name="WindupB" type="Node" parent="StateMachine"]
+script = ExtResource("6_wb")
+
+[node name="WindupC" type="Node" parent="StateMachine"]
+script = ExtResource("7_wc")
+
+[node name="Recover" type="Node" parent="StateMachine"]
+script = ExtResource("8_recover")
+
+[node name="AttackSelector" type="Node" parent="."]
+script = ExtResource("9_selector")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("10_health")
+max_hp = 1200.0
+
+[node name="Hitbox" type="Area3D" parent="."]
+script = ExtResource("11_hitbox")
+collision_layer = 8
+collision_mask = 16
+position = Vector3(0, 1.0, -1.2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox"]
+shape = SubResource("SphereShape3D_hitbox_melee")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+script = ExtResource("12_hurtbox")
+collision_layer = 32
+collision_mask = 0
+position = Vector3(0, 1.2, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+shape = SubResource("SphereShape3D_hurtbox")
+
+[node name="LockOnTarget" type="Marker3D" parent="."]
+script = ExtResource("13_lockon")
+position = Vector3(0, 1.8, 0)

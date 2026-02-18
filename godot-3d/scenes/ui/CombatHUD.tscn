@@ -1,0 +1,121 @@
+[gd_scene load_steps=4 format=3 uid="uid://hud001"]
+
+[ext_resource type="Script" path="res://scripts/ui/stamina_bar.gd" id="1_stam"]
+[ext_resource type="Script" path="res://scripts/ui/boss_hp_bar.gd" id="2_bosshp"]
+[ext_resource type="Script" path="res://scripts/ui/lockon_indicator.gd" id="3_lockon"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stamina"]
+bg_color = Color(0.2, 0.7, 1.0)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bosshp"]
+bg_color = Color(0.85, 0.15, 0.15)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.1, 0.1, 0.1, 0.6)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="CombatHUD" type="CanvasLayer"]
+
+[node name="HUDRoot" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StaminaPanel" type="Panel" parent="HUDRoot"]
+layout_mode = 1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -60.0
+offset_right = 260.0
+offset_bottom = -30.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="StaminaLabel" type="Label" parent="HUDRoot/StaminaPanel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 2.0
+offset_right = 80.0
+offset_bottom = 18.0
+text = "STAMINA"
+label_settings = null
+
+[node name="StaminaBar" type="ProgressBar" parent="HUDRoot/StaminaPanel"]
+script = ExtResource("1_stam")
+layout_mode = 0
+offset_left = 6.0
+offset_top = 18.0
+offset_right = 234.0
+offset_bottom = 26.0
+min_value = 0.0
+max_value = 1.0
+value = 1.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_stamina")
+color_full = Color(0.2, 0.8, 1.0)
+color_low = Color(1.0, 0.5, 0.1)
+
+[node name="BossPanel" type="Panel" parent="HUDRoot"]
+layout_mode = 1
+anchor_left = 0.2
+anchor_top = 0.0
+anchor_right = 0.8
+anchor_bottom = 0.0
+offset_top = 12.0
+offset_bottom = 48.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="BossLabel" type="Label" parent="HUDRoot/BossPanel"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_top = 2.0
+offset_bottom = 14.0
+text = "SHADOW KNIGHT"
+horizontal_alignment = 1
+
+[node name="BossHPBar" type="ProgressBar" parent="HUDRoot/BossPanel"]
+script = ExtResource("2_bosshp")
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 16.0
+offset_right = -8.0
+offset_bottom = -6.0
+min_value = 0.0
+max_value = 1.0
+value = 1.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_bosshp")
+
+[node name="LockOnIndicator" type="Control" parent="HUDRoot"]
+script = ExtResource("3_lockon")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+mouse_filter = 2
+bracket_size = 36.0
+indicator_color = Color(0.2, 1.0, 0.8)

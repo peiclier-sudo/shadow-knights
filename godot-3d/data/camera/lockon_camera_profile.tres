@@ -1,0 +1,11 @@
+[gd_resource type="CameraProfile" load_steps=1 format=3 uid="uid://camprof001"]
+
+[resource]
+arm_length = 5.0
+max_lock_distance = 18.0
+break_distance = 22.0
+los_grace_s = 0.25
+follow_smoothing = 10.0
+recenter_speed = 7.0
+pitch_min = -20.0
+pitch_max = 40.0

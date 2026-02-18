@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3 uid="uid://camrig001"]
+
+[ext_resource type="Script" path="res://scripts/camera/lockon_camera_controller.gd" id="1_cam"]
+[ext_resource type="Script" path="res://scripts/camera/camera_collision_solver.gd" id="2_spring"]
+[ext_resource type="Script" path="res://scripts/camera/camera_impulse.gd" id="3_impulse"]
+[ext_resource type="Resource" path="res://data/camera/lockon_camera_profile.tres" id="4_profile"]
+
+[node name="CombatCameraRig" type="Node3D"]
+script = ExtResource("1_cam")
+profile = ExtResource("4_profile")
+
+[node name="SpringArm" type="SpringArm3D" parent="."]
+script = ExtResource("2_spring")
+spring_length = 5.0
+collision_mask = 64
+rotation_degrees = Vector3(-15.0, 0.0, 0.0)
+min_arm_length = 1.5
+max_arm_length = 5.0
+
+[node name="Camera" type="Camera3D" parent="SpringArm"]
+position = Vector3(0, 0, 0)
+fov = 70.0
+near = 0.1
+
+[node name="CameraImpulse" type="Node" parent="SpringArm/Camera"]
+script = ExtResource("3_impulse")
+max_offset = 0.12
+decay_speed = 18.0

@@ -1,0 +1,108 @@
+[gd_scene load_steps=20 format=3 uid="uid://player001"]
+
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/core/state_machine.gd" id="2_sm"]
+[ext_resource type="Script" path="res://scripts/player/states/p_idle.gd" id="3_idle"]
+[ext_resource type="Script" path="res://scripts/player/states/p_move.gd" id="4_move"]
+[ext_resource type="Script" path="res://scripts/player/states/p_attack.gd" id="5_attack"]
+[ext_resource type="Script" path="res://scripts/player/states/p_dodge.gd" id="6_dodge"]
+[ext_resource type="Script" path="res://scripts/player/states/p_recover.gd" id="7_recover"]
+[ext_resource type="Script" path="res://scripts/player/states/p_hitstun.gd" id="8_hitstun"]
+[ext_resource type="Script" path="res://scripts/actors/health_component.gd" id="9_health"]
+[ext_resource type="Script" path="res://scripts/actors/stamina_component.gd" id="10_stamina"]
+[ext_resource type="Script" path="res://scripts/actors/hitbox.gd" id="11_hitbox"]
+[ext_resource type="Script" path="res://scripts/actors/hurtbox.gd" id="12_hurtbox"]
+[ext_resource type="Script" path="res://scripts/combat/iframe_window.gd" id="13_iframe"]
+[ext_resource type="Resource" path="res://data/actors/player_stats.tres" id="14_stats"]
+[ext_resource type="Resource" path="res://data/attacks/player_light_attack.tres" id="15_atk"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_player"]
+albedo_color = Color(0.2, 0.6, 1.0)
+emission_enabled = true
+emission = Color(0.1, 0.3, 0.5)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hitbox"]
+radius = 0.6
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hurtbox"]
+radius = 0.45
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_player")
+stats = ExtResource("14_stats")
+light_attack_def = ExtResource("15_atk")
+collision_layer = 1
+collision_mask = 66
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_body")
+position = Vector3(0, 0.9, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_player")
+surface_material_override/0 = SubResource("Mat_player")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="StateMachine" type="Node" parent="."]
+script = ExtResource("2_sm")
+initial_state_name = "Idle"
+
+[node name="Idle" type="Node" parent="StateMachine"]
+script = ExtResource("3_idle")
+
+[node name="Move" type="Node" parent="StateMachine"]
+script = ExtResource("4_move")
+
+[node name="Attack" type="Node" parent="StateMachine"]
+script = ExtResource("5_attack")
+
+[node name="Dodge" type="Node" parent="StateMachine"]
+script = ExtResource("6_dodge")
+
+[node name="Recover" type="Node" parent="StateMachine"]
+script = ExtResource("7_recover")
+
+[node name="Hitstun" type="Node" parent="StateMachine"]
+script = ExtResource("8_hitstun")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("9_health")
+max_hp = 100.0
+
+[node name="StaminaComponent" type="Node" parent="."]
+script = ExtResource("10_stamina")
+max_stamina = 100.0
+regen_rate = 22.0
+regen_delay = 0.75
+
+[node name="Hitbox" type="Area3D" parent="."]
+script = ExtResource("11_hitbox")
+collision_layer = 4
+collision_mask = 32
+position = Vector3(0, 0.8, -0.8)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hitbox"]
+shape = SubResource("SphereShape3D_hitbox")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+script = ExtResource("12_hurtbox")
+collision_layer = 16
+collision_mask = 0
+position = Vector3(0, 0.9, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+shape = SubResource("SphereShape3D_hurtbox")
+
+[node name="IframeWindow" type="Node" parent="."]
+script = ExtResource("13_iframe")

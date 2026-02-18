@@ -1,0 +1,17 @@
+[gd_resource type="AttackDefinition" load_steps=1 format=3 uid="uid://bthrust001"]
+
+[resource]
+damage = 25.0
+stamina_cost = 0.0
+startup_s = 0.55
+active_s = 0.14
+recovery_s = 0.70
+forward_lunge_m = 0.0
+knockback_strength = 4.0
+hitstop_attacker_s = 0.040
+hitstop_victim_s = 0.065
+camera_impulse_strength = 0.45
+hitbox_radius = 1.0
+hitbox_offset = Vector3(0, 0.8, -1.5)
+telegraph_duration = 0.55
+attack_id = "thrust"
