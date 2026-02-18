@@ -42,13 +42,13 @@ export class ClassSelectScene extends Phaser.Scene {
         this.drawBackground(width, height);
 
         this.add.text(width / 2, 50, 'LOADOUT CONFIGURATION', {
-            fontSize: '42px',
+            fontSize: '48px',
             fill: UI.text,
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
         this.add.text(width / 2, 92, 'Choose class + weapon • review complete kit before entering', {
-            fontSize: '17px',
+            fontSize: '20px',
             fill: UI.sub
         }).setOrigin(0.5);
 
@@ -126,14 +126,14 @@ export class ClassSelectScene extends Phaser.Scene {
 
         const classKeys = ['WARRIOR', 'MAGE', 'ROGUE'];
         const cardW = Math.floor((panelW - 70) / 3);
-        const cardH = panelH - 66;
+        const cardH = panelH - 58;
         const gap = (panelW - classKeys.length * cardW) / (classKeys.length + 1);
         const startX = panelX - panelW / 2 + gap + cardW / 2;
 
         classKeys.forEach((key, idx) => {
             const data = CLASSES[key];
             const cx = startX + idx * (cardW + gap);
-            const cy = panelY + 14;
+            const cy = panelY + 10;
             this.classCards[key] = this.createClassCard(cx, cy, cardW, cardH, key, data);
         });
     }
@@ -143,24 +143,21 @@ export class ClassSelectScene extends Phaser.Scene {
         const panel = this.add.rectangle(0, 0, w, h, UI.panelAlt, 0.95).setOrigin(0.5);
         panel.setStrokeStyle(2, data.glowColor, 0.45);
 
-        const iconContainer = this.add.container(-w / 2 + 28, -h / 2 + 24);
-        this.drawClassIcon(iconContainer, key, data.glowColor);
-
-        const title = this.add.text(-w / 2 + 50, -h / 2 + 8, key, {
-            fontSize: '16px',
+        const title = this.add.text(-w / 2 + 12, -h / 2 + 12, key, {
+            fontSize: '20px',
             fill: '#f8fbff',
             fontStyle: 'bold'
         });
 
         const stats = this.add.text(-w / 2 + 10, -h / 2 + 30,
             `HP ${data.baseHealth}  ST ${data.baseStamina}  SPD ${data.baseSpeed}\nDash: ${data.dash.name}\nRole: ${this.getClassRole(key)}`, {
-                fontSize: '10px',
+                fontSize: '13px',
                 fill: '#c0d4f4',
-                lineSpacing: 3,
-                wordWrap: { width: w - 18 }
+                lineSpacing: 5,
+                wordWrap: { width: w - 20 }
             });
 
-        c.add([panel, iconContainer, title, stats]);
+        c.add([panel, title, stats]);
 
         panel.setInteractive({ useHandCursor: true });
         panel.on('pointerover', () => c.setScale(1.02));
@@ -174,26 +171,6 @@ export class ClassSelectScene extends Phaser.Scene {
         return { container: c, panel };
     }
 
-    drawClassIcon(container, key, color) {
-        const g = this.add.graphics();
-        const col = color || 0x67e8f9;
-        g.lineStyle(2, col, 0.95);
-
-        if (key === 'WARRIOR') {
-            g.strokeRect(-8, -10, 16, 20);
-            g.beginPath(); g.moveTo(0, -16); g.lineTo(0, 16); g.strokePath();
-            g.beginPath(); g.moveTo(-6, -2); g.lineTo(6, -2); g.strokePath();
-        } else if (key === 'MAGE') {
-            g.strokeCircle(0, 0, 10);
-            g.beginPath(); g.moveTo(-12, 10); g.lineTo(12, 10); g.strokePath();
-            g.beginPath(); g.moveTo(0, -14); g.lineTo(-6, -4); g.lineTo(6, -4); g.closePath(); g.strokePath();
-        } else {
-            g.beginPath(); g.moveTo(-10, 8); g.lineTo(10, -8); g.strokePath();
-            g.beginPath(); g.moveTo(-6, 12); g.lineTo(14, -4); g.strokePath();
-        }
-        container.add(g);
-    }
-
     createWeaponSection(panelX, panelY, panelW, panelH) {
         this.createPanel(panelX, panelY, panelW, panelH, 'WEAPON SELECTION');
 
@@ -203,7 +180,7 @@ export class ClassSelectScene extends Phaser.Scene {
         const innerW = panelW - 36;
         const innerH = panelH - 54;
         const cardW = Math.floor((innerW - 22) / cols);
-        const cardH = Math.floor((innerH - 10) / rows);
+        const cardH = Math.floor((innerH - 8) / rows);
         const startX = panelX - panelW / 2 + 18 + cardW / 2;
         const startY = panelY - panelH / 2 + 38 + cardH / 2;
 
@@ -222,24 +199,21 @@ export class ClassSelectScene extends Phaser.Scene {
         const panel = this.add.rectangle(0, 0, w, h, UI.panelAlt, 0.95).setOrigin(0.5);
         panel.setStrokeStyle(2, weapon.color || 0x67e8f9, 0.42);
 
-        const iconContainer = this.add.container(-w / 2 + 16, -h / 2 + 15);
-        this.drawWeaponIcon(iconContainer, key, weapon.color || 0x67e8f9);
-
-        const title = this.add.text(-w / 2 + 30, -h / 2 + 8, weapon.name, {
-            fontSize: '12px',
+                const title = this.add.text(-w / 2 + 10, -h / 2 + 10, weapon.name, {
+            fontSize: '14px',
             fill: '#f8fbff',
             fontStyle: 'bold'
         });
 
         const meta = this.add.text(-w / 2 + 8, -h / 2 + 24,
             `${weapon.projectile.damage} dmg • ${weapon.projectile.cooldown}ms\nRNG ${weapon.projectile.range} • ${weapon.charged.name}`, {
-                fontSize: '9px',
+                fontSize: '11px',
                 fill: '#c0d4f4',
-                lineSpacing: 2,
+                lineSpacing: 4,
                 wordWrap: { width: w - 14 }
             });
 
-        c.add([panel, iconContainer, title, meta]);
+        c.add([panel, title, meta]);
 
         panel.setInteractive({ useHandCursor: true });
         panel.on('pointerover', () => c.setScale(1.02));
@@ -251,40 +225,6 @@ export class ClassSelectScene extends Phaser.Scene {
         });
 
         return { container: c, panel };
-    }
-
-    drawWeaponIcon(container, key, color) {
-        const g = this.add.graphics();
-        g.lineStyle(2, color, 0.95);
-
-        switch (key) {
-            case 'SWORD':
-                g.beginPath(); g.moveTo(0, -10); g.lineTo(0, 10); g.strokePath();
-                g.beginPath(); g.moveTo(-5, -2); g.lineTo(5, -2); g.strokePath();
-                break;
-            case 'BOW':
-                g.strokeCircle(-2, 0, 8);
-                g.beginPath(); g.moveTo(6, -8); g.lineTo(6, 8); g.strokePath();
-                break;
-            case 'STAFF':
-                g.beginPath(); g.moveTo(-6, 10); g.lineTo(6, -10); g.strokePath();
-                g.strokeCircle(8, -12, 4);
-                break;
-            case 'DAGGERS':
-                g.beginPath(); g.moveTo(-8, 8); g.lineTo(3, -6); g.strokePath();
-                g.beginPath(); g.moveTo(-2, 8); g.lineTo(10, -6); g.strokePath();
-                break;
-            case 'GREATSWORD':
-                g.strokeRect(-4, -10, 8, 20);
-                g.beginPath(); g.moveTo(-8, -2); g.lineTo(8, -2); g.strokePath();
-                break;
-            default:
-                g.strokeCircle(0, 0, 8);
-                g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.strokePath();
-                break;
-        }
-
-        container.add(g);
     }
 
     createDetailsColumn(x, topY, totalH, w) {
@@ -299,14 +239,14 @@ export class ClassSelectScene extends Phaser.Scene {
         this.createPanel(x, weaponY, w, weaponBoxH, 'WEAPON DESCRIPTION');
 
         this.classDetailsText = this.add.text(x - w / 2 + 14, classY - classBoxH / 2 + 38, '', {
-            fontSize: '12px',
+            fontSize: '14px',
             fill: '#d6e4ff',
             lineSpacing: 4,
             wordWrap: { width: w - 28 }
         });
 
         this.weaponDetailsText = this.add.text(x - w / 2 + 14, weaponY - weaponBoxH / 2 + 38, '', {
-            fontSize: '12px',
+            fontSize: '14px',
             fill: '#d6e4ff',
             lineSpacing: 4,
             wordWrap: { width: w - 28 }
