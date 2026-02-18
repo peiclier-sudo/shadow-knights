@@ -138,3 +138,24 @@ Je peux ajouter:
 - Sauvegarde auto des scores
 - Affichage du leaderboard top 10
 - Stats personnelles du joueur
+
+## 8. Ajouter la config auth côté front
+
+Le menu du jeu affiche maintenant un panneau **Login / Register** (email + mot de passe) relié à Supabase Auth.
+
+Ajoute ces variables globales avant le script `js/main.js` dans `index.html`:
+
+```html
+<script>
+  window.SUPABASE_URL = 'https://ton-projet.supabase.co';
+  window.SUPABASE_ANON_KEY = 'ta-cle-anon-publique';
+</script>
+```
+
+Ensuite:
+1. Ouvre le jeu
+2. En haut à droite, crée un compte avec **Register**
+3. Connecte-toi avec **Login**
+4. Le bouton **Logout** apparaît quand la session est active
+
+> Si l'email confirmation est activé dans Supabase, l'utilisateur devra confirmer son email avant de pouvoir se reconnecter.
