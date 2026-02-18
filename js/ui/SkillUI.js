@@ -1,10 +1,105 @@
-// SkillUI.js - Affichage des compétences avec cooldown circulaire + tooltip de survol
+// SkillUI.js - Affichage des compétences avec forme et symbole propres à chaque classe
 export class SkillUI {
     constructor(scene) {
         this.scene = scene;
         this.skillButtons = [];
         this.skillTooltip = null;
         this.createSkillButtons();
+    }
+
+    // Polygon vertices for the class-specific button shape.
+    // Warrior → hexagon (shield), Mage → tall diamond (gem), Rogue → triangle (blade)
+    _getShapePoints(cx, cy, r, cls) {
+        if (cls === 'WARRIOR') {
+            // Pointy-top hexagon
+            return Array.from({ length: 6 }, (_, i) => {
+                const angle = (Math.PI / 3) * i - Math.PI / 2;
+                return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+            });
+        } else if (cls === 'MAGE') {
+            // Tall, narrow diamond
+            return [
+                { x: cx,            y: cy - r * 1.20 },
+                { x: cx + r * 0.82, y: cy            },
+                { x: cx,            y: cy + r * 1.20 },
+                { x: cx - r * 0.82, y: cy            },
+            ];
+        } else { // ROGUE
+            // Upward-pointing triangle
+            return [
+                { x: cx,       y: cy - r * 1.15 },
+                { x: cx + r,   y: cy + r * 0.75 },
+                { x: cx - r,   y: cy + r * 0.75 },
+            ];
+        }
+    }
+
+    // Draws the one-time class watermark glyph into a Graphics object.
+    // Warrior → great helm silhouette, Mage → 6-point arcane star, Rogue → dagger
+    _drawWatermark(gfx, x, y, radius, cls) {
+        const s = radius * 0.58;
+
+        if (cls === 'WARRIOR') {
+            // Great helm: dome + body, visor slit
+            const helmPts = [
+                { x: x - s * 0.62, y: y - s * 0.05 }, // shoulder L
+                { x: x - s * 0.48, y: y - s * 0.68 }, // dome L
+                { x: x,            y: y - s * 0.85 }, // crown
+                { x: x + s * 0.48, y: y - s * 0.68 }, // dome R
+                { x: x + s * 0.62, y: y - s * 0.05 }, // shoulder R
+                { x: x + s * 0.62, y: y + s * 0.58 }, // bottom R
+                { x: x - s * 0.62, y: y + s * 0.58 }, // bottom L
+            ];
+            gfx.fillStyle(0xffffff, 0.09);
+            gfx.fillPoints(helmPts, true);
+            // Visor slit (dark cutout)
+            gfx.fillStyle(0x000000, 0.40);
+            gfx.fillRect(x - s * 0.40, y - s * 0.14, s * 0.80, s * 0.22);
+            // Left eye
+            gfx.fillStyle(0xffffff, 0.10);
+            gfx.fillRect(x - s * 0.36, y - s * 0.12, s * 0.26, s * 0.11);
+            // Right eye
+            gfx.fillRect(x + s * 0.10, y - s * 0.12, s * 0.26, s * 0.11);
+
+        } else if (cls === 'MAGE') {
+            // 6-pointed arcane star
+            const outer = s * 0.92;
+            const inner = s * 0.40;
+            const pts = [];
+            for (let i = 0; i < 12; i++) {
+                const r2    = i % 2 === 0 ? outer : inner;
+                const angle = (Math.PI / 6) * i - Math.PI / 2;
+                pts.push({ x: x + r2 * Math.cos(angle), y: y + r2 * Math.sin(angle) });
+            }
+            gfx.fillStyle(0xffffff, 0.09);
+            gfx.fillPoints(pts, true);
+            // Tiny center dot
+            gfx.fillStyle(0xffffff, 0.20);
+            gfx.fillCircle(x, y, s * 0.14);
+
+        } else { // ROGUE
+            // Dagger: pointed blade + crossguard
+            const bladeW = s * 0.22;
+            const bladeH = s * 1.05;
+            const tipH   = s * 0.48;
+            const guardW = s * 0.82;
+            const guardT = s * 0.16;
+            const baseY  = y + s * 0.52; // bottom of blade
+
+            gfx.fillStyle(0xffffff, 0.09);
+            // Blade body
+            gfx.fillRect(x - bladeW / 2, baseY - bladeH, bladeW, bladeH);
+            // Blade tip (triangle)
+            gfx.fillPoints([
+                { x: x,              y: baseY - bladeH - tipH },
+                { x: x + bladeW / 2, y: baseY - bladeH       },
+                { x: x - bladeW / 2, y: baseY - bladeH       },
+            ], true);
+            // Crossguard
+            gfx.fillRect(x - guardW / 2, baseY - bladeH * 0.50 - guardT / 2, guardW, guardT);
+            // Pommel (tiny square at bottom)
+            gfx.fillRect(x - s * 0.18, baseY - s * 0.20, s * 0.36, s * 0.18);
+        }
     }
 
     createSkillButtons() {
@@ -16,91 +111,100 @@ export class SkillUI {
         const spacing = 90;
         const radius  = 36;
 
-        const keys = ['Q', 'E', 'R'];
+        const keys        = ['Q', 'E', 'R'];
+        const playerClass = this.scene.playerConfig?.class || 'WARRIOR';
+
+        // Label sits below the lowest vertex of each shape
+        const labelOffsets = { WARRIOR: radius + 8, MAGE: radius * 1.20 + 8, ROGUE: radius + 8 };
+        const labelOffsetY = labelOffsets[playerClass] ?? radius + 8;
 
         keys.forEach((key, index) => {
-            const skillKey  = key.toLowerCase();
-            const skill     = this.scene.skills?.[skillKey];
-            const iconText  = skill?.data?.icon || '❔';
+            const skillKey = key.toLowerCase();
+            const skill    = this.scene.skills?.[skillKey];
+            const iconText = skill?.data?.icon || '❔';
 
             const x = startX + index * spacing;
             const y = startY;
 
-            // Outer glow ring (shown when skill is ready)
-            const glowRing = this.scene.add.circle(x, y, radius + 6, 0x00ff88, 0)
+            const shapePoints = this._getShapePoints(x, y, radius,     playerClass);
+            const glowPoints  = this._getShapePoints(x, y, radius + 7, playerClass);
+
+            // ── Layer 197: per-frame pulsing glow (redrawn in update) ──────────
+            const glowGfx = this.scene.add.graphics()
+                .setScrollFactor(0).setDepth(197);
+
+            // ── Layer 198: static dark polygon background ──────────────────────
+            const shapeGfx = this.scene.add.graphics()
                 .setScrollFactor(0).setDepth(198);
+            shapeGfx.fillStyle(0x0a0a16, 0.95);
+            shapeGfx.fillPoints(shapePoints, true);
 
-            // Dark background base
-            const bgBase = this.scene.add.circle(x, y, radius, 0x0a0a16, 0.95)
+            // ── Layer 199: static class watermark glyph ───────────────────────
+            const watermarkGfx = this.scene.add.graphics()
                 .setScrollFactor(0).setDepth(199);
+            this._drawWatermark(watermarkGfx, x, y, radius, playerClass);
 
-            // Border ring
-            const bg = this.scene.add.circle(x, y, radius, 0x1a1a2e, 0.0)
-                .setStrokeStyle(2.5, 0x555577, 1.0)
+            // ── Layer 200: invisible circle – hit area only ───────────────────
+            const bg = this.scene.add.circle(x, y, radius, 0x000000, 0)
                 .setScrollFactor(0).setDepth(200)
                 .setInteractive({ useHandCursor: true });
 
-            // Subtle inner highlight (top-left quarter)
-            const innerHighlight = this.scene.add.circle(x - 8, y - 8, radius * 0.45, 0xffffff, 0.04)
+            // Subtle top-left specular highlight
+            const innerHighlight = this.scene.add.circle(x - 7, y - 7, radius * 0.38, 0xffffff, 0.05)
                 .setScrollFactor(0).setDepth(200);
 
-            // Cooldown arc graphics (drawn each frame)
-            const cooldownArc = this.scene.add.graphics()
-                .setScrollFactor(0).setDepth(203);
-
-            // Icon emoji
+            // ── Layer 201: skill emoji + key label ────────────────────────────
             const icon = this.scene.add.text(x, y - 4, iconText, { fontSize: '28px' })
                 .setOrigin(0.5).setScrollFactor(0).setDepth(201)
                 .setInteractive({ useHandCursor: true });
 
-            // Key hint label (below button)
-            const keyText = this.scene.add.text(x, y + radius + 8, key, {
+            const keyText = this.scene.add.text(x, y + labelOffsetY, key, {
                 fontSize: '12px',
                 fill: '#8899bb',
                 fontStyle: 'bold',
                 stroke: '#000000',
-                strokeThickness: 3
+                strokeThickness: 3,
             }).setOrigin(0.5).setScrollFactor(0).setDepth(201)
               .setInteractive({ useHandCursor: true });
 
-            // Cooldown timer text (centered on button)
+            // ── Layer 203: per-frame border + cooldown overlay ────────────────
+            const cooldownArc = this.scene.add.graphics()
+                .setScrollFactor(0).setDepth(203);
+
+            // ── Layer 204: cooldown countdown text ────────────────────────────
             const cdText = this.scene.add.text(x, y + 8, '', {
                 fontSize: '16px',
                 fill: '#ffffff',
                 fontStyle: 'bold',
                 stroke: '#000000',
-                strokeThickness: 4
+                strokeThickness: 4,
             }).setOrigin(0.5).setScrollFactor(0).setDepth(204);
 
-            const useSkill = () => {
-                const mappedSkill = this.scene.skills?.[skillKey];
-                if (mappedSkill) mappedSkill.use();
-            };
-
-            const showTooltip = () => this.showSkillTooltip(skillKey, x, y - 80);
+            // ── Events ────────────────────────────────────────────────────────
+            const useSkill    = () => { const sk = this.scene.skills?.[skillKey]; if (sk) sk.use(); };
+            const showTooltip = () => this.showSkillTooltip(skillKey, x, y - radius - 48);
             const hideTooltip = () => this.hideSkillTooltip();
 
-            // Hover scale effect
             bg.on('pointerover', () => {
-                this.scene.tweens.add({ targets: [bgBase, bg, icon], scale: 1.12, duration: 80 });
+                this.scene.tweens.add({ targets: [icon], scale: 1.15, duration: 80 });
                 showTooltip();
             });
             bg.on('pointerout', () => {
-                this.scene.tweens.add({ targets: [bgBase, bg, icon], scale: 1.0, duration: 80 });
+                this.scene.tweens.add({ targets: [icon], scale: 1.0, duration: 80 });
                 hideTooltip();
             });
 
-            [bg, icon, keyText].forEach((obj) => {
-                obj.on('pointerdown', useSkill);
-            });
-            [icon, keyText].forEach((obj) => {
+            [bg, icon, keyText].forEach(obj => obj.on('pointerdown', useSkill));
+            [icon, keyText].forEach(obj => {
                 obj.on('pointerover', showTooltip);
-                obj.on('pointerout', hideTooltip);
+                obj.on('pointerout',  hideTooltip);
             });
 
             this.skillButtons.push({
-                bg, bgBase, glowRing, innerHighlight, icon, keyText, cdText,
-                cooldownArc, skillKey, x, y, radius
+                bg, shapeGfx, watermarkGfx, glowGfx, innerHighlight,
+                icon, keyText, cdText, cooldownArc,
+                skillKey, x, y, radius,
+                shapePoints, glowPoints,
             });
         });
     }
@@ -114,8 +218,8 @@ export class SkillUI {
         const skill = this.scene.skills?.[skillKey];
         if (!skill?.data) return;
 
-        const skillColor  = skill.data.color ? Phaser.Display.Color.IntegerToRGB(skill.data.color) : null;
-        const hexColor    = skillColor
+        const skillColor = skill.data.color ? Phaser.Display.Color.IntegerToRGB(skill.data.color) : null;
+        const hexColor   = skillColor
             ? `#${((skillColor.r << 16) | (skillColor.g << 8) | skillColor.b).toString(16).padStart(6, '0')}`
             : '#88ccff';
 
@@ -131,37 +235,27 @@ export class SkillUI {
         const clampedX = Phaser.Math.Clamp(x, margin + bw / 2, camera.width  - margin - bw / 2);
         const clampedY = Phaser.Math.Clamp(y, margin + bh / 2, camera.height - margin - bh / 2);
 
-        // Tooltip panel
         const panel = this.scene.add.rectangle(clampedX, clampedY, bw, bh, 0x060c18, 0.94)
             .setStrokeStyle(1.5, 0x334466, 0.9)
             .setScrollFactor(0).setDepth(320);
 
-        // Color header bar at top of tooltip
         const headerBar = this.scene.add.rectangle(clampedX, clampedY - bh / 2 + 10, bw - 4, 18, 0x000000, 0.6)
             .setScrollFactor(0).setDepth(321);
 
         const title = this.scene.add.text(clampedX, clampedY - bh / 2 + 10, titleLine, {
-            fontSize: '13px',
-            fill: hexColor,
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 3
+            fontSize: '13px', fill: hexColor, fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3,
         }).setOrigin(0.5).setScrollFactor(0).setDepth(322);
 
         const desc = this.scene.add.text(clampedX, clampedY + 4, descLine, {
-            fontSize: '11px',
-            fill: '#c8d8f0',
-            align: 'center',
-            wordWrap: { width: bw - 20 }
+            fontSize: '11px', fill: '#c8d8f0', align: 'center',
+            wordWrap: { width: bw - 20 },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(322);
 
         const info = this.scene.add.text(clampedX, clampedY + bh / 2 - 10, infoLine, {
-            fontSize: '11px',
-            fill: '#ffcc88',
-            fontStyle: 'bold'
+            fontSize: '11px', fill: '#ffcc88', fontStyle: 'bold',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(322);
 
-        // Fade in
         [panel, headerBar, title, desc, info].forEach(o => { o.alpha = 0; });
         this.scene.tweens.add({ targets: [panel, headerBar, title, desc, info], alpha: 1, duration: 80 });
 
@@ -170,12 +264,12 @@ export class SkillUI {
 
     hideSkillTooltip() {
         if (!this.skillTooltip) return;
-        Object.values(this.skillTooltip).forEach((obj) => obj?.destroy());
+        Object.values(this.skillTooltip).forEach(obj => obj?.destroy());
         this.skillTooltip = null;
     }
 
     isPointerOnSkillButton(pointerX, pointerY) {
-        return this.skillButtons.some((btn) => {
+        return this.skillButtons.some(btn => {
             const dist = Phaser.Math.Distance.Between(pointerX, pointerY, btn.x, btn.y);
             return dist <= btn.radius;
         });
@@ -184,9 +278,8 @@ export class SkillUI {
     update(skills) {
         if (!skills) return;
 
-        this.skillButtons.forEach((btn) => {
-            const skillKey = btn.skillKey;
-            const skill    = skills[skillKey];
+        this.skillButtons.forEach(btn => {
+            const skill = skills[btn.skillKey];
             if (!skill) return;
 
             if (btn.icon.text !== (skill.data?.icon || btn.icon.text)) {
@@ -196,40 +289,49 @@ export class SkillUI {
             const cooldownProgress = skill.getCooldownProgress ? skill.getCooldownProgress() : 1;
             const skillColor       = skill.data?.color || 0x00ff88;
 
-            // Draw cooldown arc
+            btn.glowGfx.clear();
             btn.cooldownArc.clear();
+
             if (cooldownProgress < 1) {
+                // ── On cooldown ───────────────────────────────────────────────
                 const remaining = Math.ceil((1 - cooldownProgress) * (skill.cooldown / 1000));
 
-                // Dark overlay fill while on cooldown
+                // Dark polygon overlay
                 btn.cooldownArc.fillStyle(0x000000, 0.55);
-                btn.cooldownArc.fillCircle(btn.x, btn.y, btn.radius);
+                btn.cooldownArc.fillPoints(btn.shapePoints, true);
 
-                // Arc border showing time remaining
+                // Circular arc indicator showing time remaining
                 btn.cooldownArc.lineStyle(3, 0xdd3333, 0.9);
                 btn.cooldownArc.beginPath();
                 const startAngle = -Math.PI / 2;
                 const endAngle   = startAngle + (1 - cooldownProgress) * Math.PI * 2;
-                btn.cooldownArc.arc(btn.x, btn.y, btn.radius - 2, startAngle, endAngle, false);
+                btn.cooldownArc.arc(btn.x, btn.y, btn.radius - 3, startAngle, endAngle, false);
                 btn.cooldownArc.strokePath();
+
+                // Polygon border (cooldown tint)
+                btn.cooldownArc.lineStyle(2.5, 0x553333, 0.9);
+                btn.cooldownArc.strokePoints(btn.shapePoints, true);
 
                 btn.cdText.setText(remaining + 's').setAlpha(1);
                 btn.keyText.setAlpha(0);
 
-                btn.glowRing.setStrokeStyle(0);
-                btn.glowRing.fillAlpha = 0;
-                btn.bg.setStrokeStyle(2.5, 0x553333, 0.9);
             } else {
+                // ── Ready ─────────────────────────────────────────────────────
                 btn.cdText.setText('').setAlpha(0);
                 btn.keyText.setAlpha(1);
 
-                // Ready glow ring pulse
-                const t = Date.now();
+                // Pulsing glow on outer polygon
+                const t         = Date.now();
                 const glowAlpha = 0.18 + Math.sin(t * 0.005) * 0.10;
-                btn.glowRing.setStrokeStyle(3, skillColor, glowAlpha);
-                btn.glowRing.setFillStyle(skillColor, glowAlpha * 0.3);
+                btn.glowGfx.fillStyle(skillColor, glowAlpha * 0.22);
+                btn.glowGfx.fillPoints(btn.glowPoints, true);
+                btn.glowGfx.lineStyle(3, skillColor, glowAlpha);
+                btn.glowGfx.strokePoints(btn.glowPoints, true);
 
-                btn.bg.setStrokeStyle(2.5, skillColor, 0.75);
+                // Polygon border (ready tint)
+                btn.cooldownArc.lineStyle(2.5, skillColor, 0.78);
+                btn.cooldownArc.strokePoints(btn.shapePoints, true);
+
                 btn.keyText.setFill('#99eebb');
             }
         });
@@ -237,11 +339,11 @@ export class SkillUI {
 
     destroy() {
         this.hideSkillTooltip();
-
         this.skillButtons.forEach(btn => {
             btn.bg.destroy();
-            btn.bgBase.destroy();
-            btn.glowRing.destroy();
+            btn.shapeGfx.destroy();
+            btn.watermarkGfx.destroy();
+            btn.glowGfx.destroy();
             btn.innerHighlight.destroy();
             btn.icon.destroy();
             btn.keyText.destroy();
