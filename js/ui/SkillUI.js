@@ -227,8 +227,7 @@ export class SkillUI {
                 const t = Date.now();
                 const glowAlpha = 0.18 + Math.sin(t * 0.005) * 0.10;
                 btn.glowRing.setStrokeStyle(3, skillColor, glowAlpha);
-                btn.glowRing.fillStyle(skillColor, glowAlpha * 0.3);
-                btn.glowRing.fillCircle?.(btn.x, btn.y, btn.radius + 6);
+                btn.glowRing.setFillStyle(skillColor, glowAlpha * 0.3);
 
                 btn.bg.setStrokeStyle(2.5, skillColor, 0.75);
                 btn.keyText.setFill('#99eebb');
