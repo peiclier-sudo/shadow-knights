@@ -2,6 +2,7 @@
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
+import { AFFIXES } from '../data/AffixData.js';
 import { SwordWeapon } from '../weapons/SwordWeapon.js';
 import { BowWeapon } from '../weapons/BowWeapon.js';
 import { StaffWeapon } from '../weapons/StaffWeapon.js';
@@ -16,11 +17,11 @@ export class GameScene extends Phaser.Scene {
     }
     
     init(data) {
-        this.playerConfig = data.playerConfig || {
-            class: 'WARRIOR',
-            weapon: 'SWORD'
-        };
-        this.bossId = data.bossId || GameData.currentBossId;
+        this.playerConfig  = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.bossId        = data.bossId || GameData.currentBossId;
+        this.affixes       = data.affixes       || [];
+        this.scaledHp      = data.scaledHp      || null;
+        this.infiniteFloor = data.infiniteFloor || null;
         GameData.currentBossId = this.bossId;
     }
     
@@ -36,7 +37,14 @@ export class GameScene extends Phaser.Scene {
         
         // Boss
         this.boss = BossFactory.createBoss(this, this.bossId);
-        
+
+        // Apply scaled HP (infinite tower) and affixes
+        if (this.scaledHp !== null) {
+            this.boss.health    = this.scaledHp;
+            this.boss.maxHealth = this.scaledHp;
+        }
+        this._applyAffixes();
+
         // Projectiles arrays
         this.projectiles = [];
         this.bossProjectiles = [];
@@ -93,6 +101,109 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
+    _applyAffixes() {
+        for (const key of this.affixes) {
+            const affix = AFFIXES[key];
+            if (affix?.apply) affix.apply(this.boss);
+        }
+        // Show affix banners in-game if any
+        if (this.affixes.length > 0) {
+            const { AFFIXES: A } = { AFFIXES };
+            let bannerY = 80;
+            this.affixes.forEach(key => {
+                const aff = AFFIXES[key];
+                if (!aff) return;
+                const banner = this.add.text(
+                    this.cameras.main.width / 2, bannerY,
+                    `★ ${key}: ${aff.desc}`, {
+                        fontSize: '11px',
+                        fill: '#' + aff.color.toString(16).padStart(6, '0'),
+                        backgroundColor: '#00000066',
+                        padding: { x: 8, y: 3 }
+                    }
+                ).setOrigin(0.5).setScrollFactor(0).setDepth(250).setAlpha(0.85);
+                bannerY += 20;
+            });
+        }
+    }
+
+    _updateAffixes(time, delta) {
+        const boss = this.boss;
+        if (!boss || !boss.active) return;
+
+        // WARDEN: heal 30 HP every 4 seconds
+        if (boss._wardenHeal) {
+            boss._wardenTimer = (boss._wardenTimer || 0) + delta;
+            if (boss._wardenTimer >= 4000) {
+                boss._wardenTimer = 0;
+                boss.health = Math.min(boss.health + 30, boss.maxHealth);
+                // Small heal flash
+                const flash = this.add.circle(boss.x, boss.y, 40, 0x44ff88, 0.3);
+                this.tweens.add({ targets: flash, scale: 1.6, alpha: 0, duration: 400,
+                    onComplete: () => flash.destroy() });
+            }
+        }
+
+        // VOLATILE: stray projectile every 2.5 seconds
+        if (boss._volatile && this.bossProjectiles) {
+            boss._volatileTimer = (boss._volatileTimer || 0) + delta;
+            if (boss._volatileTimer >= 2500 && !boss.frozen) {
+                boss._volatileTimer = 0;
+                const a = Math.random() * Math.PI * 2;
+                const proj = this.add.circle(boss.x, boss.y, 6, boss.bossData.glowColor, 0.9);
+                proj.vx = Math.cos(a) * 220;
+                proj.vy = Math.sin(a) * 220;
+                proj.setDepth(150);
+                const glow = this.add.circle(boss.x, boss.y, 11, boss.bossData.color, 0.2);
+                glow.setDepth(149);
+                proj.glow = glow;
+                this.bossProjectiles.push(proj);
+            }
+        }
+
+        // BERSERKER: override phase transition threshold
+        if (boss._berserkerThreshold && !boss._berserkerApplied) {
+            if (boss.health <= boss.maxHealth * boss._berserkerThreshold && !boss.phaseTransitioned) {
+                boss._berserkerApplied = true;
+                // trigger phase if it hasn't happened yet
+                if (boss.triggerPhaseTransition) boss.triggerPhaseTransition();
+                boss.phaseTransitioned = true;
+            }
+        }
+
+        // SHIELDED: absorb damage before HP is reduced
+        // (applied by redirecting damage – handled via damageTakenMultiplier = 0 while shield > 0)
+        if (boss.maxShield !== undefined && boss.shield > 0) {
+            boss.damageTakenMultiplier = 0;
+        } else if (boss.maxShield !== undefined && boss.shield <= 0 && boss.damageTakenMultiplier === 0) {
+            boss.damageTakenMultiplier = 1;
+        }
+
+        // FRENZIED: double attack speed in phase 2
+        if (boss._frenzied && boss.health <= boss.maxHealth * 0.5 && !boss._frenziedActive) {
+            boss._frenziedActive = true;
+            boss._rampageMult = (boss._rampageMult || 1) * 0.5;
+        }
+
+        // RAMPAGE: apply cooldown reduction to next attack timing
+        if (boss._rampageMult && !this._rampagePatched) {
+            this._rampagePatched = true;
+            const orig = boss.update.bind(boss);
+            const mult = boss._rampageMult;
+            boss.update = (t, p) => {
+                const prevNext = boss.nextAttackTime;
+                orig(t, p);
+                if (boss.nextAttackTime !== prevNext) {
+                    const reduction = (boss.nextAttackTime - t) * mult;
+                    boss.nextAttackTime = t + reduction;
+                }
+            };
+        }
+
+        // MIRRORED: for each new boss projectile, spawn a mirror copy from opposite side
+        // (handled by a flag checked in projectile update)
+    }
+
     createBackground(width, height) {
         // Deep gradient backdrop
         const gradient = this.add.graphics();
@@ -750,8 +861,9 @@ export class GameScene extends Phaser.Scene {
         // Update boss
         if (this.boss) {
             this.boss.update(time, this.player);
+            this._updateAffixes(time, delta);
         }
-        
+
         // Gestion de la charge
         this.weapon.updateCharge();
         if (this.weapon.isCharging) {
@@ -1048,14 +1160,20 @@ export class GameScene extends Phaser.Scene {
             this.scene.start('GameOverScene', {
                 victory: false,
                 bossId: this.bossId,
-                playerConfig: this.playerConfig
+                playerConfig: this.playerConfig,
+                affixes: this.affixes,
+                scaledHp: this.scaledHp,
+                infiniteFloor: this.infiniteFloor
             });
         } else if (this.boss?.health <= 0) {
-            GameData.unlockNextBoss();
+            if (!this.infiniteFloor) GameData.unlockNextBoss();
             this.scene.start('GameOverScene', {
                 victory: true,
                 bossId: this.bossId,
-                playerConfig: this.playerConfig
+                playerConfig: this.playerConfig,
+                affixes: this.affixes,
+                scaledHp: this.scaledHp,
+                infiniteFloor: this.infiniteFloor
             });
         }
     }

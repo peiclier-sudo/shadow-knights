@@ -10,9 +10,12 @@ export class GameOverScene extends Phaser.Scene {
     }
     
     init(data) {
-        this.victory = data.victory || false;
-        this.bossId = data.bossId || 1;
-        this.playerConfig = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.victory       = data.victory       || false;
+        this.bossId        = data.bossId        || 1;
+        this.playerConfig  = data.playerConfig  || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.infiniteFloor = data.infiniteFloor || null;
+        this.affixes       = data.affixes       || [];
+        this.scaledHp      = data.scaledHp      || null;
     }
     
     create() {
@@ -83,7 +86,10 @@ export class GameOverScene extends Phaser.Scene {
         retryBtn.on('pointerdown', () => {
             this.scene.start('GameScene', {
                 playerConfig: this.playerConfig,
-                bossId: this.bossId
+                bossId: this.bossId,
+                affixes: this.affixes,
+                scaledHp: this.scaledHp,
+                infiniteFloor: this.infiniteFloor
             });
         });
         
@@ -98,29 +104,51 @@ export class GameOverScene extends Phaser.Scene {
             this.scene.start('MenuScene');
         });
         
-        // Tower button - return to tower view
+        // Tower / continue button on victory
         if (this.victory) {
-            // Mark boss as defeated and unlock next
-            GameData.markBossDefeated(this.bossId);
-            GameData.unlockNextBoss();
+            const isEndless = this.infiniteFloor !== null;
 
-            const towerBtn = this.add.text(width/2, height/2 + 160, 'RETURN TO TOWER', {
-                ...buttonStyle,
-                fill: '#00d4ff'
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            if (isEndless) {
+                // Advance infinite floor
+                const nextFloor = this.infiniteFloor + 1;
+                GameData.infiniteFloor = nextFloor;
+                if (nextFloor > (GameData.infiniteBest || 0)) GameData.infiniteBest = nextFloor;
+                GameData.saveProgress();
 
-            towerBtn.on('pointerover', () => towerBtn.setStyle({ fill: '#66e0ff' }));
-            towerBtn.on('pointerout', () => towerBtn.setStyle({ fill: '#00d4ff' }));
-            towerBtn.on('pointerdown', () => {
+                const nextBtn = this.add.text(width/2, height/2 + 160, `FLOOR ${nextFloor}  ›`, {
+                    ...buttonStyle, fill: '#00ff88'
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                nextBtn.on('pointerover', () => nextBtn.setStyle({ fill: '#88ffaa' }));
+                nextBtn.on('pointerout',  () => nextBtn.setStyle({ fill: '#00ff88' }));
+                nextBtn.on('pointerdown', () => {
+                    this.scene.start('TowerScene', {
+                        playerClass: this.playerConfig.class,
+                        weapon: this.playerConfig.weapon,
+                        mode: 'endless'
+                    });
+                });
+            } else {
+                // Story mode: mark defeated, unlock next
+                GameData.markBossDefeated(this.bossId);
+                GameData.unlockNextBoss();
                 if (this.bossId < TOTAL_BOSSES) {
                     GameData.currentBossId = this.bossId + 1;
                     GameData.saveProgress();
                 }
-                this.scene.start('TowerScene', {
-                    playerClass: this.playerConfig.class,
-                    weapon: this.playerConfig.weapon
+
+                const towerBtn = this.add.text(width/2, height/2 + 160, 'RETURN TO TOWER', {
+                    ...buttonStyle, fill: '#00d4ff'
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                towerBtn.on('pointerover', () => towerBtn.setStyle({ fill: '#66e0ff' }));
+                towerBtn.on('pointerout',  () => towerBtn.setStyle({ fill: '#00d4ff' }));
+                towerBtn.on('pointerdown', () => {
+                    this.scene.start('TowerScene', {
+                        playerClass: this.playerConfig.class,
+                        weapon: this.playerConfig.weapon,
+                        mode: 'story'
+                    });
                 });
-            });
+            }
         }
     }
 }

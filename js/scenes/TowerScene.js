@@ -1,20 +1,24 @@
-// TowerScene.js - The Tower: A vertical boss-rush progression screen
+// TowerScene.js — Shadow Knights Tower: Story + Endless modes
 import { BOSSES } from '../data/BossData.js';
 import { GameData } from '../data/GameData.js';
+import { AFFIXES, getEndlessFloor, getFloorStars } from '../data/AffixData.js';
 
-// Floor subtitles for each boss
-const FLOOR_SUBTITLES = {
-    1: 'The Iron Gate',
-    2: 'The Firing Range',
-    3: 'The Wind Corridor',
-    4: 'The Echo Chamber',
-    5: 'The Starfall Sanctum',
-    6: 'The Clockwork Spire',
-    7: 'The Singularity Well',
-    8: 'The Molten Throne',
-    9: 'The Prismatic Court',
-    10: 'The Eternal Summit'
+// ─── Lore subtitles for each of the 10 story bosses ───────────────────────
+const LORE = {
+    1:  { sub: 'The Iron Gate',       tier: 'I'   },
+    2:  { sub: 'The Firing Range',    tier: 'II'  },
+    3:  { sub: 'The Wind Corridor',   tier: 'III' },
+    4:  { sub: 'The Echo Chamber',    tier: 'IV'  },
+    5:  { sub: 'The Starfall Sanctum',tier: 'V'   },
+    6:  { sub: 'The Clockwork Spire', tier: 'VI'  },
+    7:  { sub: 'The Singularity Well',tier: 'VII' },
+    8:  { sub: 'The Molten Throne',   tier: 'VIII'},
+    9:  { sub: 'The Prismatic Court', tier: 'IX'  },
+    10: { sub: 'The Eternal Summit',  tier: 'X'   },
 };
+
+// Colour helpers
+const hexStr = n => '#' + n.toString(16).padStart(6, '0');
 
 export class TowerScene extends Phaser.Scene {
     constructor() {
@@ -23,515 +27,668 @@ export class TowerScene extends Phaser.Scene {
 
     init(data) {
         this.playerClass = data.playerClass || 'WARRIOR';
-        this.weapon = data.weapon || 'SWORD';
+        this.weapon      = data.weapon      || 'SWORD';
+        this.mode        = data.mode        || 'story'; // 'story' | 'endless'
     }
 
     create() {
-        const w = this.cameras.main.width;
-        const h = this.cameras.main.height;
+        this.w = this.cameras.main.width;
+        this.h = this.cameras.main.height;
+        this._buildScene();
+    }
 
-        const bossIds = Object.keys(BOSSES).map(Number).sort((a, b) => a - b);
-        const totalFloors = bossIds.length;
+    // ═══════════════════════════════════════════════════════════════════════
+    _buildScene() {
+        const { w, h } = this;
 
-        // Layout constants
-        const FLOOR_H = 160;
-        const TOWER_W = 420;
-        const PADDING_TOP = 200;
-        const PADDING_BOT = 160;
-        const totalH = PADDING_TOP + totalFloors * FLOOR_H + PADDING_BOT;
+        // Destroy all existing objects (for tab-switching without scene restart)
+        this.children.list.slice().forEach(c => c.destroy());
+        this.tweens.killAll();
 
-        // World bounds for scrolling
-        this.cameras.main.setBounds(0, 0, w, totalH);
+        // ── 1. Background ─────────────────────────────────────────────────
+        this._drawBackground();
 
-        // ── Background ──
-        const bg = this.add.graphics();
-        bg.fillStyle(0x040409, 1);
-        bg.fillRect(0, 0, w, totalH);
+        // ── 2. Fixed header (tabs + back + info) ──────────────────────────
+        this._drawHeader();
 
-        // Subtle vertical gradient overlay
-        for (let i = 0; i < totalH; i += 4) {
-            const t = i / totalH;
-            const r = Math.floor(4 + t * 12);
-            const g = Math.floor(4 + t * 4);
-            const b = Math.floor(9 + t * 20);
-            bg.fillStyle(Phaser.Display.Color.GetColor(r, g, b), 0.3);
-            bg.fillRect(0, i, w, 4);
+        // ── 3. Floor list (scrollable) ────────────────────────────────────
+        if (this.mode === 'story') {
+            this._buildStoryFloors();
+        } else {
+            this._buildEndlessFloors();
         }
 
-        // ── Ambient star particles ──
-        for (let i = 0; i < 80; i++) {
+        // ── 4. Fixed footer (progress / info) ─────────────────────────────
+        this._drawFooter();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    _drawBackground() {
+        const { w, h } = this;
+
+        // Full-page deep dark fill
+        const bg = this.add.graphics();
+        bg.fillStyle(0x04040e, 1);
+        bg.fillRect(0, 0, w, h * 6); // oversized so it covers any scroll
+
+        // Subtle radial atmosphere
+        const atmo = this.add.circle(w / 2, h * 0.4, w * 0.6, 0x0a0d2a, 0.35);
+
+        // Twinkling stars (behind everything, scrolls with world)
+        for (let i = 0; i < 90; i++) {
             const sx = Phaser.Math.Between(0, w);
-            const sy = Phaser.Math.Between(0, totalH);
-            const size = Phaser.Math.FloatBetween(0.5, 2);
-            const star = this.add.circle(sx, sy, size, 0xffffff, Phaser.Math.FloatBetween(0.08, 0.3));
+            const sy = Phaser.Math.Between(60, h * 5.5);
+            const sz = Phaser.Math.FloatBetween(0.4, 1.8);
+            const star = this.add.circle(sx, sy, sz, 0xffffff,
+                Phaser.Math.FloatBetween(0.05, 0.22)).setDepth(0);
             this.tweens.add({
                 targets: star,
-                alpha: Phaser.Math.FloatBetween(0.02, 0.12),
-                duration: Phaser.Math.Between(1500, 4000),
-                yoyo: true,
-                repeat: -1
+                alpha: Phaser.Math.FloatBetween(0.01, 0.08),
+                duration: Phaser.Math.Between(1200, 3500),
+                yoyo: true, repeat: -1
             });
         }
+    }
 
-        // ── Floating embers rising through the tower ──
-        for (let i = 0; i < 20; i++) {
-            const ex = Phaser.Math.Between(w / 2 - TOWER_W / 2 - 40, w / 2 + TOWER_W / 2 + 40);
-            const ey = Phaser.Math.Between(0, totalH);
-            const ember = this.add.circle(ex, ey, Phaser.Math.FloatBetween(1, 3), 0x00d4ff, 0.25);
-            this.tweens.add({
-                targets: ember,
-                y: ey - Phaser.Math.Between(200, 500),
-                x: ex + Phaser.Math.Between(-40, 40),
-                alpha: 0,
-                duration: Phaser.Math.Between(4000, 8000),
-                repeat: -1,
-                delay: Phaser.Math.Between(0, 3000)
-            });
-        }
+    // ═══════════════════════════════════════════════════════════════════════
+    _drawHeader() {
+        const { w } = this;
+        const HEADER_H = 64;
 
-        // ── Tower title at the very top ──
-        const titleY = PADDING_TOP - 120;
-        this.add.text(w / 2, titleY, 'THE TOWER', {
-            fontSize: '56px',
-            fill: '#00d4ff',
-            fontStyle: 'bold',
-            stroke: '#fff',
-            strokeThickness: 2,
-            shadow: { offsetX: 0, offsetY: 0, color: '#00d4ff', blur: 30, fill: true }
-        }).setOrigin(0.5);
-
-        this.add.text(w / 2, titleY + 48, 'Ascend through the darkness', {
-            fontSize: '16px',
-            fill: '#556677'
-        }).setOrigin(0.5);
-
-        // ── Central tower spine ──
-        const towerG = this.add.graphics();
-        const towerX = w / 2;
-        const spineLeft = towerX - TOWER_W / 2;
-        const spineRight = towerX + TOWER_W / 2;
-        const towerTop = PADDING_TOP - 20;
-        const towerBot = PADDING_TOP + totalFloors * FLOOR_H + 20;
-
-        // Tower walls (dark stone)
-        towerG.fillStyle(0x0c0c18, 0.85);
-        towerG.fillRect(spineLeft, towerTop, TOWER_W, towerBot - towerTop);
-
-        // Tower wall borders
-        towerG.lineStyle(2, 0x1a1a2e, 0.9);
-        towerG.strokeRect(spineLeft, towerTop, TOWER_W, towerBot - towerTop);
-
-        // Decorative vertical lines inside tower walls
-        towerG.lineStyle(1, 0x111122, 0.5);
-        for (let lx = spineLeft + 30; lx < spineRight; lx += 30) {
-            towerG.lineBetween(lx, towerTop, lx, towerBot);
-        }
-
-        // Decorative horizontal stone lines
-        towerG.lineStyle(1, 0x111122, 0.4);
-        for (let ly = towerTop; ly < towerBot; ly += 20) {
-            towerG.lineBetween(spineLeft, ly, spineRight, ly);
-        }
-
-        // ── Build each floor (bottom = floor 1, top = floor 10) ──
-        this.floorContainers = [];
-
-        bossIds.forEach((bossId, index) => {
-            const bossData = BOSSES[bossId];
-            const unlocked = bossId <= GameData.unlockedBosses;
-            const defeated = GameData.isBossDefeated(bossId);
-            const isCurrent = !defeated && bossId === Math.min(GameData.currentBossId, GameData.unlockedBosses);
-
-            // Floor 1 at bottom, floor 10 at top
-            const floorIndex = totalFloors - index - 1;
-            const floorY = PADDING_TOP + floorIndex * FLOOR_H + FLOOR_H / 2;
-
-            // ── Floor platform ──
-            const g = this.add.graphics();
-
-            // Floor background
-            const floorAlpha = unlocked ? 0.25 : 0.08;
-            const colorHex = bossData.color;
-            g.fillStyle(colorHex, floorAlpha);
-            g.fillRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-
-            // Floor border
-            const borderAlpha = isCurrent ? 1 : unlocked ? 0.6 : 0.15;
-            g.lineStyle(isCurrent ? 3 : 2, bossData.glowColor, borderAlpha);
-            g.strokeRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-
-            // Current floor: animated glow border
-            if (isCurrent) {
-                const glowRect = this.add.graphics();
-                glowRect.lineStyle(4, bossData.glowColor, 0.5);
-                glowRect.strokeRoundedRect(spineLeft + 6, floorY - 64, TOWER_W - 12, 128, 10);
-                this.tweens.add({
-                    targets: glowRect,
-                    alpha: 0.15,
-                    duration: 1200,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
-            }
-
-            // ── Connector chain to floor above ──
-            if (index > 0) {
-                const chainY1 = floorY - 60;
-                const chainY0 = floorY - FLOOR_H + 60;
-                const chainG = this.add.graphics();
-                const chainColor = unlocked ? 0x2a2a4a : 0x111122;
-                chainG.lineStyle(2, chainColor, unlocked ? 0.7 : 0.3);
-                // Two parallel chain lines
-                chainG.lineBetween(towerX - 8, chainY0, towerX - 8, chainY1);
-                chainG.lineBetween(towerX + 8, chainY0, towerX + 8, chainY1);
-                // Chain links
-                for (let cy = chainY0 + 10; cy < chainY1; cy += 18) {
-                    chainG.lineStyle(1, chainColor, unlocked ? 0.5 : 0.2);
-                    chainG.lineBetween(towerX - 8, cy, towerX + 8, cy);
-                }
-            }
-
-            // ── Floor number badge (left side) ──
-            const badgeX = spineLeft + 40;
-            const badgeCircle = this.add.circle(badgeX, floorY, 22, 0x0a0a14, 0.9);
-            badgeCircle.setStrokeStyle(2, unlocked ? bossData.glowColor : 0x333344, unlocked ? 0.9 : 0.4);
-            this.add.text(badgeX, floorY, `${bossId}`, {
-                fontSize: '20px',
-                fill: unlocked ? '#fff' : '#444',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-
-            // ── Boss preview orb (right of badge) ──
-            const orbX = spineLeft + 100;
-            const orbRadius = 30;
-
-            if (unlocked) {
-                // Colored boss orb
-                const orbGlow = this.add.circle(orbX, floorY, orbRadius + 8, bossData.glowColor, 0.12);
-                const orb = this.add.circle(orbX, floorY, orbRadius, bossData.color, 0.6);
-                orb.setStrokeStyle(2, bossData.glowColor, 0.9);
-
-                // Inner core
-                this.add.circle(orbX, floorY, 8, 0xffffff, 0.7);
-
-                if (isCurrent) {
-                    this.tweens.add({
-                        targets: orbGlow,
-                        scale: 1.3,
-                        alpha: 0.04,
-                        duration: 1000,
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.easeInOut'
-                    });
-                }
-
-                if (defeated) {
-                    // Defeated: dimmed with check
-                    orb.setAlpha(0.3);
-                    orbGlow.setAlpha(0.05);
-                }
-            } else {
-                // Locked: dark silhouette
-                this.add.circle(orbX, floorY, orbRadius, 0x111122, 0.5);
-                this.add.circle(orbX, floorY, orbRadius, 0x000000, 0).setStrokeStyle(2, 0x222233, 0.5);
-            }
-
-            // ── Boss info text ──
-            const textX = spineLeft + 155;
-
-            // Boss name
-            const nameColor = unlocked ? '#fff' : '#333';
-            const nameText = this.add.text(textX, floorY - 28, unlocked ? bossData.name : '? ? ?', {
-                fontSize: '22px',
-                fill: nameColor,
-                fontStyle: 'bold',
-                shadow: isCurrent ? { offsetX: 0, offsetY: 0, color: '#' + bossData.glowColor.toString(16).padStart(6, '0'), blur: 12, fill: true } : undefined
-            });
-
-            // Floor subtitle
-            const subtitleColor = unlocked ? '#' + bossData.glowColor.toString(16).padStart(6, '0') : '#222';
-            this.add.text(textX, floorY - 4, FLOOR_SUBTITLES[bossId] || '', {
-                fontSize: '13px',
-                fill: subtitleColor,
-                fontStyle: 'italic'
-            });
-
-            // Attack type
-            if (unlocked) {
-                this.add.text(textX, floorY + 16, bossData.attackType, {
-                    fontSize: '12px',
-                    fill: '#667788'
-                });
-            }
-
-            // HP display
-            if (unlocked) {
-                this.add.text(textX, floorY + 34, `HP ${bossData.hp}`, {
-                    fontSize: '14px',
-                    fill: '#cc8844',
-                    fontStyle: 'bold'
-                });
-            }
-
-            // ── Status indicator (right side) ──
-            const statusX = spineRight - 50;
-            if (defeated) {
-                // Checkmark
-                const checkG = this.add.graphics();
-                checkG.lineStyle(3, 0x00ff88, 0.9);
-                checkG.lineBetween(statusX - 10, floorY, statusX - 3, floorY + 8);
-                checkG.lineBetween(statusX - 3, floorY + 8, statusX + 10, floorY - 8);
-                this.add.text(statusX, floorY + 22, 'CLEARED', {
-                    fontSize: '10px',
-                    fill: '#00ff88'
-                }).setOrigin(0.5);
-            } else if (isCurrent && unlocked) {
-                // Current floor arrow indicator
-                const arrow = this.add.text(statusX, floorY - 6, '>>>', {
-                    fontSize: '20px',
-                    fill: '#00d4ff',
-                    fontStyle: 'bold'
-                }).setOrigin(0.5);
-                this.tweens.add({
-                    targets: arrow,
-                    x: statusX + 6,
-                    alpha: 0.3,
-                    duration: 600,
-                    yoyo: true,
-                    repeat: -1
-                });
-                this.add.text(statusX, floorY + 18, 'ENTER', {
-                    fontSize: '11px',
-                    fill: '#00d4ff',
-                    fontStyle: 'bold'
-                }).setOrigin(0.5);
-            } else if (!unlocked) {
-                // Lock
-                const lockG = this.add.graphics();
-                // Lock body
-                lockG.fillStyle(0x222233, 0.8);
-                lockG.fillRoundedRect(statusX - 12, floorY - 6, 24, 18, 3);
-                // Lock shackle
-                lockG.lineStyle(3, 0x333344, 0.8);
-                lockG.beginPath();
-                lockG.arc(statusX, floorY - 8, 8, Math.PI, 0, false);
-                lockG.strokePath();
-                this.add.text(statusX, floorY + 22, 'LOCKED', {
-                    fontSize: '10px',
-                    fill: '#333'
-                }).setOrigin(0.5);
-            }
-
-            // ── Interactivity ──
-            if (unlocked) {
-                const hitArea = this.add.rectangle(towerX, floorY, TOWER_W - 20, 120, 0xffffff, 0)
-                    .setInteractive({ useHandCursor: true });
-
-                hitArea.on('pointerover', () => {
-                    g.clear();
-                    g.fillStyle(colorHex, floorAlpha + 0.12);
-                    g.fillRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-                    g.lineStyle(3, bossData.glowColor, 1);
-                    g.strokeRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-                    nameText.setStyle({ fill: '#' + bossData.glowColor.toString(16).padStart(6, '0') });
-                });
-
-                hitArea.on('pointerout', () => {
-                    g.clear();
-                    g.fillStyle(colorHex, floorAlpha);
-                    g.fillRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-                    g.lineStyle(isCurrent ? 3 : 2, bossData.glowColor, borderAlpha);
-                    g.strokeRoundedRect(spineLeft + 10, floorY - 60, TOWER_W - 20, 120, 8);
-                    nameText.setStyle({ fill: nameColor });
-                });
-
-                hitArea.on('pointerdown', () => {
-                    // Flash effect
-                    const flash = this.add.rectangle(w / 2, floorY, w, 120, bossData.glowColor, 0.3)
-                        .setDepth(100);
-                    this.tweens.add({
-                        targets: flash,
-                        alpha: 0,
-                        duration: 300,
-                        onComplete: () => flash.destroy()
-                    });
-
-                    this.cameras.main.fade(600, 0, 0, 0);
-                    this.time.delayedCall(600, () => {
-                        this.scene.start('GameScene', {
-                            playerConfig: {
-                                class: this.playerClass,
-                                weapon: this.weapon
-                            },
-                            bossId: bossId
-                        });
-                    });
-                });
-            }
-
-            this.floorContainers.push({ bossId, floorY, isCurrent });
-        });
-
-        // ── Tower crown at top ──
-        const crownY = PADDING_TOP - 40;
-        const crownG = this.add.graphics();
-        crownG.fillStyle(0x00d4ff, 0.08);
-        crownG.fillTriangle(towerX - 60, crownY, towerX + 60, crownY, towerX, crownY - 50);
-        crownG.lineStyle(2, 0x00d4ff, 0.4);
-        crownG.strokeTriangle(towerX - 60, crownY, towerX + 60, crownY, towerX, crownY - 50);
-
-        // ── Tower base at bottom ──
-        const baseY = PADDING_TOP + totalFloors * FLOOR_H + 20;
-        const baseG = this.add.graphics();
-        baseG.fillStyle(0x0c0c18, 0.9);
-        baseG.fillRect(spineLeft - 20, baseY, TOWER_W + 40, 30);
-        baseG.lineStyle(2, 0x1a1a2e, 0.8);
-        baseG.strokeRect(spineLeft - 20, baseY, TOWER_W + 40, 30);
-        baseG.fillStyle(0x0c0c18, 0.8);
-        baseG.fillRect(spineLeft - 40, baseY + 30, TOWER_W + 80, 15);
-        baseG.lineStyle(2, 0x1a1a2e, 0.6);
-        baseG.strokeRect(spineLeft - 40, baseY + 30, TOWER_W + 80, 15);
-
-        // ── Decorative side torches ──
-        for (let i = 0; i < totalFloors; i++) {
-            const ty = PADDING_TOP + (totalFloors - i - 1) * FLOOR_H + FLOOR_H / 2;
-            const bossData = BOSSES[i + 1];
-            const unlocked = (i + 1) <= GameData.unlockedBosses;
-
-            // Left torch
-            const torchLx = spineLeft - 15;
-            this.add.rectangle(torchLx, ty + 10, 6, 16, 0x1a1a2e, 0.7);
-            if (unlocked) {
-                const flameL = this.add.circle(torchLx, ty, 6, bossData.glowColor, 0.5);
-                this.tweens.add({
-                    targets: flameL,
-                    scale: Phaser.Math.FloatBetween(0.6, 1.4),
-                    alpha: Phaser.Math.FloatBetween(0.15, 0.4),
-                    duration: Phaser.Math.Between(300, 600),
-                    yoyo: true,
-                    repeat: -1
-                });
-            }
-
-            // Right torch
-            const torchRx = spineRight + 15;
-            this.add.rectangle(torchRx, ty + 10, 6, 16, 0x1a1a2e, 0.7);
-            if (unlocked) {
-                const flameR = this.add.circle(torchRx, ty, 6, bossData.glowColor, 0.5);
-                this.tweens.add({
-                    targets: flameR,
-                    scale: Phaser.Math.FloatBetween(0.6, 1.4),
-                    alpha: Phaser.Math.FloatBetween(0.15, 0.4),
-                    duration: Phaser.Math.Between(300, 600),
-                    yoyo: true,
-                    repeat: -1
-                });
-            }
-        }
-
-        // ── Fixed UI overlay (Back button + class/weapon info) ──
-        const uiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(200);
-
-        // Top bar background
-        const topBar = this.add.graphics().setScrollFactor(0).setDepth(199);
-        topBar.fillStyle(0x040409, 0.85);
-        topBar.fillRect(0, 0, w, 50);
-        topBar.lineStyle(1, 0x1a1a2e, 0.6);
-        topBar.lineBetween(0, 50, w, 50);
-
-        // Class + weapon display
-        const infoText = this.add.text(w / 2, 25, `${this.playerClass}  ·  ${this.weapon}`, {
-            fontSize: '14px',
-            fill: '#556677'
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+        // Dark header bar
+        const hdr = this.add.graphics().setScrollFactor(0).setDepth(300);
+        hdr.fillStyle(0x060610, 0.97);
+        hdr.fillRect(0, 0, w, HEADER_H);
+        hdr.lineStyle(1, 0x1a1a3a, 1);
+        hdr.lineBetween(0, HEADER_H, w, HEADER_H);
 
         // Back button
-        const backBtn = this.add.text(20, 25, '< BACK', {
-            fontSize: '18px',
-            fill: '#667788',
-            fontStyle: 'bold'
-        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(200).setInteractive({ useHandCursor: true });
-
-        backBtn.on('pointerover', () => backBtn.setStyle({ fill: '#00d4ff' }));
-        backBtn.on('pointerout', () => backBtn.setStyle({ fill: '#667788' }));
-        backBtn.on('pointerdown', () => {
+        const back = this.add.text(18, HEADER_H / 2, '‹ BACK', {
+            fontSize: '16px', fill: '#556677', fontStyle: 'bold'
+        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(301).setInteractive({ useHandCursor: true });
+        back.on('pointerover', () => back.setStyle({ fill: '#00d4ff' }));
+        back.on('pointerout',  () => back.setStyle({ fill: '#556677' }));
+        back.on('pointerdown', () => {
             this.scene.start('WeaponSelectScene', { playerClass: this.playerClass });
         });
 
-        // Bottom fade gradient (fixed)
-        const botFade = this.add.graphics().setScrollFactor(0).setDepth(198);
-        botFade.fillStyle(0x040409, 0.9);
-        botFade.fillRect(0, h - 30, w, 30);
-        for (let i = 0; i < 30; i++) {
-            botFade.fillStyle(0x040409, (i / 30) * 0.9);
-            botFade.fillRect(0, h - 60 + i, w, 1);
-        }
+        // Title
+        this.add.text(w / 2, HEADER_H / 2, 'THE TOWER', {
+            fontSize: '20px', fill: '#00d4ff', fontStyle: 'bold',
+            shadow: { offsetX: 0, offsetY: 0, color: '#00d4ff', blur: 14, fill: true }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(301);
 
-        // ── Progress indicator (fixed bottom) ──
-        const defeated = GameData.defeatedBosses.size;
-        const progressText = this.add.text(w / 2, h - 45, `${defeated} / ${totalFloors} DEFEATED`, {
-            fontSize: '14px',
-            fill: '#445566'
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+        // ── Tabs ──
+        const TAB_Y = HEADER_H / 2;
+        const tabRx = w - 20;
 
-        // Progress bar
-        const progBarW = 200;
-        const progBarH = 4;
-        const progBarX = w / 2 - progBarW / 2;
-        const progBarY = h - 28;
-        const progG = this.add.graphics().setScrollFactor(0).setDepth(200);
-        progG.fillStyle(0x111122, 0.8);
-        progG.fillRoundedRect(progBarX, progBarY, progBarW, progBarH, 2);
-        progG.fillStyle(0x00d4ff, 0.7);
-        progG.fillRoundedRect(progBarX, progBarY, progBarW * (defeated / totalFloors), progBarH, 2);
+        const makeTab = (label, modeKey, rx) => {
+            const active = this.mode === modeKey;
+            const txt = this.add.text(rx, TAB_Y, label, {
+                fontSize: '14px',
+                fill: active ? '#ffffff' : '#445566',
+                fontStyle: active ? 'bold' : 'normal'
+            }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(301).setInteractive({ useHandCursor: true });
 
-        // ── Auto-scroll to current floor ──
-        const currentFloor = this.floorContainers.find(f => f.isCurrent);
-        if (currentFloor) {
-            const targetScrollY = Math.max(0, Math.min(currentFloor.floorY - h / 2, totalH - h));
-            this.cameras.main.scrollY = targetScrollY;
-        }
+            if (active) {
+                // Underline
+                const ul = this.add.graphics().setScrollFactor(0).setDepth(301);
+                ul.lineStyle(2, 0x00d4ff, 1);
+                ul.lineBetween(txt.x - txt.width, TAB_Y + 12, txt.x, TAB_Y + 12);
+            }
 
-        // ── Mouse wheel scrolling ──
-        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
-            const newY = Phaser.Math.Clamp(
-                this.cameras.main.scrollY + deltaY * 0.5,
-                0,
-                Math.max(0, totalH - h)
-            );
-            this.cameras.main.scrollY = newY;
-        });
-
-        // ── Touch/drag scrolling ──
-        this.isDragging = false;
-        this.dragStartY = 0;
-        this.scrollStartY = 0;
-        this.totalHeight = totalH;
-
-        this.input.on('pointerdown', (pointer) => {
-            this.isDragging = true;
-            this.dragStartY = pointer.y;
-            this.scrollStartY = this.cameras.main.scrollY;
-        });
-
-        this.input.on('pointermove', (pointer) => {
-            if (this.isDragging && pointer.isDown) {
-                const dy = this.dragStartY - pointer.y;
-                if (Math.abs(dy) > 5) {
-                    const newY = Phaser.Math.Clamp(
-                        this.scrollStartY + dy,
-                        0,
-                        Math.max(0, this.totalHeight - h)
-                    );
-                    this.cameras.main.scrollY = newY;
+            txt.on('pointerover', () => { if (!active) txt.setStyle({ fill: '#aabbcc' }); });
+            txt.on('pointerout',  () => { if (!active) txt.setStyle({ fill: '#445566' }); });
+            txt.on('pointerdown', () => {
+                if (!active) {
+                    this.mode = modeKey;
+                    this._buildScene();
                 }
+            });
+            return txt;
+        };
+
+        const endlessTab = makeTab('ENDLESS', 'endless', tabRx);
+        makeTab('STORY', 'story', tabRx - endlessTab.width - 22);
+
+        // Separator between tabs
+        const sepG = this.add.graphics().setScrollFactor(0).setDepth(301);
+        sepG.lineStyle(1, 0x334455, 0.8);
+        sepG.lineBetween(tabRx - endlessTab.width - 14, TAB_Y - 10, tabRx - endlessTab.width - 14, TAB_Y + 10);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    _drawFooter() {
+        const { w, h } = this;
+
+        // Bottom gradient fade
+        const fade = this.add.graphics().setScrollFactor(0).setDepth(299);
+        for (let i = 0; i < 50; i++) {
+            fade.fillStyle(0x04040e, i / 50);
+            fade.fillRect(0, h - 50 + i - 50, w, 1);
+        }
+        fade.fillStyle(0x04040e, 0.97);
+        fade.fillRect(0, h - 50, w, 50);
+
+        // Footer line
+        fade.lineStyle(1, 0x1a1a3a, 0.8);
+        fade.lineBetween(0, h - 50, w, h - 50);
+
+        if (this.mode === 'story') {
+            const total    = Object.keys(BOSSES).length;
+            const defeated = GameData.defeatedBosses.size;
+
+            this.add.text(w / 2, h - 32, `${defeated} / ${total}  CLEARED`, {
+                fontSize: '13px', fill: '#445566'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
+
+            // Progress bar
+            const bw = Math.min(w * 0.4, 320);
+            const bx = w / 2 - bw / 2;
+            const by = h - 14;
+            const barG = this.add.graphics().setScrollFactor(0).setDepth(300);
+            barG.fillStyle(0x111128, 1);
+            barG.fillRoundedRect(bx, by, bw, 4, 2);
+            if (defeated > 0) {
+                barG.fillStyle(0x00d4ff, 0.8);
+                barG.fillRoundedRect(bx, by, bw * (defeated / total), 4, 2);
+            }
+        } else {
+            const floor = GameData.infiniteFloor || 1;
+            const best  = GameData.infiniteBest  || 0;
+            this.add.text(w / 2, h - 28, `CURRENT FLOOR  ${floor}   ·   BEST  ${best}`, {
+                fontSize: '13px', fill: '#445566'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
+        }
+
+        // Class · weapon info
+        this.add.text(w - 16, h - 28, `${this.playerClass} · ${this.weapon}`, {
+            fontSize: '11px', fill: '#334455'
+        }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(300);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STORY MODE
+    // ═══════════════════════════════════════════════════════════════════════
+    _buildStoryFloors() {
+        const { w, h } = this;
+
+        const CARD_H   = 112;
+        const CARD_GAP = 8;
+        const CARD_W   = Math.min(w - 80, 820);
+        const CARD_X   = w / 2 - CARD_W / 2;
+        const PAD_TOP  = 90;
+        const PAD_BOT  = 70;
+
+        const bossIds   = Object.keys(BOSSES).map(Number).sort((a, b) => b - a); // floor 10 → floor 1
+        const totalH    = PAD_TOP + bossIds.length * (CARD_H + CARD_GAP) + PAD_BOT;
+
+        this.cameras.main.setBounds(0, 0, w, Math.max(totalH, h));
+
+        // ── Vertical spine line ──────────────────────────────────────────
+        const spineX  = CARD_X + 50;
+        const spineY0 = PAD_TOP + 10;
+        const spineY1 = PAD_TOP + bossIds.length * (CARD_H + CARD_GAP) - CARD_GAP;
+        const spineG  = this.add.graphics().setDepth(5);
+        spineG.lineStyle(2, 0x1a1a3a, 1);
+        spineG.lineBetween(spineX, spineY0, spineX, spineY1);
+
+        // ── Build each card ──────────────────────────────────────────────
+        let scrollTarget = null;
+
+        bossIds.forEach((bossId, idx) => {
+            const bossData = BOSSES[bossId];
+            const cardY    = PAD_TOP + idx * (CARD_H + CARD_GAP);
+            const defeated = GameData.isBossDefeated(bossId);
+            const unlocked = bossId <= GameData.unlockedBosses;
+            const isCurrent = unlocked && !defeated &&
+                bossId === Math.min(GameData.currentBossId, GameData.unlockedBosses);
+
+            if (isCurrent) scrollTarget = cardY;
+
+            this._drawStoryCard({
+                bossId, bossData, cardY, cardX: CARD_X, cardW: CARD_W, cardH: CARD_H,
+                defeated, unlocked, isCurrent, spineX
+            });
+        });
+
+        // ── Auto-scroll to current floor ──────────────────────────────────
+        this.cameras.main.scrollY = 0;
+        if (scrollTarget !== null) {
+            const ideal = scrollTarget - h / 2 + CARD_H / 2;
+            this.cameras.main.scrollY = Phaser.Math.Clamp(ideal, 0, Math.max(0, totalH - h));
+        }
+
+        this._setupScroll(totalH);
+    }
+
+    _drawStoryCard({ bossId, bossData, cardY, cardX, cardW, cardH,
+                     defeated, unlocked, isCurrent, spineX }) {
+        const w = this.w;
+        const colorNum  = bossData.color;
+        const glowNum   = bossData.glowColor;
+        const colorS    = hexStr(colorNum);
+        const glowS     = hexStr(glowNum);
+
+        const alpha = defeated ? 0.38 : unlocked ? 1 : 0.25;
+
+        // ── Card background ──────────────────────────────────────────────
+        const cardBg = this.add.graphics().setDepth(10).setAlpha(alpha);
+        // Main dark fill
+        cardBg.fillStyle(0x08080f, 1);
+        cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 6);
+        // Tinted right half
+        cardBg.fillStyle(colorNum, 0.04);
+        cardBg.fillRoundedRect(cardX + cardW * 0.5, cardY, cardW * 0.5, cardH, { br: 6, tr: 6, tl: 0, bl: 0 });
+        // Border
+        cardBg.lineStyle(1, glowNum, isCurrent ? 0.7 : unlocked ? 0.22 : 0.1);
+        cardBg.strokeRoundedRect(cardX, cardY, cardW, cardH, 6);
+
+        // ── Left colour stripe ───────────────────────────────────────────
+        const stripe = this.add.graphics().setDepth(11).setAlpha(alpha);
+        stripe.fillStyle(colorNum, unlocked ? 0.9 : 0.3);
+        stripe.fillRoundedRect(cardX, cardY, 4, cardH, { tl: 6, bl: 6, tr: 0, br: 0 });
+
+        // ── Animated glow for current floor ──────────────────────────────
+        if (isCurrent) {
+            const glowRect = this.add.graphics().setDepth(9);
+            glowRect.lineStyle(3, glowNum, 0.55);
+            glowRect.strokeRoundedRect(cardX - 2, cardY - 2, cardW + 4, cardH + 4, 7);
+            this.tweens.add({
+                targets: glowRect, alpha: 0.12,
+                duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
+        }
+
+        // ── Spine node (circle on the left spine line) ───────────────────
+        const nodeY = cardY + cardH / 2;
+        const nodeG = this.add.graphics().setDepth(12).setAlpha(alpha);
+        nodeG.fillStyle(colorNum, unlocked ? 0.85 : 0.2);
+        nodeG.fillCircle(spineX, nodeY, 5);
+        nodeG.lineStyle(1, glowNum, unlocked ? 0.9 : 0.3);
+        nodeG.strokeCircle(spineX, nodeY, 5);
+
+        // ── Roman tier badge ─────────────────────────────────────────────
+        const tierX  = cardX + 36;
+        const tierY  = cardY + cardH / 2;
+        const tierBg = this.add.graphics().setDepth(12).setAlpha(alpha);
+        tierBg.fillStyle(0x0d0d1a, 0.95);
+        tierBg.fillRoundedRect(tierX - 22, tierY - 14, 44, 28, 5);
+        tierBg.lineStyle(1, glowNum, unlocked ? 0.5 : 0.15);
+        tierBg.strokeRoundedRect(tierX - 22, tierY - 14, 44, 28, 5);
+
+        this.add.text(tierX, tierY - 2, LORE[bossId]?.tier || String(bossId), {
+            fontSize: '13px', fill: unlocked ? glowS : '#333344',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(13).setAlpha(alpha);
+
+        this.add.text(tierX, tierY + 12, `F${bossId}`, {
+            fontSize: '9px', fill: unlocked ? '#667788' : '#222233'
+        }).setOrigin(0.5).setDepth(13).setAlpha(alpha);
+
+        // ── Boss orb ─────────────────────────────────────────────────────
+        const orbX = cardX + 98;
+        const orbY = cardY + cardH / 2;
+
+        if (unlocked) {
+            const orbGlow = this.add.circle(orbX, orbY, 26, glowNum, 0.10)
+                .setDepth(11).setAlpha(alpha);
+            const orb = this.add.circle(orbX, orbY, 20, colorNum, defeated ? 0.35 : 0.75)
+                .setDepth(12).setAlpha(alpha);
+            orb.setStrokeStyle(2, glowNum, 0.85);
+            this.add.circle(orbX, orbY, 6, 0xffffff, defeated ? 0.3 : 0.85)
+                .setDepth(13).setAlpha(alpha);
+
+            if (isCurrent) {
+                this.tweens.add({
+                    targets: orbGlow, scale: 1.5, alpha: 0.04,
+                    duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+                });
+            }
+        } else {
+            // Locked orb silhouette
+            this.add.circle(orbX, orbY, 20, 0x111122, 0.6)
+                .setStrokeStyle(1, 0x222233, 0.5).setDepth(12);
+            this._drawLock(orbX, orbY - 2, 0x222233, 0.7);
+        }
+
+        // ── Boss info text ───────────────────────────────────────────────
+        const infoX = cardX + 138;
+        const infoY = cardY + cardH / 2;
+
+        if (unlocked) {
+            // Boss name
+            this.add.text(infoX, infoY - 22, bossData.name, {
+                fontSize: '18px', fill: defeated ? '#667788' : '#eef0ff',
+                fontStyle: 'bold',
+                shadow: isCurrent
+                    ? { offsetX: 0, offsetY: 0, color: glowS, blur: 10, fill: true }
+                    : undefined
+            }).setDepth(13).setAlpha(alpha);
+
+            // Subtitle
+            this.add.text(infoX, infoY - 1, LORE[bossId]?.sub || '', {
+                fontSize: '12px', fill: defeated ? '#445566' : glowS,
+                fontStyle: 'italic'
+            }).setDepth(13).setAlpha(alpha);
+
+            // Attack type chip
+            const atkText = this.add.text(infoX, infoY + 17, bossData.attackType, {
+                fontSize: '10px', fill: '#556677'
+            }).setDepth(13).setAlpha(alpha);
+        } else {
+            // Mystery name
+            this.add.text(infoX, infoY - 14, '? ? ? ? ?', {
+                fontSize: '18px', fill: '#1e1e2e', fontStyle: 'bold'
+            }).setDepth(13);
+            this.add.text(infoX, infoY + 6, 'Defeat previous boss to unlock', {
+                fontSize: '10px', fill: '#1e1e2e'
+            }).setDepth(13);
+        }
+
+        // ── HP display ───────────────────────────────────────────────────
+        const hpX = cardX + cardW - 210;
+        const hpY = cardY + cardH / 2;
+        if (unlocked) {
+            this.add.text(hpX, hpY - 8, `${bossData.hp}`, {
+                fontSize: '20px', fill: defeated ? '#445555' : '#cc9944',
+                fontStyle: 'bold'
+            }).setOrigin(0, 0.5).setDepth(13).setAlpha(alpha);
+            this.add.text(hpX, hpY + 12, 'HP', {
+                fontSize: '10px', fill: '#445566'
+            }).setDepth(13).setAlpha(alpha);
+        }
+
+        // ── Status badge (right) ─────────────────────────────────────────
+        const statX = cardX + cardW - 80;
+        const statY = cardY + cardH / 2;
+
+        if (defeated) {
+            this._drawBadge(statX, statY, 'CLEARED', 0x00ff88, 0x003311, 11);
+        } else if (isCurrent) {
+            const badge = this._drawBadge(statX, statY, 'ENTER', 0x00d4ff, 0x001a22, 11);
+            this.tweens.add({
+                targets: badge, alpha: 0.5,
+                duration: 700, yoyo: true, repeat: -1
+            });
+        } else if (!unlocked) {
+            this._drawBadge(statX, statY, 'LOCKED', 0x334455, 0x0a0a14, 11);
+        } else {
+            this._drawBadge(statX, statY, 'READY', glowNum, bossData.secondaryColor, 11);
+        }
+
+        // ── Interactivity ────────────────────────────────────────────────
+        if (!unlocked) return;
+
+        const hit = this.add.rectangle(
+            cardX + cardW / 2, cardY + cardH / 2, cardW, cardH, 0xffffff, 0
+        ).setDepth(20).setInteractive({ useHandCursor: true });
+
+        hit.on('pointerover', () => {
+            cardBg.setAlpha(Math.min(alpha + 0.12, 1));
+            stripe.setAlpha(1);
+        });
+        hit.on('pointerout', () => {
+            cardBg.setAlpha(alpha);
+            stripe.setAlpha(alpha);
+        });
+        hit.on('pointerdown', () => this._launchBoss(bossId));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ENDLESS MODE
+    // ═══════════════════════════════════════════════════════════════════════
+    _buildEndlessFloors() {
+        const { w, h } = this;
+
+        const CARD_H   = 120;
+        const CARD_GAP = 8;
+        const CARD_W   = Math.min(w - 80, 820);
+        const CARD_X   = w / 2 - CARD_W / 2;
+        const PAD_TOP  = 90;
+        const PAD_BOT  = 70;
+        const VISIBLE  = 15; // floors to show
+
+        const currentFloor = GameData.infiniteFloor || 1;
+        // Show currentFloor at top, going down from there
+        const startFloor = currentFloor;
+
+        const totalH = PAD_TOP + VISIBLE * (CARD_H + CARD_GAP) + PAD_BOT;
+        this.cameras.main.setBounds(0, 0, w, Math.max(totalH, h));
+
+        // Endless header notice
+        this.add.text(w / 2, PAD_TOP - 28, `ASCENDING FROM FLOOR  ${currentFloor}`, {
+            fontSize: '12px', fill: '#334455', fontStyle: 'italic'
+        }).setOrigin(0.5).setDepth(5);
+
+        const spineX = CARD_X + 50;
+        const spineY0 = PAD_TOP + 10;
+        const spineY1 = PAD_TOP + VISIBLE * (CARD_H + CARD_GAP);
+        const spineG = this.add.graphics().setDepth(5);
+        spineG.lineStyle(2, 0x1a1a3a, 1);
+        spineG.lineBetween(spineX, spineY0, spineX, spineY1);
+
+        for (let i = 0; i < VISIBLE; i++) {
+            const floorNum = startFloor + i;
+            const cardY    = PAD_TOP + i * (CARD_H + CARD_GAP);
+            const isCurrent = i === 0;
+            const isCleared = floorNum < currentFloor; // already beaten
+
+            this._drawEndlessCard({
+                floorNum, cardY, cardX: CARD_X, cardW: CARD_W, cardH: CARD_H,
+                isCurrent, isCleared, spineX
+            });
+        }
+
+        this._setupScroll(totalH);
+    }
+
+    _drawEndlessCard({ floorNum, cardY, cardX, cardW, cardH, isCurrent, isCleared, spineX }) {
+        const { bossId, affixes, hpMult } = getEndlessFloor(floorNum);
+        const bossData = BOSSES[bossId];
+        const stars    = getFloorStars(floorNum);
+
+        const colorNum = bossData.color;
+        const glowNum  = bossData.glowColor;
+        const glowS    = hexStr(glowNum);
+        const alpha    = isCleared ? 0.38 : 1;
+
+        // Card BG
+        const cardBg = this.add.graphics().setDepth(10).setAlpha(alpha);
+        cardBg.fillStyle(0x08080f, 1);
+        cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 6);
+        cardBg.fillStyle(colorNum, 0.05);
+        cardBg.fillRoundedRect(cardX + cardW * 0.5, cardY, cardW * 0.5, cardH,
+            { br: 6, tr: 6, tl: 0, bl: 0 });
+        cardBg.lineStyle(1, glowNum, isCurrent ? 0.8 : 0.20);
+        cardBg.strokeRoundedRect(cardX, cardY, cardW, cardH, 6);
+
+        // Left stripe
+        const stripe = this.add.graphics().setDepth(11).setAlpha(alpha);
+        stripe.fillStyle(colorNum, 0.9);
+        stripe.fillRoundedRect(cardX, cardY, 4, cardH, { tl: 6, bl: 6, tr: 0, br: 0 });
+
+        // Glow for current floor
+        if (isCurrent) {
+            const gr = this.add.graphics().setDepth(9);
+            gr.lineStyle(3, glowNum, 0.6);
+            gr.strokeRoundedRect(cardX - 2, cardY - 2, cardW + 4, cardH + 4, 7);
+            this.tweens.add({ targets: gr, alpha: 0.1, duration: 1100, yoyo: true, repeat: -1 });
+        }
+
+        // Spine node
+        const nodeY = cardY + cardH / 2;
+        const nodeG = this.add.graphics().setDepth(12).setAlpha(alpha);
+        nodeG.fillStyle(colorNum, 0.8);
+        nodeG.fillCircle(spineX, nodeY, 5);
+
+        // Floor number badge
+        const badX = cardX + 36;
+        const badY = cardY + cardH / 2;
+        const badG = this.add.graphics().setDepth(12).setAlpha(alpha);
+        badG.fillStyle(0x0d0d1a, 0.95);
+        badG.fillRoundedRect(badX - 22, badY - 14, 44, 28, 5);
+        badG.lineStyle(1, glowNum, 0.4);
+        badG.strokeRoundedRect(badX - 22, badY - 14, 44, 28, 5);
+        this.add.text(badX, badY - 2, String(floorNum), {
+            fontSize: '14px', fill: glowS, fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(13).setAlpha(alpha);
+
+        // Boss orb
+        const orbX = cardX + 98;
+        const orbY = cardY + cardH / 2;
+        this.add.circle(orbX, orbY, 28, glowNum, 0.08).setDepth(11).setAlpha(alpha);
+        const orb = this.add.circle(orbX, orbY, 20, colorNum, 0.75)
+            .setDepth(12).setAlpha(alpha);
+        orb.setStrokeStyle(2, glowNum, 0.85);
+        this.add.circle(orbX, orbY, 6, 0xffffff, 0.85).setDepth(13).setAlpha(alpha);
+
+        // Boss name + subtitle
+        const infoX = cardX + 138;
+        const infoY = cardY + cardH / 2;
+
+        this.add.text(infoX, infoY - 28, bossData.name, {
+            fontSize: '17px', fill: isCleared ? '#667788' : '#eef0ff', fontStyle: 'bold',
+            shadow: isCurrent ? { offsetX: 0, offsetY: 0, color: glowS, blur: 10, fill: true } : undefined
+        }).setDepth(13).setAlpha(alpha);
+
+        // Stars
+        const starStr = '★'.repeat(stars) + '☆'.repeat(Math.max(0, 5 - stars));
+        this.add.text(infoX, infoY - 9, starStr, {
+            fontSize: '11px', fill: isCurrent ? '#ffcc44' : '#445566'
+        }).setDepth(13).setAlpha(alpha);
+
+        // Affix badges (small coloured pills)
+        let affixOffsetX = 0;
+        affixes.forEach(key => {
+            const aff = AFFIXES[key];
+            if (!aff) return;
+            const pillW = key.length * 6.5 + 14;
+            const pillX = infoX + affixOffsetX;
+            const pillY = infoY + 10;
+
+            const pillG = this.add.graphics().setDepth(13).setAlpha(alpha);
+            pillG.fillStyle(aff.color, 0.18);
+            pillG.fillRoundedRect(pillX, pillY - 8, pillW, 16, 8);
+            pillG.lineStyle(1, aff.color, 0.7);
+            pillG.strokeRoundedRect(pillX, pillY - 8, pillW, 16, 8);
+
+            this.add.text(pillX + pillW / 2, pillY, key, {
+                fontSize: '9px', fill: aff.textColor, fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(14).setAlpha(alpha);
+
+            affixOffsetX += pillW + 6;
+        });
+
+        // HP (scaled by tier)
+        const scaledHp = Math.round(bossData.hp * hpMult);
+        const hpX = cardX + cardW - 210;
+        const hpY = cardY + cardH / 2;
+        this.add.text(hpX, hpY - 8, `${scaledHp}`, {
+            fontSize: '19px', fill: '#cc9944', fontStyle: 'bold'
+        }).setOrigin(0, 0.5).setDepth(13).setAlpha(alpha);
+        this.add.text(hpX, hpY + 12, 'HP', { fontSize: '10px', fill: '#445566' })
+            .setDepth(13).setAlpha(alpha);
+
+        // Status badge
+        const statX = cardX + cardW - 80;
+        const statY = cardY + cardH / 2;
+        if (isCleared) {
+            this._drawBadge(statX, statY, 'CLEARED', 0x00ff88, 0x003311, 11);
+        } else if (isCurrent) {
+            const b = this._drawBadge(statX, statY, 'FIGHT', 0x00d4ff, 0x001a22, 11);
+            this.tweens.add({ targets: b, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
+        } else {
+            this._drawBadge(statX, statY, 'NEXT', glowNum, bossData.secondaryColor, 11);
+        }
+
+        // Interactivity (only current floor is clickable)
+        if (!isCurrent || isCleared) return;
+
+        const hit = this.add.rectangle(
+            cardX + cardW / 2, cardY + cardH / 2, cardW, cardH, 0xffffff, 0
+        ).setDepth(20).setInteractive({ useHandCursor: true });
+
+        hit.on('pointerover', () => cardBg.setAlpha(Math.min(alpha + 0.12, 1)));
+        hit.on('pointerout',  () => cardBg.setAlpha(alpha));
+        hit.on('pointerdown', () => {
+            this._launchBoss(bossId, affixes, scaledHp, floorNum);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Draws a pill-shaped status badge, returns the container for tween targeting */
+    _drawBadge(cx, cy, label, borderColor, fillColor, depth) {
+        const pillW = label.length * 7 + 20;
+        const g = this.add.graphics().setDepth(depth);
+        g.fillStyle(fillColor, 0.7);
+        g.fillRoundedRect(cx - pillW / 2, cy - 11, pillW, 22, 11);
+        g.lineStyle(1, borderColor, 0.85);
+        g.strokeRoundedRect(cx - pillW / 2, cy - 11, pillW, 22, 11);
+        const t = this.add.text(cx, cy, label, {
+            fontSize: '11px',
+            fill: hexStr(borderColor),
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(depth + 1);
+        // Return a container-like object for tweening (tween the graphics)
+        return g;
+    }
+
+    /** Draws a small lock icon centred on (cx,cy) */
+    _drawLock(cx, cy, color, alpha) {
+        const g = this.add.graphics().setDepth(14).setAlpha(alpha);
+        g.fillStyle(color, 0.6);
+        g.fillRoundedRect(cx - 9, cy, 18, 14, 3);
+        g.lineStyle(2.5, color, 0.8);
+        g.beginPath();
+        g.arc(cx, cy, 7, Math.PI, 0, false);
+        g.strokePath();
+    }
+
+    /** Launch a boss fight */
+    _launchBoss(bossId, affixes = [], scaledHp = null, infiniteFloor = null) {
+        this.cameras.main.fade(500, 0, 0, 0);
+        this.time.delayedCall(500, () => {
+            if (infiniteFloor !== null) {
+                GameData.infiniteFloor = infiniteFloor;
+                if ((GameData.infiniteBest || 0) < infiniteFloor) {
+                    GameData.infiniteBest = infiniteFloor;
+                }
+                GameData.saveProgress();
+            }
+            this.scene.start('GameScene', {
+                playerConfig: { class: this.playerClass, weapon: this.weapon },
+                bossId,
+                affixes,
+                scaledHp,
+                infiniteFloor
+            });
+        });
+    }
+
+    /** Unified mouse-wheel + drag scroll setup */
+    _setupScroll(totalH) {
+        const h = this.h;
+        const maxScroll = Math.max(0, totalH - h);
+
+        this.input.on('wheel', (pointer, objects, dx, dy) => {
+            this.cameras.main.scrollY = Phaser.Math.Clamp(
+                this.cameras.main.scrollY + dy * 0.5, 0, maxScroll
+            );
+        });
+
+        let dragging = false, startY = 0, startScroll = 0;
+        this.input.on('pointerdown', p => { dragging = true; startY = p.y; startScroll = this.cameras.main.scrollY; });
+        this.input.on('pointermove', p => {
+            if (dragging && p.isDown) {
+                this.cameras.main.scrollY = Phaser.Math.Clamp(
+                    startScroll + (startY - p.y), 0, maxScroll
+                );
             }
         });
-
-        this.input.on('pointerup', () => {
-            this.isDragging = false;
-        });
+        this.input.on('pointerup', () => { dragging = false; });
     }
 }
