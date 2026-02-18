@@ -25,16 +25,51 @@ export class WarriorClass extends ClassBase {
         const result = super.dash(directionX, directionY);
 
         if (result) {
-            const shield = this.scene.add.circle(this.player.x, this.player.y, 35, 0xffaa00, 0.2);
-            shield.setStrokeStyle(3, 0xff6600);
-
+            // Inner golden fill burst
+            const shieldCore = this.scene.add.circle(this.player.x, this.player.y, 26, 0xffdd44, 0.45)
+                .setDepth(155);
             this.scene.tweens.add({
-                targets: shield,
-                scale: 1.5,
+                targets: shieldCore,
+                scale: 2.2,
                 alpha: 0,
-                duration: 200,
-                onComplete: () => shield.destroy()
+                duration: 220,
+                ease: 'Power2',
+                onComplete: () => shieldCore.destroy()
             });
+
+            // Outer orange ring
+            const shieldRing = this.scene.add.circle(this.player.x, this.player.y, 38, 0xff6600, 0)
+                .setStrokeStyle(4, 0xffaa00, 0.9)
+                .setDepth(156);
+            this.scene.tweens.add({
+                targets: shieldRing,
+                scale: 1.8,
+                alpha: 0,
+                duration: 280,
+                ease: 'Cubic.easeOut',
+                onComplete: () => shieldRing.destroy()
+            });
+
+            // Golden rays bursting outward
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const ray = this.scene.add.rectangle(
+                    this.player.x + Math.cos(angle) * 20,
+                    this.player.y + Math.sin(angle) * 20,
+                    3, 18, 0xffcc44, 0.7
+                ).setRotation(angle).setDepth(157);
+
+                this.scene.tweens.add({
+                    targets: ray,
+                    x: this.player.x + Math.cos(angle) * 60,
+                    y: this.player.y + Math.sin(angle) * 60,
+                    alpha: 0,
+                    scaleX: 0.4,
+                    duration: 250,
+                    ease: 'Cubic.easeOut',
+                    onComplete: () => ray.destroy()
+                });
+            }
 
             this.checkDashDamage();
         }
@@ -71,20 +106,45 @@ export class WarriorClass extends ClassBase {
             this.hitCounter = 0;
             this.player.autoChargedNextHit = true;
 
+            // Pulsing glow burst on player
+            const burstRing = this.scene.add.circle(this.player.x, this.player.y, 20, 0xffdd44, 0)
+                .setStrokeStyle(3, 0xffcc00, 1.0)
+                .setDepth(160);
+            this.scene.tweens.add({
+                targets: burstRing,
+                scale: 3.5,
+                alpha: 0,
+                duration: 400,
+                ease: 'Cubic.easeOut',
+                onComplete: () => burstRing.destroy()
+            });
+
             const txt = this.scene.add.text(this.player.x, this.player.y - 70, 'PASSIVE READY: CHARGED SHOT', {
                 fontSize: '18px',
                 fill: '#ffd166',
                 stroke: '#000',
-                strokeThickness: 4,
+                strokeThickness: 5,
                 fontStyle: 'bold'
-            }).setOrigin(0.5);
+            }).setOrigin(0.5).setDepth(161);
 
+            // Scale-in then float up
+            txt.setScale(0.5);
             this.scene.tweens.add({
                 targets: txt,
-                y: txt.y - 25,
-                alpha: 0,
-                duration: 900,
-                onComplete: () => txt.destroy()
+                scaleX: 1.1,
+                scaleY: 1.1,
+                duration: 150,
+                ease: 'Back.easeOut',
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: txt,
+                        y: txt.y - 35,
+                        alpha: 0,
+                        duration: 900,
+                        ease: 'Sine.easeIn',
+                        onComplete: () => txt.destroy()
+                    });
+                }
             });
         }
     }

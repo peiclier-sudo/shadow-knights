@@ -10,38 +10,53 @@ export class BattleCrySkill extends SkillBase {
     
     use() {
         if (!super.use()) return false;
-        
-        // Visual effect - expanding ring
-        const ring = this.scene.add.circle(this.player.x, this.player.y, 30, 0xff5500, 0.5);
-        ring.setStrokeStyle(4, 0xffaa00);
-        
-        this.scene.tweens.add({
-            targets: ring,
-            radius: 120,
-            alpha: 0,
-            duration: 500,
-            ease: 'Power2',
-            onComplete: () => ring.destroy()
+
+        const px = this.player.x;
+        const py = this.player.y;
+
+        // Three staggered expanding rings
+        [0, 80, 160].forEach((delay, idx) => {
+            this.scene.time.delayedCall(delay, () => {
+                const r = this.scene.add.circle(px, py, 20 + idx * 10, 0xff5500, 0)
+                    .setStrokeStyle(3 - idx, idx === 0 ? 0xffdd44 : 0xffaa00, 0.9)
+                    .setDepth(170);
+                this.scene.tweens.add({
+                    targets: r,
+                    scale: 5 - idx,
+                    alpha: 0,
+                    duration: 500,
+                    ease: 'Cubic.easeOut',
+                    onComplete: () => r.destroy()
+                });
+            });
         });
-        
-        // Add particles
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const particle = this.scene.add.circle(
-                this.player.x,
-                this.player.y,
-                5,
-                0xff5500,
-                0.7
-            );
-            
+
+        // Inner bright core flash
+        const core = this.scene.add.circle(px, py, 22, 0xffdd44, 0.7).setDepth(171);
+        this.scene.tweens.add({
+            targets: core,
+            scale: 2.8,
+            alpha: 0,
+            duration: 280,
+            ease: 'Power2',
+            onComplete: () => core.destroy()
+        });
+
+        // Burst particles – larger, dual-color
+        for (let i = 0; i < 18; i++) {
+            const angle = (i / 18) * Math.PI * 2;
+            const speed = Phaser.Math.Between(70, 130);
+            const color = i % 2 === 0 ? 0xff5500 : 0xffdd44;
+            const particle = this.scene.add.circle(px, py, Phaser.Math.FloatBetween(3, 7), color, 0.85)
+                .setDepth(172);
             this.scene.tweens.add({
                 targets: particle,
-                x: this.player.x + Math.cos(angle) * 100,
-                y: this.player.y + Math.sin(angle) * 100,
+                x: px + Math.cos(angle) * speed,
+                y: py + Math.sin(angle) * speed,
                 alpha: 0,
-                scale: 0.5,
-                duration: 400,
+                scale: 0.3,
+                duration: Phaser.Math.Between(320, 480),
+                ease: 'Sine.easeOut',
                 onComplete: () => particle.destroy()
             });
         }
@@ -72,35 +87,49 @@ export class BattleCrySkill extends SkillBase {
     }
     
     createBuffIndicator() {
-        // Créer un indicateur visuel rotatif autour du joueur
-        this.buffIndicator = this.scene.add.container(0, 0);
-        
-        // 3 particules qui orbitent
-        for (let i = 0; i < 3; i++) {
-            const angle = (i / 3) * Math.PI * 2;
+        this.buffIndicator = this.scene.add.container(0, 0).setDepth(175);
+
+        // 5 orbiting ember particles – larger + trail-like
+        const orbitCount = 5;
+        for (let i = 0; i < orbitCount; i++) {
+            const angle = (i / orbitCount) * Math.PI * 2;
+            const color = i % 2 === 0 ? 0xff5500 : 0xffcc44;
             const particle = this.scene.add.circle(
-                this.player.x + Math.cos(angle) * 35,
-                this.player.y + Math.sin(angle) * 35,
-                4,
-                0xff5500,
-                0.8
+                this.player.x + Math.cos(angle) * 46,
+                this.player.y + Math.sin(angle) * 46,
+                i % 2 === 0 ? 5 : 3,
+                color, 0.9
             );
             this.buffIndicator.add(particle);
         }
-        
-        // Animation d'orbite
+
+        // Thin orbit ring
+        const orbitRing = this.scene.add.circle(
+            this.player.x, this.player.y,
+            46, 0xff5500, 0
+        ).setStrokeStyle(1, 0xff7700, 0.35);
+        this.buffIndicator.add(orbitRing);
+
+        // Orbit animation
         let rotation = 0;
         const orbitInterval = setInterval(() => {
             if (!this.buffActive || !this.buffIndicator || !this.buffIndicator.scene) {
                 clearInterval(orbitInterval);
                 return;
             }
-            
-            rotation += 0.05;
-            this.buffIndicator.list.forEach((particle, i) => {
-                const angle = (i / 3) * Math.PI * 2 + rotation;
-                particle.x = this.player.x + Math.cos(angle) * 35;
-                particle.y = this.player.y + Math.sin(angle) * 35;
+
+            rotation += 0.045;
+            this.buffIndicator.list.forEach((obj, idx) => {
+                if (idx < orbitCount) {
+                    const angle = (idx / orbitCount) * Math.PI * 2 + rotation;
+                    obj.x = this.player.x + Math.cos(angle) * 46;
+                    obj.y = this.player.y + Math.sin(angle) * 46;
+                    // Pulsing alpha
+                    obj.alpha = 0.6 + Math.sin(Date.now() * 0.006 + idx) * 0.35;
+                } else {
+                    // Ring follows player
+                    obj.setPosition(this.player.x, this.player.y);
+                }
             });
         }, 16);
     }

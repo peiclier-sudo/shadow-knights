@@ -17,26 +17,78 @@ export class EviscerateSkill extends SkillBase {
         const behindX = Phaser.Math.Clamp(boss.x - Math.cos(angleToBoss) * 85, 50, this.scene.cameras.main.width - 50);
         const behindY = Phaser.Math.Clamp(boss.y - Math.sin(angleToBoss) * 85, 50, this.scene.cameras.main.height - 50);
 
-        const vanish = this.scene.add.circle(this.player.x, this.player.y, 28, 0x8b5cf6, 0.35);
+        const origX = this.player.x;
+        const origY = this.player.y;
+
+        // Vanish – implosion: particles spiral inward + imploding ring
+        const vanishRing = this.scene.add.circle(origX, origY, 50, 0x8b5cf6, 0)
+            .setStrokeStyle(3, 0xcc44aa, 0.9)
+            .setDepth(172);
         this.scene.tweens.add({
-            targets: vanish,
-            scale: 0.3,
+            targets: vanishRing,
+            scale: 0.1,
             alpha: 0,
-            duration: 150,
-            onComplete: () => vanish.destroy()
+            duration: 180,
+            ease: 'Cubic.easeIn',
+            onComplete: () => vanishRing.destroy()
         });
+
+        for (let i = 0; i < 16; i++) {
+            const angle = (i / 16) * Math.PI * 2;
+            const startDist = 45 + Math.random() * 20;
+            const shadow = this.scene.add.circle(
+                origX + Math.cos(angle) * startDist,
+                origY + Math.sin(angle) * startDist,
+                Phaser.Math.FloatBetween(2, 5),
+                i % 2 === 0 ? 0x8b5cf6 : 0xcc44aa, 0.7
+            ).setDepth(173);
+            this.scene.tweens.add({
+                targets: shadow,
+                x: origX, y: origY,
+                alpha: 0, scale: 0.2,
+                duration: Phaser.Math.Between(110, 180),
+                ease: 'Cubic.easeIn',
+                onComplete: () => shadow.destroy()
+            });
+        }
 
         this.player.isInvulnerable = true;
         this.player.setPosition(behindX, behindY);
 
-        const appear = this.scene.add.circle(behindX, behindY, 20, 0xcc44aa, 0.45);
+        // Appear – burst: bright flash + slash streaks + ring
+        const appearFlash = this.scene.add.circle(behindX, behindY, 20, 0xee88ff, 0.85)
+            .setDepth(174);
         this.scene.tweens.add({
-            targets: appear,
-            scale: 2,
-            alpha: 0,
-            duration: 220,
-            onComplete: () => appear.destroy()
+            targets: appearFlash, scale: 3.5, alpha: 0, duration: 240,
+            ease: 'Power2', onComplete: () => appearFlash.destroy()
         });
+
+        const appearRing = this.scene.add.circle(behindX, behindY, 18, 0xcc44aa, 0)
+            .setStrokeStyle(3, 0xdd88ff, 0.9).setDepth(173);
+        this.scene.tweens.add({
+            targets: appearRing, scale: 3.2, alpha: 0, duration: 300,
+            ease: 'Cubic.easeOut', onComplete: () => appearRing.destroy()
+        });
+
+        // Slash streaks radiating outward at destination
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.3;
+            const len   = Phaser.Math.Between(18, 36);
+            const slash = this.scene.add.rectangle(
+                behindX + Math.cos(angle) * 16,
+                behindY + Math.sin(angle) * 16,
+                2, len, 0xee88ff, 0.8
+            ).setRotation(angle).setDepth(175);
+            this.scene.tweens.add({
+                targets: slash,
+                x: behindX + Math.cos(angle) * 70,
+                y: behindY + Math.sin(angle) * 70,
+                alpha: 0, scaleX: 0.2,
+                duration: Phaser.Math.Between(200, 300),
+                ease: 'Sine.easeOut',
+                onComplete: () => slash.destroy()
+            });
+        }
 
         // Apply debuff: boss takes +30% damage for 5 seconds
         boss.damageTakenMultiplier = 1.3;

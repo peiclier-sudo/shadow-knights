@@ -400,11 +400,6 @@ export class ClassSelectScene extends Phaser.Scene {
             b.on('pointerover', () => b.setStyle({ fill: UI.btnHoverFill, backgroundColor: UI.btnHoverBg }));
             b.on('pointerout', () => b.setStyle({ fill: UI.btnFill, backgroundColor: UI.btnBg }));
         });
-
-        panel.on('pointerdown', () => {
-            this.cameras.main.fade(260, 5, 10, 20);
-            this.time.delayedCall(260, () => this.scene.start('WeaponSelectScene', { playerClass: classKey }));
-        });
     }
 
     createBackButton(x, y) {
