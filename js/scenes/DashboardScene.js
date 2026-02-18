@@ -54,22 +54,47 @@ export class DashboardScene extends Phaser.Scene {
     }
 
     createHeader(width) {
-        this.add.text(70, 48, 'PLAYER DASHBOARD', {
+        const title = this.add.text(70, 48, 'PLAYER DASHBOARD', {
             fontSize: '38px',
             fill: COLORS.text,
             fontStyle: 'bold'
         });
 
-        this.add.text(72, 95, 'Progression, performances et état du compte', {
+        const subtitle = this.add.text(72, 95, 'Progression, performances et état du compte', {
             fontSize: '18px',
             fill: COLORS.muted
         });
 
-        this.add.text(width - 300, 58, 'LIVE SESSION', {
+        const badge = this.add.text(width - 300, 58, 'LIVE SESSION', {
             fontSize: '14px',
             fill: '#d9f99d',
             backgroundColor: '#365314',
             padding: { x: 10, y: 5 }
+        });
+
+        this.tweens.add({
+            targets: title,
+            x: { from: 70, to: 77 },
+            duration: 2600,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.tweens.add({
+            targets: subtitle,
+            alpha: { from: 0.75, to: 1 },
+            duration: 1700,
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.tweens.add({
+            targets: badge,
+            scale: { from: 1, to: 1.06 },
+            duration: 900,
+            yoyo: true,
+            repeat: -1
         });
     }
 
@@ -96,6 +121,15 @@ export class DashboardScene extends Phaser.Scene {
 
             const panel = this.add.rectangle(x, y, cardWidth, 120, COLORS.panel, 0.92).setOrigin(0);
             panel.setStrokeStyle(1, card.color, 0.8);
+
+            this.tweens.add({
+                targets: panel,
+                y: { from: y, to: y - 4 },
+                duration: 1700 + index * 220,
+                ease: 'Sine.easeInOut',
+                yoyo: true,
+                repeat: -1
+            });
 
             this.add.text(x + 16, y + 14, card.label, {
                 fontSize: '15px',
@@ -127,6 +161,17 @@ export class DashboardScene extends Phaser.Scene {
 
         const panel = this.add.rectangle(x, y, w, h, COLORS.panel, 0.9).setOrigin(0);
         panel.setStrokeStyle(1, COLORS.panelBorder, 0.95);
+
+        const sweep = this.add.rectangle(x + w / 2, y + 30, w - 30, 2, 0x38bdf8, 0.08);
+        this.tweens.add({
+            targets: sweep,
+            y: y + h - 20,
+            alpha: { from: 0.03, to: 0.2 },
+            duration: 2800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
         this.add.text(x + 20, y + 18, 'BOSSES STATUS', {
             fontSize: '20px',
@@ -205,6 +250,15 @@ export class DashboardScene extends Phaser.Scene {
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         button.on('pointerdown', onClick);
+
+        this.tweens.add({
+            targets: button,
+            alpha: { from: 0.85, to: 1 },
+            duration: 1200,
+            yoyo: true,
+            repeat: -1
+        });
+
         return button;
     }
 }

@@ -65,7 +65,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     createHeader(width) {
-        this.add.text(88, 60, 'SHADOW KNIGHTS', {
+        const title = this.add.text(88, 60, 'SHADOW KNIGHTS', {
             fontSize: width < 1200 ? '56px' : '68px',
             fill: COLORS.primaryText,
             fontStyle: 'bold',
@@ -73,16 +73,41 @@ export class MenuScene extends Phaser.Scene {
             strokeThickness: 2
         });
 
-        this.add.text(92, 132, 'Ultimate Boss Rush Experience', {
+        const subtitle = this.add.text(92, 132, 'Ultimate Boss Rush Experience', {
             fontSize: '24px',
             fill: COLORS.secondaryText
         });
 
-        this.add.text(width - 330, 80, 'VERSION 1.1 • LIVE', {
+        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.1 • LIVE', {
             fontSize: '14px',
             fill: '#a5b4fc',
             backgroundColor: '#1e1b4b',
             padding: { x: 10, y: 6 }
+        });
+
+        this.tweens.add({
+            targets: title,
+            scale: { from: 1, to: 1.025 },
+            duration: 2200,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.tweens.add({
+            targets: subtitle,
+            alpha: { from: 0.75, to: 1 },
+            duration: 1900,
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.tweens.add({
+            targets: liveBadge,
+            alpha: { from: 0.6, to: 1 },
+            duration: 800,
+            yoyo: true,
+            repeat: -1
         });
     }
 
@@ -153,6 +178,18 @@ export class MenuScene extends Phaser.Scene {
     createPanel(x, y, width, height) {
         const panel = this.add.rectangle(x, y, width, height, COLORS.panel, 0.9).setOrigin(0);
         panel.setStrokeStyle(1, COLORS.panelBorder, 0.95);
+
+        const scanline = this.add.rectangle(x + width / 2, y + height * 0.15, width - 24, 2, 0x38bdf8, 0.08);
+        this.tweens.add({
+            targets: scanline,
+            y: y + height * 0.85,
+            alpha: { from: 0.03, to: 0.18 },
+            duration: 3200,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+
         return panel;
     }
 
@@ -177,6 +214,15 @@ export class MenuScene extends Phaser.Scene {
         });
 
         button.on('pointerdown', onClick);
+
+        this.tweens.add({
+            targets: button,
+            x: { from: x, to: x + 3 },
+            duration: 1800 + Phaser.Math.Between(0, 400),
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     showToast(message) {
