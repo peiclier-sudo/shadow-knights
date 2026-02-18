@@ -32,9 +32,20 @@ export class GrapplingHookSkill extends SkillBase {
         this.waitingForConfirmKeyRelease = true;
         this.targetingGraphics = this.scene.add.graphics();
         this.targetingGraphics.setDepth(95);
-        this.directionMarker = this.scene.add.circle(this.player.x, this.player.y, 8, 0xffaa00, 0.25)
-            .setStrokeStyle(2, 0xffaa00, 0.9)
+
+        // Pulsing end-point marker
+        this.directionMarker = this.scene.add.circle(this.player.x, this.player.y, 10, 0xffcc44, 0.35)
+            .setStrokeStyle(2, 0xffaa00, 0.95)
             .setDepth(96);
+        this.scene.tweens.add({
+            targets: this.directionMarker,
+            scale: 1.4,
+            alpha: 0.7,
+            duration: 400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
     }
 
     cancelTargeting() {
@@ -45,6 +56,7 @@ export class GrapplingHookSkill extends SkillBase {
             this.targetingGraphics = null;
         }
         if (this.directionMarker) {
+            this.scene.tweens.killTweensOf(this.directionMarker);
             this.directionMarker.destroy();
             this.directionMarker = null;
         }
@@ -194,9 +206,22 @@ export class GrapplingHookSkill extends SkillBase {
         const endY = this.player.y + (dy / length) * clampedLength;
 
         this.targetingGraphics.clear();
-        this.targetingGraphics.lineStyle(2, 0xffaa00, 0.35);
-        this.targetingGraphics.strokeCircle(this.player.x, this.player.y, this.maxRange);
-        this.targetingGraphics.lineStyle(3, 0xffaa00, 0.7);
+        // Dashed-look range circle (alternating arcs)
+        const segs = 24;
+        for (let s = 0; s < segs; s++) {
+            if (s % 2 === 0) {
+                const a0 = (s / segs) * Math.PI * 2;
+                const a1 = ((s + 0.8) / segs) * Math.PI * 2;
+                this.targetingGraphics.lineStyle(1.5, 0xffaa00, 0.4);
+                this.targetingGraphics.beginPath();
+                this.targetingGraphics.arc(this.player.x, this.player.y, this.maxRange, a0, a1);
+                this.targetingGraphics.strokePath();
+            }
+        }
+        // Aim line – dual-layer for glow feel
+        this.targetingGraphics.lineStyle(5, 0xffcc44, 0.15);
+        this.targetingGraphics.lineBetween(this.player.x, this.player.y, endX, endY);
+        this.targetingGraphics.lineStyle(2, 0xffaa00, 0.8);
         this.targetingGraphics.lineBetween(this.player.x, this.player.y, endX, endY);
 
         this.directionMarker.setPosition(endX, endY);
@@ -271,40 +296,55 @@ export class GrapplingHookSkill extends SkillBase {
                     return;
                 }
                 
-                // ✅ Effet d'impact
-                const impact = this.scene.add.circle(this.player.x, this.player.y, 30, 0xffaa00, 0.5);
+                // Enhanced impact: dual ring burst
+                const impactCore = this.scene.add.circle(this.player.x, this.player.y, 18, 0xffdd44, 0.75)
+                    .setDepth(102);
                 this.scene.tweens.add({
-                    targets: impact,
-                    scale: 2,
+                    targets: impactCore,
+                    scale: 3.5,
                     alpha: 0,
-                    duration: 300,
-                    onComplete: () => impact.destroy()
+                    duration: 260,
+                    ease: 'Power2',
+                    onComplete: () => impactCore.destroy()
                 });
-                
-                // ✅ Particules d'impact
-                for (let i = 0; i < 12; i++) {
-                    const particleAngle = (i / 12) * Math.PI * 2;
+
+                const impactRing = this.scene.add.circle(this.player.x, this.player.y, 30, 0xffaa00, 0)
+                    .setStrokeStyle(4, 0xffaa00, 0.9)
+                    .setDepth(101);
+                this.scene.tweens.add({
+                    targets: impactRing,
+                    scale: 2.8,
+                    alpha: 0,
+                    duration: 350,
+                    ease: 'Cubic.easeOut',
+                    onComplete: () => impactRing.destroy()
+                });
+
+                // Impact particles – more, faster, brighter
+                for (let i = 0; i < 18; i++) {
+                    const particleAngle = (i / 18) * Math.PI * 2 + Math.random() * 0.2;
+                    const speed = Phaser.Math.Between(50, 100);
                     const particle = this.scene.add.circle(
-                        this.player.x,
-                        this.player.y,
-                        4,
-                        0xffaa00,
-                        0.7
-                    );
-                    
+                        this.player.x, this.player.y,
+                        Phaser.Math.FloatBetween(3, 6),
+                        i % 2 === 0 ? 0xffaa00 : 0xffdd44,
+                        0.85
+                    ).setDepth(103);
+
                     this.scene.tweens.add({
                         targets: particle,
-                        x: this.player.x + Math.cos(particleAngle) * 50,
-                        y: this.player.y + Math.sin(particleAngle) * 50,
+                        x: this.player.x + Math.cos(particleAngle) * speed,
+                        y: this.player.y + Math.sin(particleAngle) * speed,
                         alpha: 0,
-                        scale: 0.5,
-                        duration: 300,
+                        scale: 0.3,
+                        duration: Phaser.Math.Between(250, 380),
+                        ease: 'Sine.easeOut',
                         onComplete: () => particle.destroy()
                     });
                 }
-                
-                // ✅ Petit screen shake
-                this.scene.cameras.main.shake(100, 0.005);
+
+                // Stronger screen shake
+                this.scene.cameras.main.shake(150, 0.009);
 
                 // Apply vulnerability debuff: +30% damage taken for 6s
                 boss.damageTakenMultiplier = 1.3;
