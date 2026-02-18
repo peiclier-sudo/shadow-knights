@@ -16,11 +16,15 @@ export const GameData = {
     currentBossId: parseInt(localStorage.getItem('currentBoss')) || 1,
     unlockedBosses: TOTAL_BOSSES,
     defeatedBosses: loadDefeatedBosses(),
+    infiniteFloor: parseInt(localStorage.getItem('infiniteFloor')) || 1,
+    infiniteBest:  parseInt(localStorage.getItem('infiniteBest'))  || 0,
 
     saveProgress() {
         localStorage.setItem('currentBoss', this.currentBossId);
         localStorage.setItem('unlockedBosses', this.unlockedBosses);
         localStorage.setItem('defeatedBosses', JSON.stringify([...this.defeatedBosses]));
+        localStorage.setItem('infiniteFloor', this.infiniteFloor);
+        localStorage.setItem('infiniteBest',  this.infiniteBest);
     },
 
     markBossDefeated(bossId) {
