@@ -6,7 +6,7 @@ export class SkillBase {
         this.data = skillData;
         this.lastUsed = 0;
         this.cooldown = skillData.cooldown || 5000;
-        this.staminaCost = skillData.staminaCost || 30;
+        this.staminaCost = 0; // Class abilities no longer consume stamina
         this.icon = skillData.icon || '✨';
         this.name = skillData.name || 'Skill';
     }
@@ -14,18 +14,15 @@ export class SkillBase {
     canUse() {
         const now = Date.now();
         const cooldownReady = (now - this.lastUsed) >= this.cooldown;
-        const hasStamina = this.player.stamina >= this.staminaCost;
         const notDashing = !this.player.isDashing;
-        
-        return cooldownReady && hasStamina && notDashing;
+
+        return cooldownReady && notDashing;
     }
     
     use() {
         if (!this.canUse()) return false;
         
         this.lastUsed = Date.now();
-        this.player.stamina -= this.staminaCost;
-        
         // Visual feedback - skill used flash
         this.showUseEffect();
         

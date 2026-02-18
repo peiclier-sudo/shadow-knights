@@ -1,4 +1,4 @@
-// classData.js - Class definitions (UPDATED - Grappling Hook)
+// classData.js - Class definitions
 export const CLASSES = {
     WARRIOR: {
         name: 'WARRIOR',
@@ -6,7 +6,7 @@ export const CLASSES = {
         glowColor: 0xff8833,
         baseHealth: 120,
         baseStamina: 80,
-        baseSpeed: 320,
+        baseSpeed: 370,
         staminaRegen: 0.15,
         dash: {
             name: 'SHIELD CHARGE',
@@ -17,9 +17,9 @@ export const CLASSES = {
             damage: 25
         },
         skills: [
-            { id: 'battleCry', name: 'BATTLE CRY', icon: '📢', staminaCost: 30, cooldown: 20000 },
-            { id: 'ironWill', name: 'IRON WILL', icon: '🛡️', staminaCost: 25, cooldown: 20000 },
-            { id: 'grapplingHook', name: 'GRAPPLING HOOK', icon: '🪝', staminaCost: 35, cooldown: 12000 }  // ✅ CHANGÉ
+            { id: 'battleCry', name: 'BATTLE CRY', icon: '📢', staminaCost: 0, cooldown: 20000 },
+            { id: 'grapplingHook', name: 'GRAPPLING HOOK', icon: '🪝', staminaCost: 0, cooldown: 12000 },
+            { id: 'ironWill', name: 'INVULNERABILITY', icon: '🛡️', staminaCost: 0, cooldown: 20000 }
         ]
     },
     MAGE: {
@@ -38,9 +38,9 @@ export const CLASSES = {
             staminaCost: 30
         },
         skills: [
-            { id: 'frostNova', name: 'FROST NOVA', icon: '❄️', staminaCost: 35, cooldown: 5000 },
-            { id: 'manaShield', name: 'MANA SHIELD', icon: '🔮', staminaCost: 20, cooldown: 4000 },
-            { id: 'arcaneSurge', name: 'ARCANE SURGE', icon: '✨', staminaCost: 45, cooldown: 7000 }
+            { id: 'frostNova', name: 'FROST NOVA', icon: '❄️', staminaCost: 0, cooldown: 8000 },
+            { id: 'manaShield', name: 'MANA SHIELD', icon: '🔮', staminaCost: 0, cooldown: 8000 },
+            { id: 'arcaneSurge', name: 'ARCANE SURGE', icon: '✨', staminaCost: 0, cooldown: 8000 }
         ]
     },
     ROGUE: {
@@ -49,7 +49,7 @@ export const CLASSES = {
         glowColor: 0xcc66ee,
         baseHealth: 90,
         baseStamina: 100,
-        baseSpeed: 420,
+        baseSpeed: 546,
         staminaRegen: 0.2,
         dash: {
             name: 'SHADOW STEP',
@@ -59,9 +59,9 @@ export const CLASSES = {
             staminaCost: 35
         },
         skills: [
-            { id: 'backstab', name: 'BACKSTAB', icon: '🗡️', staminaCost: 30, cooldown: 3000 },
-            { id: 'smokeBomb', name: 'SMOKE BOMB', icon: '💨', staminaCost: 40, cooldown: 6000 },
-            { id: 'eviscerate', name: 'EVISCERATE', icon: '💀', staminaCost: 50, cooldown: 8000 }
+            { id: 'backstab', name: 'SPRINT', icon: '💨', staminaCost: 0, cooldown: 10000 },
+            { id: 'smokeBomb', name: 'SMOKE BOMB', icon: '🌫️', staminaCost: 0, cooldown: 6000 },
+            { id: 'eviscerate', name: 'SHADOW STEP', icon: '🕶️', staminaCost: 0, cooldown: 8000 }
         ]
     }
 };

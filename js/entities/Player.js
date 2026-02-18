@@ -24,6 +24,7 @@ export class Player extends Phaser.GameObjects.Container {
         this.isCharging = false;
         this.canAttack = true;
         this.damageMultiplier = 1.0;
+        this.passiveDamageMultiplier = 1.0;
         this.damageReduction = 0;
         this.manaShield = false;
         this.manaShieldFx = null;
@@ -31,6 +32,8 @@ export class Player extends Phaser.GameObjects.Container {
         this.multishotCount = 0;
         this.backstabReady = false;
         this.untargetable = false;
+        this.critChanceBonus = 0;
+        this.autoChargedNextHit = false;
 
         // Ultimate gauge (future weapon ultimate skill)
         this.ultimateGauge = 0;
@@ -113,6 +116,10 @@ export class Player extends Phaser.GameObjects.Container {
     takeDamage(amount) {
         if (this.isInvulnerable) return 0;
 
+        if (typeof this.classData?.onTakeDamage === 'function') {
+            this.classData.onTakeDamage();
+        }
+
         // Mana Shield: convert incoming damage to stamina loss first.
         if (this.manaShield) {
             const staminaDamage = amount;
@@ -149,6 +156,7 @@ export class Player extends Phaser.GameObjects.Container {
         }
         
         const reducedAmount = amount * (1 - this.damageReduction);
+
         this.health = Math.max(0, this.health - reducedAmount);
         
         this.scene.tweens.add({

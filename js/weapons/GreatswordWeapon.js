@@ -403,7 +403,9 @@ export class GreatswordWeapon extends WeaponBase {
             const distToPath = Phaser.Math.Distance.Between(boss.x, boss.y, nearest.x, nearest.y);
 
             if (distToPath <= charged.radius) {
-                const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0);
+                const critChance = Phaser.Math.Clamp((this.player.critChanceBonus || 0), 0, 0.6);
+            const critMultiplier = Math.random() < critChance ? 2 : 1;
+            const finalDamage = charged.damage * (this.player.damageMultiplier || 1.0) * (this.player.passiveDamageMultiplier || 1.0) * critMultiplier;
                 boss.takeDamage(finalDamage);
                 this.gainUltimateGaugeFromDamage(finalDamage, { charged: true });
 

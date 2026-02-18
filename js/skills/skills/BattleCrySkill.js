@@ -1,4 +1,4 @@
-// BattleCrySkill.js - Warrior skill: +30% damage for 8s (FIXED)
+// BattleCrySkill.js - Warrior skill: +50% damage for 8s (FIXED)
 import { SkillBase } from '../SkillBase.js';
 import { SKILL_DATA } from '../skillData.js';
 
@@ -46,10 +46,10 @@ export class BattleCrySkill extends SkillBase {
             });
         }
         
-        // ✅ FIX: Appliquer le buff de dégâts correctement (+30%)
+        // ✅ FIX: Appliquer le buff de dégâts correctement (+50%)
         this.buffActive = true;
         const oldMultiplier = this.player.damageMultiplier || 1.0;
-        this.player.damageMultiplier = oldMultiplier * 1.3;  // +30%
+        this.player.damageMultiplier = oldMultiplier * 1.5;  // +50%
         
         console.log(`🔥 BATTLE CRY! Damage: ${oldMultiplier.toFixed(1)}x → ${this.player.damageMultiplier.toFixed(1)}x`);
         
