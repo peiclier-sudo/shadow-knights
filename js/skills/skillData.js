@@ -1,22 +1,22 @@
-// skillData.js - Skill definitions (UPDATED - Grappling Hook replaces Execution)
+// skillData.js - Skill definitions
 export const SKILL_DATA = {
     battleCry: {
         id: 'battleCry',
         name: 'BATTLE CRY',
         class: 'WARRIOR',
         icon: '📢',
-        description: '+30% damage for 8 seconds',
-        staminaCost: 30,
+        description: '+50% damage for 8 seconds',
+        staminaCost: 0,
         cooldown: 20000,
         color: 0xff5500
     },
     ironWill: {
         id: 'ironWill',
-        name: 'IRON WILL',
+        name: 'INVULNERABILITY',
         class: 'WARRIOR',
         icon: '🛡️',
-        description: '50% damage reduction for 4 seconds',
-        staminaCost: 25,
+        description: 'Invulnerable for 1.5 seconds',
+        staminaCost: 0,
         cooldown: 20000,
         color: 0xffaa00
     },
@@ -25,8 +25,8 @@ export const SKILL_DATA = {
         name: 'GRAPPLING HOOK',
         class: 'WARRIOR',
         icon: '🪝',
-        description: 'Launch hook and pull yourself to target (500px range)',
-        staminaCost: 35,
+        description: 'Launch hook and pull yourself to target (700px range)',
+        staminaCost: 0,
         cooldown: 12000,
         color: 0xffaa00
     },
@@ -36,8 +36,8 @@ export const SKILL_DATA = {
         class: 'MAGE',
         icon: '❄️',
         description: 'Freeze all enemies for 2 seconds',
-        staminaCost: 35,
-        cooldown: 5000,
+        staminaCost: 0,
+        cooldown: 8000,
         color: 0x88ccff
     },
     manaShield: {
@@ -46,8 +46,8 @@ export const SKILL_DATA = {
         class: 'MAGE',
         icon: '🔮',
         description: 'Damage taken reduces stamina instead of health',
-        staminaCost: 20,
-        cooldown: 4000,
+        staminaCost: 0,
+        cooldown: 8000,
         color: 0x8866ff
     },
     arcaneSurge: {
@@ -56,18 +56,18 @@ export const SKILL_DATA = {
         class: 'MAGE',
         icon: '✨',
         description: 'Next 3 shots fire 3 projectiles each',
-        staminaCost: 45,
-        cooldown: 7000,
+        staminaCost: 0,
+        cooldown: 8000,
         color: 0xaa88ff
     },
     backstab: {
         id: 'backstab',
-        name: 'BACKSTAB',
+        name: 'SPRINT',
         class: 'ROGUE',
-        icon: '🗡️',
-        description: '300% damage when attacking from behind',
-        staminaCost: 30,
-        cooldown: 3000,
+        icon: '💨',
+        description: '+30% move speed for 4 seconds',
+        staminaCost: 0,
+        cooldown: 10000,
         color: 0xaa44cc
     },
     smokeBomb: {
@@ -76,23 +76,22 @@ export const SKILL_DATA = {
         class: 'ROGUE',
         icon: '💨',
         description: 'Create smoke screen, enemies can\'t target you',
-        staminaCost: 40,
+        staminaCost: 0,
         cooldown: 6000,
         color: 0x888888
     },
     eviscerate: {
         id: 'eviscerate',
-        name: 'EVISCERATE',
+        name: 'SHADOW STEP',
         class: 'ROGUE',
-        icon: '💀',
-        description: 'Massive damage to single target',
-        staminaCost: 50,
+        icon: '🕶️',
+        description: 'Teleport behind the boss and apply +30% damage taken for 5 seconds',
+        staminaCost: 0,
         cooldown: 8000,
         color: 0xcc44aa
     }
 };
 
-// Helper function to get skills by class
 export function getSkillsByClass(className) {
     return Object.values(SKILL_DATA).filter(skill => skill.class === className);
 }
