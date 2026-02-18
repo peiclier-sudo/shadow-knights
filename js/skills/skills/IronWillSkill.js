@@ -1,95 +1,43 @@
-// IronWillSkill.js - Warrior skill: 50% damage reduction for 4s (FIXED - 20s cooldown)
+// IronWillSkill.js - Warrior skill: temporary invulnerability
 import { SkillBase } from '../SkillBase.js';
 import { SKILL_DATA } from '../skillData.js';
 
 export class IronWillSkill extends SkillBase {
     constructor(scene, player) {
         super(scene, player, SKILL_DATA.ironWill);
-        this.shieldActive = false;
     }
-    
+
     use() {
         if (!super.use()) return false;
-        
-        this.shieldActive = true;
-        
-        // Shield visual
-        this.shield = this.scene.add.circle(this.player.x, this.player.y, 50, 0x88aaff, 0.3);
-        this.shield.setStrokeStyle(4, 0xffffff, 0.8);
-        
+
+        this.player.isInvulnerable = true;
+
+        const shell = this.scene.add.circle(this.player.x, this.player.y, 34, 0xffcc66, 0.25)
+            .setStrokeStyle(3, 0xffee99, 0.9)
+            .setDepth(175);
+
+        const follow = () => {
+            if (!shell.scene) return;
+            shell.setPosition(this.player.x, this.player.y);
+        };
+
+        this.scene.events.on('update', follow);
+
         this.scene.tweens.add({
-            targets: this.shield,
-            alpha: 0.2,
-            scale: 1.2,
-            duration: 4000,
-            onComplete: () => {
-                if (this.shield) this.shield.destroy();
-            }
+            targets: shell,
+            scale: 1.15,
+            alpha: 0.6,
+            duration: 180,
+            yoyo: true,
+            repeat: 6
         });
-        
-        // Add orbiting particles
-        this.orbitingParticles = [];
-        for (let i = 0; i < 4; i++) {
-            const angle = (i / 4) * Math.PI * 2;
-            const particle = this.scene.add.circle(
-                this.player.x + Math.cos(angle) * 40,
-                this.player.y + Math.sin(angle) * 40,
-                4,
-                0x88aaff,
-                0.6
-            );
-            this.orbitingParticles.push({ particle, baseAngle: angle });
-        }
-        
-        // Orbit animation
-        let rotation = 0;
-        this.orbitInterval = setInterval(() => {
-            if (!this.shieldActive || !this.shield || !this.shield.scene) {
-                clearInterval(this.orbitInterval);
-                return;
-            }
-            
-            rotation += 0.05;
-            this.orbitingParticles.forEach(({ particle, baseAngle }) => {
-                const angle = baseAngle + rotation;
-                particle.x = this.player.x + Math.cos(angle) * 40;
-                particle.y = this.player.y + Math.sin(angle) * 40;
-            });
-        }, 16);
-        
-        // Apply damage reduction
-        this.player.damageReduction = 0.5;
-        
-        console.log(`🛡️ IRON WILL! Damage reduction: 50%`);
-        
-        // Remove after 4 seconds
-        this.scene.time.delayedCall(4000, () => {
-            this.player.damageReduction = 0;
-            this.shieldActive = false;
-            
-            console.log(`⏱️ Iron Will ended`);
-            
-            // Clean up particles
-            if (this.orbitingParticles) {
-                this.orbitingParticles.forEach(({ particle }) => {
-                    if (particle && particle.scene) particle.destroy();
-                });
-                this.orbitingParticles = [];
-            }
-            
-            if (this.orbitInterval) {
-                clearInterval(this.orbitInterval);
-            }
+
+        this.scene.time.delayedCall(1500, () => {
+            this.player.isInvulnerable = false;
+            this.scene.events.off('update', follow);
+            if (shell.scene) shell.destroy();
         });
-        
+
         return true;
-    }
-    
-    update() {
-        // Update shield position
-        if (this.shield && this.shieldActive) {
-            this.shield.x = this.player.x;
-            this.shield.y = this.player.y;
-        }
     }
 }

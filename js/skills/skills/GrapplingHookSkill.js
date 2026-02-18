@@ -5,7 +5,7 @@ import { SKILL_DATA } from '../skillData.js';
 export class GrapplingHookSkill extends SkillBase {
     constructor(scene, player) {
         super(scene, player, SKILL_DATA.grapplingHook);
-        this.maxRange = 500;
+        this.maxRange = 700;
         this.isTargeting = false;
         this.targetingGraphics = null;
         this.directionMarker = null;
