@@ -98,22 +98,27 @@ export class GameOverScene extends Phaser.Scene {
             this.scene.start('MenuScene');
         });
         
-        // Next boss button if victory and boss not last
-        if (this.victory && this.bossId < TOTAL_BOSSES) {
-            const nextBtn = this.add.text(width/2, height/2 + 160, 'NEXT BOSS', {
+        // Tower button - return to tower view
+        if (this.victory) {
+            // Mark boss as defeated and unlock next
+            GameData.markBossDefeated(this.bossId);
+            GameData.unlockNextBoss();
+
+            const towerBtn = this.add.text(width/2, height/2 + 160, 'RETURN TO TOWER', {
                 ...buttonStyle,
-                fill: '#00ff88'
+                fill: '#00d4ff'
             }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-            
-            nextBtn.on('pointerover', () => nextBtn.setStyle({ fill: '#88ffaa' }));
-            nextBtn.on('pointerout', () => nextBtn.setStyle({ fill: '#00ff88' }));
-            nextBtn.on('pointerdown', () => {
-                const nextBossId = this.bossId + 1;
-                GameData.currentBossId = nextBossId;
-                GameData.saveProgress();
-                this.scene.start('GameScene', {
-                    playerConfig: this.playerConfig,
-                    bossId: nextBossId
+
+            towerBtn.on('pointerover', () => towerBtn.setStyle({ fill: '#66e0ff' }));
+            towerBtn.on('pointerout', () => towerBtn.setStyle({ fill: '#00d4ff' }));
+            towerBtn.on('pointerdown', () => {
+                if (this.bossId < TOTAL_BOSSES) {
+                    GameData.currentBossId = this.bossId + 1;
+                    GameData.saveProgress();
+                }
+                this.scene.start('TowerScene', {
+                    playerClass: this.playerConfig.class,
+                    weapon: this.playerConfig.weapon
                 });
             });
         }

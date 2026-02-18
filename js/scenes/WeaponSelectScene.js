@@ -103,9 +103,9 @@ export class WeaponSelectScene extends Phaser.Scene {
             card.on('pointerdown', () => {
                 this.cameras.main.fade(500, 0, 0, 0);
                 this.time.delayedCall(500, () => {
-                    this.scene.start('BossSelectScene', { 
+                    this.scene.start('TowerScene', {
                         playerClass: this.playerClass,
-                        weapon: key 
+                        weapon: key
                     });
                 });
             });
