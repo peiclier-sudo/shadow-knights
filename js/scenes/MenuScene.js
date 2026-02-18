@@ -78,7 +78,7 @@ export class MenuScene extends Phaser.Scene {
             fill: COLORS.secondaryText
         });
 
-        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.1 • LIVE', {
+        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.2 • LIVE', {
             fontSize: '14px',
             fill: '#a5b4fc',
             backgroundColor: '#1e1b4b',
@@ -123,7 +123,7 @@ export class MenuScene extends Phaser.Scene {
         const buttons = [
             { label: 'NOUVELLE PARTIE', icon: '▶', action: () => this.scene.start('ClassSelectScene') },
             { label: 'DASHBOARD JOUEUR', icon: '📊', action: () => this.scene.start('DashboardScene') },
-            { label: 'AIDE & CONTRÔLES', icon: '❓', action: () => this.showToast('ZQSD/Flèches = déplacement • ESPACE = attaque • SHIFT = dodge') },
+            { label: 'AIDE & CONTRÔLES', icon: '❓', action: () => this.showToast('LClick: Move • RClick: Attack/Charge • Space: Dash • Q/E/R: Skills • F: Ultimate • T: Range Preview') },
             { label: 'PARAMÈTRES', icon: '⚙', action: () => this.showToast('Menu paramètres disponible dans la prochaine mise à jour.') }
         ];
 
@@ -149,10 +149,10 @@ export class MenuScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
-        this.add.text(firstPanel.x + 24, firstPanel.y + 56, '• Battre un boss sans mourir\n• Finir 3 runs en moins de 10 min\n• Tester une classe non utilisée', {
-            fontSize: '17px',
+        this.add.text(firstPanel.x + 24, firstPanel.y + 56, '• Defeat a boss without taking damage\n• Reach a 25-hit combo\n• Reach Floor 10 in Infinite Tower\n• Unlock all 16 achievements', {
+            fontSize: '16px',
             fill: '#d6e4ff',
-            lineSpacing: 10
+            lineSpacing: 9
         });
 
         this.add.text(secondPanel.x + 24, secondPanel.y + 20, 'PATCH NOTES', {
@@ -161,10 +161,10 @@ export class MenuScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
-        this.add.text(secondPanel.x + 24, secondPanel.y + 56, '• Interface premium refondue\n• Dashboard progression intégré\n• Auth Supabase prête à l\'emploi', {
-            fontSize: '16px',
+        this.add.text(secondPanel.x + 24, secondPanel.y + 56, '• v1.2: Procedural sound engine (Web Audio API)\n• v1.2: 16 achievements + in-game popups\n• v1.2: Hit combo system with milestones\n• v1.2: Dashboard stats & achievement tabs', {
+            fontSize: '14px',
             fill: '#dbe5ff',
-            lineSpacing: 9
+            lineSpacing: 8
         });
     }
 

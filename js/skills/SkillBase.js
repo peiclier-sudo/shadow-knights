@@ -1,4 +1,6 @@
 // SkillBase.js - Base class for all skills
+import { soundManager } from '../utils/SoundManager.js';
+
 export class SkillBase {
     constructor(scene, player, skillData) {
         this.scene = scene;
@@ -21,11 +23,13 @@ export class SkillBase {
     
     use() {
         if (!this.canUse()) return false;
-        
+
         this.lastUsed = Date.now();
+        // Sound feedback
+        soundManager.playSkillSound(this.data?.id || '');
         // Visual feedback - skill used flash
         this.showUseEffect();
-        
+
         return true;
     }
     

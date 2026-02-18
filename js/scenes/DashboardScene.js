@@ -1,7 +1,9 @@
-// DashboardScene.js - Player hub and progression overview
+// DashboardScene.js - Player hub with progression, stats, and achievements
 import { GameData } from '../data/GameData.js';
 import { BOSSES } from '../data/BossData.js';
+import { ACHIEVEMENTS, RARITY_COLORS } from '../data/AchievementData.js';
 import { authManager } from '../data/AuthManager.js';
+import { soundManager } from '../utils/SoundManager.js';
 
 const COLORS = {
     bgTop: 0x060b18,
@@ -16,6 +18,7 @@ const COLORS = {
 export class DashboardScene extends Phaser.Scene {
     constructor() {
         super({ key: 'DashboardScene' });
+        this._activeTab = 'bosses'; // 'bosses' | 'stats' | 'achievements'
     }
 
     create() {
@@ -25,7 +28,9 @@ export class DashboardScene extends Phaser.Scene {
         this.createBackground(width, height);
         this.createHeader(width);
         this.createTopStats(width);
-        this.createBossTable(width, height);
+        this.createTabs(width);
+        this._contentGroup = [];
+        this._renderTab(width, height);
         this.createActionButtons(width, height);
     }
 
@@ -42,7 +47,6 @@ export class DashboardScene extends Phaser.Scene {
                 0x7dd3fc,
                 Phaser.Math.FloatBetween(0.08, 0.35)
             );
-
             this.tweens.add({
                 targets: dot,
                 alpha: Phaser.Math.FloatBetween(0.1, 0.55),
@@ -60,12 +64,14 @@ export class DashboardScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
-        const subtitle = this.add.text(72, 95, 'Progression, performances et état du compte', {
+        this.add.text(72, 95, 'Progression & statistics', {
             fontSize: '18px',
             fill: COLORS.muted
         });
 
-        const badge = this.add.text(width - 300, 58, 'LIVE SESSION', {
+        const user = authManager.getCurrentUser();
+        const accountLabel = user?.email || 'Guest Mode';
+        this.add.text(width - 300, 58, accountLabel, {
             fontSize: '14px',
             fill: '#d9f99d',
             backgroundColor: '#365314',
@@ -80,35 +86,20 @@ export class DashboardScene extends Phaser.Scene {
             yoyo: true,
             repeat: -1
         });
-
-        this.tweens.add({
-            targets: subtitle,
-            alpha: { from: 0.75, to: 1 },
-            duration: 1700,
-            yoyo: true,
-            repeat: -1
-        });
-
-        this.tweens.add({
-            targets: badge,
-            scale: { from: 1, to: 1.06 },
-            duration: 900,
-            yoyo: true,
-            repeat: -1
-        });
     }
 
     createTopStats(width) {
         const totalBosses = Object.keys(BOSSES).length;
         const defeated = GameData.defeatedBosses.size;
         const completion = Math.round((defeated / Math.max(totalBosses, 1)) * 100);
-        const user = authManager.getCurrentUser();
+
+        const unlockedAch = GameData.unlockedAchievements.size;
 
         const cards = [
-            { label: 'Compte', value: user?.email || 'Invité', color: 0x22d3ee },
-            { label: 'Boss vaincus', value: `${defeated}/${totalBosses}`, color: 0x34d399 },
-            { label: 'Complétion', value: `${completion}%`, color: 0xfbbf24 },
-            { label: 'Record tour', value: `${GameData.infiniteBest || 0}`, color: 0xa78bfa }
+            { label: 'Bosses Defeated', value: `${defeated}/${totalBosses}`, color: 0x34d399 },
+            { label: 'Completion', value: `${completion}%`, color: 0xfbbf24 },
+            { label: 'Tower Record', value: `Floor ${GameData.infiniteBest || 0}`, color: 0xa78bfa },
+            { label: 'Achievements', value: `${unlockedAch}/${ACHIEVEMENTS.length}`, color: 0x22d3ee },
         ];
 
         const margin = 70;
@@ -131,13 +122,10 @@ export class DashboardScene extends Phaser.Scene {
                 repeat: -1
             });
 
-            this.add.text(x + 16, y + 14, card.label, {
-                fontSize: '15px',
-                fill: COLORS.muted
-            });
+            this.add.text(x + 16, y + 14, card.label, { fontSize: '15px', fill: COLORS.muted });
 
             const valueText = this.add.text(x + 16, y + 50, card.value, {
-                fontSize: card.label === 'Compte' ? '22px' : '30px',
+                fontSize: '28px',
                 fill: COLORS.text,
                 fontStyle: 'bold',
                 wordWrap: { width: cardWidth - 30 }
@@ -153,85 +141,249 @@ export class DashboardScene extends Phaser.Scene {
         });
     }
 
-    createBossTable(width, height) {
-        const x = 70;
-        const y = 290;
-        const w = width - 140;
-        const h = height - 390;
+    createTabs(width) {
+        const tabs = [
+            { id: 'bosses', label: 'BOSSES' },
+            { id: 'stats', label: 'STATS' },
+            { id: 'achievements', label: 'ACHIEVEMENTS' },
+        ];
 
+        const tabY = 282;
+        const tabW = 160;
+        const startX = 70;
+
+        this._tabButtons = {};
+
+        tabs.forEach((tab, i) => {
+            const x = startX + i * (tabW + 8);
+            const isActive = tab.id === this._activeTab;
+
+            const bg = this.add.rectangle(x, tabY, tabW, 34, isActive ? 0x1e4a72 : 0x101d35, 1)
+                .setOrigin(0, 0.5)
+                .setStrokeStyle(1, isActive ? 0x38bdf8 : 0x2f4a74, 1)
+                .setInteractive({ useHandCursor: true });
+
+            const label = this.add.text(x + tabW / 2, tabY, tab.label, {
+                fontSize: '14px',
+                fill: isActive ? '#67e8f9' : COLORS.muted,
+                fontStyle: isActive ? 'bold' : 'normal'
+            }).setOrigin(0.5);
+
+            this._tabButtons[tab.id] = { bg, label };
+
+            bg.on('pointerdown', () => {
+                soundManager.playClick();
+                this._switchTab(tab.id, width, this.cameras.main.height);
+            });
+            bg.on('pointerover', () => {
+                if (tab.id !== this._activeTab) bg.setFillStyle(0x162e4a, 1);
+            });
+            bg.on('pointerout', () => {
+                if (tab.id !== this._activeTab) bg.setFillStyle(0x101d35, 1);
+            });
+        });
+    }
+
+    _switchTab(tabId, width, height) {
+        if (tabId === this._activeTab) return;
+
+        // Update tab button styles
+        Object.entries(this._tabButtons).forEach(([id, { bg, label }]) => {
+            const active = id === tabId;
+            bg.setFillStyle(active ? 0x1e4a72 : 0x101d35, 1);
+            bg.setStrokeStyle(1, active ? 0x38bdf8 : 0x2f4a74, 1);
+            label.setStyle({ fill: active ? '#67e8f9' : COLORS.muted, fontStyle: active ? 'bold' : 'normal' });
+        });
+
+        // Destroy current content
+        this._contentGroup.forEach(obj => obj?.destroy());
+        this._contentGroup = [];
+
+        this._activeTab = tabId;
+        this._renderTab(width, height);
+    }
+
+    _renderTab(width, height) {
+        switch (this._activeTab) {
+            case 'bosses':      this._renderBossesTab(width, height); break;
+            case 'stats':       this._renderStatsTab(width, height); break;
+            case 'achievements': this._renderAchievementsTab(width, height); break;
+        }
+    }
+
+    _panel(x, y, w, h) {
         const panel = this.add.rectangle(x, y, w, h, COLORS.panel, 0.9).setOrigin(0);
         panel.setStrokeStyle(1, COLORS.panelBorder, 0.95);
+        this._contentGroup.push(panel);
+        return panel;
+    }
 
-        const sweep = this.add.rectangle(x + w / 2, y + 30, w - 30, 2, 0x38bdf8, 0.08);
-        this.tweens.add({
-            targets: sweep,
-            y: y + h - 20,
-            alpha: { from: 0.03, to: 0.2 },
-            duration: 2800,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
+    _text(x, y, str, style) {
+        const t = this.add.text(x, y, str, style);
+        this._contentGroup.push(t);
+        return t;
+    }
+
+    // ── TAB: Bosses ───────────────────────────────────────────────────────
+    _renderBossesTab(width, height) {
+        const x = 70, y = 306, w = width - 140, h = height - 406;
+        this._panel(x, y, w, h);
+
+        this._text(x + 20, y + 18, 'BOSS STATUS', {
+            fontSize: '20px', fill: COLORS.accent, fontStyle: 'bold'
         });
 
-        this.add.text(x + 20, y + 18, 'BOSSES STATUS', {
-            fontSize: '20px',
-            fill: COLORS.accent,
-            fontStyle: 'bold'
-        });
-
-        const headers = ['Boss', 'ID', 'Statut'];
+        const headers = ['Boss', 'ID', 'Status'];
         const colX = [x + 28, x + w * 0.62, x + w * 0.78];
-
         headers.forEach((label, idx) => {
-            this.add.text(colX[idx], y + 56, label, {
-                fontSize: '16px',
-                fill: '#9fb5d8',
-                fontStyle: 'bold'
+            this._text(colX[idx], y + 54, label, {
+                fontSize: '16px', fill: '#9fb5d8', fontStyle: 'bold'
             });
         });
 
         const entries = Object.entries(BOSSES);
         entries.forEach(([bossId, boss], idx) => {
-            const rowY = y + 90 + idx * 33;
+            const rowY = y + 88 + idx * 30;
             const defeated = GameData.isBossDefeated(Number(bossId));
 
             if (idx % 2 === 0) {
-                this.add.rectangle(x + 12, rowY - 4, w - 24, 28, 0x152545, 0.35).setOrigin(0);
+                const row = this.add.rectangle(x + 12, rowY - 4, w - 24, 24, 0x152545, 0.35).setOrigin(0);
+                this._contentGroup.push(row);
             }
 
-            this.add.text(colX[0], rowY, boss.name || `Boss ${bossId}`, {
-                fontSize: '16px',
-                fill: COLORS.text
-            });
-
-            this.add.text(colX[1], rowY, `${bossId}`, {
-                fontSize: '16px',
-                fill: '#9fb5d8'
-            });
-
-            this.add.text(colX[2], rowY, defeated ? 'Vaincu' : 'Non vaincu', {
-                fontSize: '16px',
+            this._text(colX[0], rowY, boss.name || `Boss ${bossId}`, { fontSize: '15px', fill: COLORS.text });
+            this._text(colX[1], rowY, `${bossId}`, { fontSize: '15px', fill: '#9fb5d8' });
+            this._text(colX[2], rowY, defeated ? 'Defeated' : 'Pending', {
+                fontSize: '15px',
                 fill: defeated ? '#34d399' : '#fbbf24',
                 fontStyle: 'bold'
             });
         });
     }
 
+    // ── TAB: Stats ────────────────────────────────────────────────────────
+    _renderStatsTab(width, height) {
+        const x = 70, y = 306, w = width - 140, h = height - 406;
+        this._panel(x, y, w, h);
+
+        this._text(x + 20, y + 18, 'LIFETIME STATS', {
+            fontSize: '20px', fill: COLORS.accent, fontStyle: 'bold'
+        });
+
+        const s = GameData.stats;
+        const playTimeMin = Math.floor((s.totalPlayTime || 0) / 60);
+
+        const rows = [
+            ['Total Runs', s.totalRuns || 0],
+            ['Bosses Defeated', s.bossesDefeated || 0],
+            ['Total Dodges', s.totalDodges || 0],
+            ['Total Crits', s.totalCrits || 0],
+            ['Total Damage', Math.floor(s.totalDamage || 0).toLocaleString()],
+            ['No-Hit Clears', s.noHitBosses || 0],
+            ['Highest Combo', s.highestCombo || 0],
+            ['Tower Best Floor', GameData.infiniteBest || 0],
+            ['Time Played', `${playTimeMin} min`],
+        ];
+
+        const colMid = x + w / 2;
+
+        rows.forEach(([label, value], i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const cx = col === 0 ? x + 32 : colMid + 32;
+            const cy = y + 64 + row * 42;
+
+            if (i % 2 === 0) {
+                const divider = this.add.rectangle(x + 12, cy - 8, w - 24, 34, 0x152545, 0.3).setOrigin(0);
+                this._contentGroup.push(divider);
+            }
+
+            this._text(cx, cy, label, { fontSize: '14px', fill: COLORS.muted });
+            this._text(cx, cy + 16, `${value}`, { fontSize: '17px', fill: COLORS.text, fontStyle: 'bold' });
+        });
+    }
+
+    // ── TAB: Achievements ─────────────────────────────────────────────────
+    _renderAchievementsTab(width, height) {
+        const x = 70, y = 306, w = width - 140, h = height - 406;
+        this._panel(x, y, w, h);
+
+        const unlocked = GameData.unlockedAchievements.size;
+        this._text(x + 20, y + 18, `ACHIEVEMENTS  ${unlocked}/${ACHIEVEMENTS.length}`, {
+            fontSize: '20px', fill: COLORS.accent, fontStyle: 'bold'
+        });
+
+        const cols = 2;
+        const itemW = Math.floor((w - 48) / cols);
+        const itemH = 54;
+        const gap = 8;
+
+        ACHIEVEMENTS.forEach((ach, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const ix = x + 20 + col * (itemW + gap);
+            const iy = y + 56 + row * (itemH + gap);
+
+            const isUnlocked = GameData.isAchievementUnlocked(ach.id);
+            const rarityColor = RARITY_COLORS[ach.rarity] || '#9ca3af';
+            const rarityHex = parseInt(rarityColor.replace('#', ''), 16);
+
+            const cardBg = this.add.rectangle(ix, iy, itemW, itemH, isUnlocked ? 0x0e2840 : 0x0a1520, 0.95)
+                .setOrigin(0)
+                .setStrokeStyle(1, isUnlocked ? rarityHex : 0x2f4a74, isUnlocked ? 0.9 : 0.4);
+            this._contentGroup.push(cardBg);
+
+            const iconText = this._text(ix + 10, iy + itemH / 2, ach.icon, {
+                fontSize: '22px',
+                alpha: isUnlocked ? 1 : 0.3
+            }).setOrigin(0, 0.5);
+
+            this._text(ix + 42, iy + 10, ach.name, {
+                fontSize: '14px',
+                fill: isUnlocked ? COLORS.text : '#4a5568',
+                fontStyle: 'bold'
+            });
+
+            this._text(ix + 42, iy + 28, ach.description, {
+                fontSize: '11px',
+                fill: isUnlocked ? COLORS.muted : '#374151',
+                wordWrap: { width: itemW - 50 }
+            });
+
+            if (isUnlocked) {
+                this._text(ix + itemW - 8, iy + 8, ach.rarity.toUpperCase(), {
+                    fontSize: '9px',
+                    fill: rarityColor,
+                    fontStyle: 'bold'
+                }).setOrigin(1, 0);
+            } else {
+                this._text(ix + itemW / 2, iy + itemH / 2, '?', {
+                    fontSize: '20px',
+                    fill: '#374151',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+            }
+        });
+    }
+
+    // ── Action buttons ────────────────────────────────────────────────────
     createActionButtons(width, height) {
-        const startBtn = this.createButton(180, height - 60, 'LANCER UNE RUN', () => {
+        const startBtn = this.createButton(180, height - 50, 'START RUN', () => {
+            soundManager.playClick();
             this.scene.start('ClassSelectScene');
         });
 
-        const backBtn = this.createButton(width - 180, height - 60, 'RETOUR MENU', () => {
+        const backBtn = this.createButton(width - 180, height - 50, 'MAIN MENU', () => {
+            soundManager.playClick();
             this.scene.start('MenuScene');
         });
 
         [startBtn, backBtn].forEach((btn) => {
             btn.on('pointerover', () => {
+                soundManager.playHover();
                 btn.setScale(1.03);
                 btn.setStyle({ backgroundColor: '#0ea5e9', fill: '#041322' });
             });
-
             btn.on('pointerout', () => {
                 btn.setScale(1);
                 btn.setStyle({ backgroundColor: '#1a2b4f', fill: '#f8fbff' });

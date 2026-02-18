@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (UPDATED - Grappling Hook)
+// GameScene.js - Main gameplay scene
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -10,6 +10,9 @@ import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
 import { ThunderGauntletWeapon } from '../weapons/ThunderGauntletWeapon.js';
 import { SkillUI } from '../ui/SkillUI.js';
+import { AchievementNotifier } from '../ui/AchievementNotifier.js';
+import { ComboDisplay } from '../ui/ComboDisplay.js';
+import { soundManager } from '../utils/SoundManager.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -91,7 +94,16 @@ export class GameScene extends Phaser.Scene {
         
         // ✅ Create skill UI
         this.skillUI = new SkillUI(this);
-        
+
+        // Achievement notifier (checks + shows popups)
+        this.achievementNotifier = new AchievementNotifier(this);
+
+        // Combo display (consecutive hits tracker)
+        this.comboDisplay = new ComboDisplay(this, this.player);
+
+        // Start run tracking
+        GameData.startRun();
+
         // Input
         this.setupInput();
         
@@ -558,11 +570,15 @@ export class GameScene extends Phaser.Scene {
                     this.aimCurrentY - this.player.y,
                     this.aimCurrentX - this.player.x
                 );
-                
+
+                const weaponType = this.playerConfig?.weapon || 'SWORD';
                 if (!this.weapon.releaseCharge(angle)) {
                     this.weapon.attack(angle);
+                    soundManager.playWeaponFire(weaponType, false);
+                } else {
+                    soundManager.playWeaponFire(weaponType, true);
                 }
-                
+
                 if (this.chargeGraphics) {
                     this.chargeGraphics.destroy();
                     this.chargeGraphics = null;
@@ -639,13 +655,18 @@ export class GameScene extends Phaser.Scene {
     
     performDash() {
         if (!this.player) return;
-        
+
         const angle = Math.atan2(
             this.worldMouseY - this.player.y,
             this.worldMouseX - this.player.x
         );
-        
-        this.player.dash(Math.cos(angle), Math.sin(angle));
+
+        const dashed = this.player.dash(Math.cos(angle), Math.sin(angle));
+        if (dashed) {
+            soundManager.playDash();
+            GameData.recordDodge();
+            this.achievementNotifier?.check();
+        }
     }
     
 
@@ -903,6 +924,7 @@ export class GameScene extends Phaser.Scene {
                 
                 if (isFullyCharged && !this.chargeFlashShown) {
                     this.chargeFlashShown = true;
+                    soundManager.playChargeFull();
                     const flash = this.add.circle(this.player.x, this.player.y, 60, 0x00ff88, 0.3);
                     this.tweens.add({
                         targets: flash,
@@ -1007,6 +1029,22 @@ export class GameScene extends Phaser.Scene {
                     const finalDamage = proj.damage * damageMultiplier * critMultiplier;
                     this.boss.takeDamage(finalDamage);
 
+                    // Track damage & combo
+                    if (isCrit) {
+                        GameData.recordCrit(finalDamage);
+                    } else {
+                        GameData.recordDamage(finalDamage);
+                    }
+                    this.comboDisplay?.registerHit(isCrit);
+                    this.achievementNotifier?.check();
+
+                    // Play weapon hit sound
+                    if (isCrit) {
+                        soundManager.playCrit();
+                    } else {
+                        soundManager.playHit();
+                    }
+
                     if (isCrit) {
                         const critText = this.add.text(this.boss.x, this.boss.y - 92, 'CRIT!', {
                             fontSize: '22px',
@@ -1097,7 +1135,10 @@ export class GameScene extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
             if (dist < 25 && !this.player.isInvulnerable && !this.player.untargetable) {
                 this.player.takeDamage(10);
-                
+                GameData.recordDamageTaken(10);
+                this.comboDisplay?.reset();
+                soundManager.playPlayerHit();
+
                 const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);
                 this.tweens.add({
                     targets: hit,
@@ -1161,7 +1202,11 @@ export class GameScene extends Phaser.Scene {
         }
         
         // Game over
-        if (this.player.health <= 0) {
+        if (this.player.health <= 0 && !this._gameEndTriggered) {
+            this._gameEndTriggered = true;
+            soundManager.playDefeat();
+            GameData.endRun(false);
+            this.achievementNotifier?.check();
             this.scene.start('GameOverScene', {
                 victory: false,
                 bossId: this.bossId,
@@ -1170,8 +1215,12 @@ export class GameScene extends Phaser.Scene {
                 scaledHp: this.scaledHp,
                 infiniteFloor: this.infiniteFloor
             });
-        } else if (this.boss?.health <= 0) {
+        } else if (this.boss?.health <= 0 && !this._gameEndTriggered) {
+            this._gameEndTriggered = true;
+            soundManager.playVictory();
+            GameData.endRun(true);
             if (!this.infiniteFloor) GameData.unlockNextBoss();
+            this.achievementNotifier?.check();
             this.scene.start('GameOverScene', {
                 victory: true,
                 bossId: this.bossId,

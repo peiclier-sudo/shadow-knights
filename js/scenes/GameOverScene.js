@@ -1,6 +1,7 @@
 // GameOverScene.js - Victory/defeat screen
 import { GameData } from '../data/GameData.js';
 import { BOSSES } from '../data/BossData.js';
+import { soundManager } from '../utils/SoundManager.js';
 
 const TOTAL_BOSSES = Object.keys(BOSSES).length;
 
@@ -58,14 +59,30 @@ export class GameOverScene extends Phaser.Scene {
         
         if (this.victory) {
             const bossName = BOSSES[this.bossId]?.name || 'BOSS';
-            this.add.text(width/2, height/2 - 50, `${bossName} DEFEATED`, {
+            this.add.text(width/2, height/2 - 70, `${bossName} DEFEATED`, {
                 fontSize: '24px',
                 fill: '#fff',
                 stroke: '#000',
                 strokeThickness: 2
             }).setOrigin(0.5);
         }
-        
+
+        // Run stats summary
+        const rs = GameData.runStats;
+        const noHitLabel = this.victory && rs.noHit ? '  |  NO HIT' : '';
+        const elapsed = Math.floor((Date.now() - rs.startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+
+        const statLine = `Damage: ${Math.floor(rs.damage).toLocaleString()}  |  Crits: ${rs.crits}  |  Dodges: ${rs.dodges}  |  Best Combo: ${rs.highestCombo}x  |  Time: ${timeStr}${noHitLabel}`;
+        this.add.text(width/2, height/2 - 20, statLine, {
+            fontSize: '14px',
+            fill: '#aaa',
+            stroke: '#000',
+            strokeThickness: 1
+        }).setOrigin(0.5);
+
         // Buttons
         const buttonStyle = {
             fontSize: '28px',
@@ -81,9 +98,10 @@ export class GameOverScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
         
-        retryBtn.on('pointerover', () => retryBtn.setStyle({ fill: '#00d4ff' }));
+        retryBtn.on('pointerover', () => { soundManager.playHover(); retryBtn.setStyle({ fill: '#00d4ff' }); });
         retryBtn.on('pointerout', () => retryBtn.setStyle({ fill: '#fff' }));
         retryBtn.on('pointerdown', () => {
+            soundManager.playClick();
             this.scene.start('GameScene', {
                 playerConfig: this.playerConfig,
                 bossId: this.bossId,
@@ -98,9 +116,10 @@ export class GameOverScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
         
-        menuBtn.on('pointerover', () => menuBtn.setStyle({ fill: '#ff6600' }));
+        menuBtn.on('pointerover', () => { soundManager.playHover(); menuBtn.setStyle({ fill: '#ff6600' }); });
         menuBtn.on('pointerout', () => menuBtn.setStyle({ fill: '#fff' }));
         menuBtn.on('pointerdown', () => {
+            soundManager.playClick();
             this.scene.start('MenuScene');
         });
         
