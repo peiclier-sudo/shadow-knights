@@ -3,7 +3,7 @@ import { BOSSES } from '../data/BossData.js';
 
 export class Boss extends Phaser.GameObjects.Container {
     constructor(scene, bossId) {
-        super(scene, scene.cameras.main.width * 0.85, scene.cameras.main.height * 0.5);
+        super(scene, scene.cameras.main.width * 0.5, scene.cameras.main.height * 0.5);
         
         this.scene = scene;
         this.bossData = BOSSES[bossId];
