@@ -46,7 +46,7 @@ func physics_update(_delta: float) -> void:
 	actor.velocity.z = move_toward(actor.velocity.z, 0.0, 20.0 * _delta)
 
 func _flash_red() -> void:
-	var mesh := actor.get_node_or_null("MeshInstance3D")
+	var mesh: MeshInstance3D = actor.get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if not mesh:
 		return
 	var mat := mesh.get_active_material(0)

@@ -192,7 +192,7 @@ func get_lock_target() -> LockOnTarget:
 # ---------------------------------------------------------------------------
 
 func apply_impulse(strength: float) -> void:
-	var impulse_node := get_node_or_null("SpringArm/Camera/CameraImpulse")
+	var impulse_node: Node = get_node_or_null("SpringArm/Camera/CameraImpulse")
 	if impulse_node and impulse_node.has_method("trigger"):
 		impulse_node.trigger(strength)
 
