@@ -69,6 +69,15 @@ const WEAPON_GUIDE = {
     }
 };
 
+const BG = {
+    top: 0x050915,
+    bottom: 0x111d35,
+    panel: 0x101a30,
+    border: 0x2f4a74,
+    text: '#ecf4ff',
+    sub: '#8fa7cf'
+};
+
 export class ClassSelectScene extends Phaser.Scene {
     constructor() {
         super({ key: 'ClassSelectScene' });
@@ -391,6 +400,26 @@ export class ClassSelectScene extends Phaser.Scene {
             b.on('pointerover', () => b.setStyle({ fill: UI.btnHoverFill, backgroundColor: UI.btnHoverBg }));
             b.on('pointerout', () => b.setStyle({ fill: UI.btnFill, backgroundColor: UI.btnBg }));
         });
+
+        panel.on('pointerdown', () => {
+            this.cameras.main.fade(260, 5, 10, 20);
+            this.time.delayedCall(260, () => this.scene.start('WeaponSelectScene', { playerClass: classKey }));
+        });
+    }
+
+    createBackButton(x, y) {
+        const btn = this.add.text(x, y, '← BACK', {
+            fontSize: '20px',
+            fill: '#c8d7f4',
+            backgroundColor: '#182745',
+            stroke: '#3b82f6',
+            strokeThickness: 1,
+            padding: { x: 12, y: 7 }
+        }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+
+        btn.on('pointerdown', () => this.scene.start('MenuScene'));
+        btn.on('pointerover', () => btn.setStyle({ fill: '#031323', backgroundColor: '#67e8f9' }));
+        btn.on('pointerout', () => btn.setStyle({ fill: '#c8d7f4', backgroundColor: '#182745' }));
     }
 
     createBottomButton(x, y, label, onClick, left) {
