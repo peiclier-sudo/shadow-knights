@@ -1,4 +1,4 @@
-// ClassSelectScene.js - unified loadout with generated icons and denser layout
+// ClassSelectScene.js - unified loadout with denser and clearer gameplay descriptions
 import { CLASSES } from '../classes/classData.js';
 import { WEAPONS } from '../weapons/weaponData.js';
 import { SKILL_DATA } from '../skills/skillData.js';
@@ -16,6 +16,57 @@ const UI = {
     btnFill: '#c8d7f4',
     btnHoverBg: '#67e8f9',
     btnHoverFill: '#031323'
+};
+
+const CLASS_PASSIVES = {
+    WARRIOR: 'PASSIF — Frappe de guerre: toutes les 10 touches sur le boss, la prochaine attaque de base déclenche automatiquement une attaque chargée bonus.',
+    MAGE: 'PASSIF — Concentration arcanique: si vous ne subissez aucun dégât pendant 10s, vous gagnez +20% dégâts (cumulable 3 fois). Réinitialisé quand vous êtes touché.',
+    ROGUE: 'PASSIF — Instinct du prédateur: toutes les 3s sans subir de dégâts, +15% critique (jusqu\'à 60%). Le bonus repart à 0 quand vous êtes touché.'
+};
+
+const WEAPON_GUIDE = {
+    SWORD: {
+        fantasy: 'Épée polyvalente de duel: pression constante à mi-courte portée.',
+        basic: 'Attaque de base: slash rapide mono-cible, idéal pour maintenir un DPS régulier.',
+        charged: 'Charge: Piercing Laser — rayon perçant en ligne pour punir les ouvertures.',
+        ultimate: 'Ultimate (F): Sacred Radiance — grosse pression frontale en zone linéaire, excellent pour burst quand la jauge est pleine.',
+        logic: 'Logique: alterner attaques rapides pour charger l\'ultimate puis utiliser la charge/ultimate quand le boss est aligné.'
+    },
+    BOW: {
+        fantasy: 'Arc de contrôle: sécurité à longue portée et burst de zone.',
+        basic: 'Attaque de base: tir précis à longue portée pour kite et poke en continu.',
+        charged: 'Charge: Rain of Arrows — pluie de projectiles sur zone ciblée au sol.',
+        ultimate: 'Ultimate (F): Eclipse Barrage — salve massive à distance qui domine une grande zone.',
+        logic: 'Logique: rester mobile à distance, forcer les déplacements du boss, puis déclencher charge/ultimate sur ses patterns lents.'
+    },
+    STAFF: {
+        fantasy: 'Bâton arcanique: pression magique constante et dégâts soutenus.',
+        basic: 'Attaque de base: orbes homing perçants, très fiables même en mouvement.',
+        charged: 'Charge: Fireball — impact explosif + dégâts sur la durée (DoT).',
+        ultimate: 'Ultimate (F): Arcane Cataclysm — pic de dégâts magique sur une fenêtre courte.',
+        logic: 'Logique: empiler les touches avec les orbes, poser la Fireball sur les timings immobiles, puis convertir en burst avec l\'ultimate.'
+    },
+    DAGGERS: {
+        fantasy: 'Dagues agressives: cadence très élevée et pression rapprochée.',
+        basic: 'Attaque de base: lancer en éventail, très efficace au contact et en angle serré.',
+        charged: 'Charge: Poison Cloud — nuage au sol qui ralentit et use le boss dans la durée.',
+        ultimate: 'Ultimate (F): Shadow Frenzy — exécution ultra-mobile multi-frappes pour burst rapide.',
+        logic: 'Logique: coller le boss pour maximiser les projectiles, contrôler avec le poison, puis all-in avec l\'ultimate.'
+    },
+    GREATSWORD: {
+        fantasy: 'Espadon lourd: gros impact, contrôle et fenêtre de punition.',
+        basic: 'Attaque de base: onde de choc lente mais puissante.',
+        charged: 'Charge: Colossus Breaker — coup massif avec zone d\'impact et contrôle (stun).',
+        ultimate: 'Ultimate (F): Titan Collapse — énorme burst de mêlée en trajectoire engagée.',
+        logic: 'Logique: jouer le tempo, interrompre les phases dangereuses avec le contrôle, puis convertir en dégâts massifs.'
+    },
+    THUNDER_GAUNTLET: {
+        fantasy: 'Gantelet électrique: gameplay nerveux, dash offensif et vulnérabilité.',
+        basic: 'Attaque de base: arc plasma rapide pour pression continue à courte portée.',
+        charged: 'Charge: Thunder Snapback — traversée éclair + retour qui applique une vulnérabilité.',
+        ultimate: 'Ultimate (F): Stormbreaker Protocol — séquence électrique explosive avec très gros burst.',
+        logic: 'Logique: entrer/sortir vite, appliquer la vulnérabilité via la charge, puis claquer l\'ultimate pendant la fenêtre de fragilité.'
+    }
 };
 
 export class ClassSelectScene extends Phaser.Scene {
@@ -149,7 +200,7 @@ export class ClassSelectScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
-        const stats = this.add.text(-w / 2 + 10, -h / 2 + 30,
+        const stats = this.add.text(-w / 2 + 10, -h / 2 + 44,
             `HP ${data.baseHealth}  ST ${data.baseStamina}  SPD ${data.baseSpeed}\nDash: ${data.dash.name}\nRole: ${this.getClassRole(key)}`, {
                 fontSize: '13px',
                 fill: '#c0d4f4',
@@ -188,9 +239,9 @@ export class ClassSelectScene extends Phaser.Scene {
             const weapon = WEAPONS[key];
             const col = idx % cols;
             const row = Math.floor(idx / cols);
-            const x = startX + col * (cardW + 11);
-            const y = startY + row * (cardH + 10);
-            this.weaponCards[key] = this.createWeaponCard(x, y, cardW, cardH, key, weapon);
+            const wx = startX + col * (cardW + 11);
+            const wy = startY + row * (cardH + 10);
+            this.weaponCards[key] = this.createWeaponCard(wx, wy, cardW, cardH, key, weapon);
         });
     }
 
@@ -199,13 +250,13 @@ export class ClassSelectScene extends Phaser.Scene {
         const panel = this.add.rectangle(0, 0, w, h, UI.panelAlt, 0.95).setOrigin(0.5);
         panel.setStrokeStyle(2, weapon.color || 0x67e8f9, 0.42);
 
-                const title = this.add.text(-w / 2 + 10, -h / 2 + 10, weapon.name, {
+        const title = this.add.text(-w / 2 + 10, -h / 2 + 10, weapon.name, {
             fontSize: '14px',
             fill: '#f8fbff',
             fontStyle: 'bold'
         });
 
-        const meta = this.add.text(-w / 2 + 8, -h / 2 + 24,
+        const meta = this.add.text(-w / 2 + 8, -h / 2 + 36,
             `${weapon.projectile.damage} dmg • ${weapon.projectile.cooldown}ms\nRNG ${weapon.projectile.range} • ${weapon.charged.name}`, {
                 fontSize: '11px',
                 fill: '#c0d4f4',
@@ -238,14 +289,14 @@ export class ClassSelectScene extends Phaser.Scene {
         this.createPanel(x, classY, w, classBoxH, 'CLASS DESCRIPTION');
         this.createPanel(x, weaponY, w, weaponBoxH, 'WEAPON DESCRIPTION');
 
-        this.classDetailsText = this.add.text(x - w / 2 + 14, classY - classBoxH / 2 + 38, '', {
+        this.classDetailsText = this.add.text(x - w / 2 + 14, classY - classBoxH / 2 + 52, '', {
             fontSize: '14px',
             fill: '#d6e4ff',
             lineSpacing: 4,
             wordWrap: { width: w - 28 }
         });
 
-        this.weaponDetailsText = this.add.text(x - w / 2 + 14, weaponY - weaponBoxH / 2 + 38, '', {
+        this.weaponDetailsText = this.add.text(x - w / 2 + 14, weaponY - weaponBoxH / 2 + 52, '', {
             fontSize: '14px',
             fill: '#d6e4ff',
             lineSpacing: 4,
@@ -283,6 +334,22 @@ export class ClassSelectScene extends Phaser.Scene {
         }).join('\n');
     }
 
+    getWeaponGuideText(key, weapon) {
+        const guide = WEAPON_GUIDE[key];
+        if (!guide) {
+            return `${weapon.name}\n${weapon.description}\n\n` +
+                `Basic: ${weapon.projectile.damage} dmg, ${weapon.projectile.cooldown}ms, portée ${weapon.projectile.range}.\n` +
+                `Charge: ${weapon.charged.name}, ${weapon.charged.damage} dmg, charge ${weapon.charged.chargeTime}ms.\n` +
+                'Ultimate (F): déclenché à 100% de jauge, utilisé comme finisher de phase.';
+        }
+
+        return `${weapon.name}\n${guide.fantasy}\n\n` +
+            `${guide.basic}\n` +
+            `${guide.charged}\n` +
+            `${guide.ultimate}\n\n` +
+            `${guide.logic}`;
+    }
+
     refreshDetails() {
         const classData = CLASSES[this.selectedClass];
         const weapon = WEAPONS[this.selectedWeapon];
@@ -293,23 +360,13 @@ export class ClassSelectScene extends Phaser.Scene {
                 `Role: ${this.getClassRole(this.selectedClass)}\n` +
                 `Stats: HP ${classData.baseHealth} • ST ${classData.baseStamina} • SPD ${classData.baseSpeed}\n` +
                 `Dash: ${classData.dash.name}\n\n` +
+                `${CLASS_PASSIVES[this.selectedClass]}\n\n` +
                 `Skills\n${this.getClassSkillsText(classData)}`
             );
         }
 
         if (this.weaponDetailsText) {
-            this.weaponDetailsText.setText(
-                `${weapon.name}\n` +
-                `${weapon.description}\n\n` +
-                `Basic\n` +
-                `• Damage ${weapon.projectile.damage}\n` +
-                `• Cooldown ${weapon.projectile.cooldown}ms\n` +
-                `• Range ${weapon.projectile.range}\n\n` +
-                `Charged\n` +
-                `• ${weapon.charged.name}\n` +
-                `• Damage ${weapon.charged.damage}\n` +
-                `• Charge ${weapon.charged.chargeTime}ms`
-            );
+            this.weaponDetailsText.setText(this.getWeaponGuideText(this.selectedWeapon, weapon));
         }
     }
 
