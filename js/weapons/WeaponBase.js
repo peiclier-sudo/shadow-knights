@@ -32,7 +32,16 @@ export class WeaponBase {
                 this.player.multishot = 0;
             }
         }
-        
+
+        // Warrior passive: every 10 hits, next basic attack also releases a full charged attack.
+        if (this.player.autoChargedNextHit) {
+            this.player.autoChargedNextHit = false;
+            const previousCharge = this.chargeLevel;
+            this.chargeLevel = 1;
+            this.executeChargedAttack(angle);
+            this.chargeLevel = previousCharge;
+        }
+
         // Reset cooldown
         this.scene.time.delayedCall(this.data.projectile.cooldown, () => {
             this.player.canAttack = true;

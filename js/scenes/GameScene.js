@@ -614,6 +614,12 @@ export class GameScene extends Phaser.Scene {
                 this.skills.r.handleConfirmKeyUp();
             }
         });
+
+        this.input.keyboard.on('keyup-E', () => {
+            if (this.skills?.e?.handleConfirmKeyUp) {
+                this.skills.e.handleConfirmKeyUp();
+            }
+        });
     }
     
     setMoveTarget(x, y) {
@@ -993,36 +999,35 @@ export class GameScene extends Phaser.Scene {
                         proj.hasHit = true;
                     }
                     
-                    // Apply damage modifiers
-                    let damageMultiplier = (this.player.damageMultiplier || 1.0);
+                    const damageMultiplier = (this.player.damageMultiplier || 1.0) * (this.player.passiveDamageMultiplier || 1.0);
+                    const critChance = Phaser.Math.Clamp((this.player.critChanceBonus || 0), 0, 0.6);
+                    const isCrit = Math.random() < critChance;
+                    const critMultiplier = isCrit ? 2 : 1;
 
-                    // Rogue Backstab: consume buff on first valid hit from behind.
-                    if (this.player.backstabReady) {
-                        const isBehind = this.player.x > this.boss.x;
-                        if (isBehind) {
-                            damageMultiplier *= 3;
-                            this.player.backstabReady = false;
+                    const finalDamage = proj.damage * damageMultiplier * critMultiplier;
+                    this.boss.takeDamage(finalDamage);
 
-                            const backstabText = this.add.text(this.boss.x, this.boss.y - 90, 'BACKSTAB!', {
-                                fontSize: '24px',
-                                fill: '#ff66ff',
-                                stroke: '#000',
-                                strokeThickness: 4,
-                                fontStyle: 'bold'
-                            }).setOrigin(0.5);
+                    if (isCrit) {
+                        const critText = this.add.text(this.boss.x, this.boss.y - 92, 'CRIT!', {
+                            fontSize: '22px',
+                            fill: '#facc15',
+                            stroke: '#000',
+                            strokeThickness: 4,
+                            fontStyle: 'bold'
+                        }).setOrigin(0.5);
 
-                            this.tweens.add({
-                                targets: backstabText,
-                                y: this.boss.y - 130,
-                                alpha: 0,
-                                duration: 450,
-                                onComplete: () => backstabText.destroy()
-                            });
-                        }
+                        this.tweens.add({
+                            targets: critText,
+                            y: this.boss.y - 126,
+                            alpha: 0,
+                            duration: 420,
+                            onComplete: () => critText.destroy()
+                        });
                     }
 
-                    const finalDamage = proj.damage * damageMultiplier;
-                    this.boss.takeDamage(finalDamage);
+                    if (typeof this.player.classData?.onBossHit === 'function') {
+                        this.player.classData.onBossHit();
+                    }
                     this.weapon?.gainUltimateGaugeFromDamage(finalDamage, {
                         charged: !!proj.isCharged,
                         dot: !!proj.isDot
