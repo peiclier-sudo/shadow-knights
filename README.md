@@ -10,6 +10,7 @@ Boss Rush Soulslike en 2D avec contrôles mobiles et desktop.
 - ✅ Contrôles tactiles pour mobile
 - ✅ Progression sauvegardée (localStorage)
 - ✅ Statistiques de victoires
+- ✅ Authentification Email (Register/Login Supabase)
 
 ## 🚀 Déploiement Vercel (GRATUIT)
 
@@ -64,6 +65,7 @@ npx serve public
 
 ## 📊 Next Steps
 
+- [x] Setup Supabase Auth (register/login)
 - [ ] Setup Supabase pour leaderboard
 - [ ] Ajouter un 2ème boss
 - [ ] Système de combos
