@@ -959,8 +959,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
                 const dmg = cfg.blitzDamage * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(dmg);
-                // Halved: ultimate damage fills next gauge at 50% rate to prevent spam
-                this.gainUltimateGaugeFromDamage(dmg * 0.5, { charged: true });
+                // No gauge gain from the ultimate's own damage — prevents immediate re-use
                 boss.setTint(0x98e2ff);
                 this.scene.time.delayedCall(60, () => boss?.clearTint?.());
 
@@ -1147,8 +1146,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
         const empDamage = cfg.empDamage * (this.player.damageMultiplier || 1.0);
         boss.takeDamage(empDamage);
-        // Halved: ultimate damage fills next gauge at 50% rate to prevent spam
-        this.gainUltimateGaugeFromDamage(empDamage * 0.5, { charged: true });
+        // No gauge gain from the ultimate's own damage — prevents immediate re-use
         boss.setTint(0xe8fbff);
 
         const knockAngle = Math.atan2(boss.y - this.player.y, boss.x - this.player.x);

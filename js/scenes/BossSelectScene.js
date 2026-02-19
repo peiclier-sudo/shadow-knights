@@ -3,14 +3,19 @@ import { BOSSES } from '../data/BossData.js';
 import { GameData } from '../data/GameData.js';
 
 const UI = {
-    bgTop:    0x050915,
-    bgBottom: 0x111d35,
-    panel:    0x0d1628,
-    border:   0x29446f,
-    accent:   '#67e8f9',
-    text:     '#ecf4ff',
-    sub:      '#8fa7cf',
-    muted:    '#6e86ad',
+    bgTop:      0x050915,
+    bgBottom:   0x111d35,
+    panel:      0x101a30,
+    panelAlt:   0x132341,
+    border:     0x2f4a74,
+    text:       '#ecf4ff',
+    sub:        '#8fa7cf',
+    muted:      '#6e86ad',
+    btnBg:      '#182745',
+    btnBorder:  '#3b82f6',
+    btnFill:    '#c8d7f4',
+    btnHoverBg: '#67e8f9',
+    btnHoverFill: '#031323',
 };
 
 const hexStr = n => '#' + n.toString(16).padStart(6, '0');
@@ -26,259 +31,205 @@ export class BossSelectScene extends Phaser.Scene {
     }
 
     create() {
-        this.w = this.cameras.main.width;
-        this.h = this.cameras.main.height;
+        const width  = this.cameras.main.width;
+        const height = this.cameras.main.height;
 
-        this._drawBackground();
-        this._drawHeader();
-        this._drawBossGrid();
-        this._drawFooter();
+        this._drawBackground(width, height);
+
+        // ── Title block — same position/style as ClassSelectScene ──────────
+        this.add.text(width / 2, 50, 'BOSS SELECT', {
+            fontSize: '48px',
+            fill: UI.text,
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.add.text(width / 2, 96, `${this.playerClass}  ·  ${this.weapon}  —  choose your next encounter`, {
+            fontSize: '20px',
+            fill: UI.sub
+        }).setOrigin(0.5);
+
+        // ── Boss card grid ─────────────────────────────────────────────────
+        this._drawGrid(width, height);
+
+        // ── Bottom navigation — same style as ClassSelectScene ─────────────
+        this._drawBottomButtons(width, height);
     }
 
-    _drawBackground() {
-        const { w, h } = this;
-
-        // Gradient fill
+    _drawBackground(width, height) {
+        // Gradient
         const bg = this.add.graphics();
         bg.fillGradientStyle(UI.bgTop, UI.bgTop, UI.bgBottom, UI.bgBottom, 1);
-        bg.fillRect(0, 0, w, h);
+        bg.fillRect(0, 0, width, height);
 
-        // Animated particles
-        for (let i = 0; i < 55; i++) {
-            const star = this.add.circle(
-                Phaser.Math.Between(0, w),
-                Phaser.Math.Between(0, h),
+        // Animated particles — same as ClassSelectScene (100, 0x67e8f9)
+        for (let i = 0; i < 100; i++) {
+            const p = this.add.circle(
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
                 Phaser.Math.Between(1, 2),
-                0x60a5fa,
-                Phaser.Math.FloatBetween(0.05, 0.22)
+                0x67e8f9,
+                Phaser.Math.FloatBetween(0.05, 0.28)
             );
             this.tweens.add({
-                targets: star,
-                alpha: Phaser.Math.FloatBetween(0.02, 0.3),
-                y: star.y + Phaser.Math.Between(-20, 20),
-                duration: Phaser.Math.Between(2000, 5000),
-                ease: 'Sine.easeInOut',
+                targets: p,
+                alpha: Phaser.Math.FloatBetween(0.05, 0.35),
+                duration: Phaser.Math.Between(1700, 3900),
                 yoyo: true,
                 repeat: -1
             });
         }
     }
 
-    _drawHeader() {
-        const { w } = this;
+    _drawGrid(width, height) {
+        const bossIds = Object.keys(BOSSES).map(Number).sort((a, b) => a - b);
+        const count   = bossIds.length;
 
-        // Header bar
-        const hdr = this.add.graphics().setDepth(10);
-        hdr.fillStyle(0x080f1e, 0.98);
-        hdr.fillRect(0, 0, w, 68);
-        hdr.lineStyle(1, UI.border, 0.8);
-        hdr.lineBetween(0, 68, w, 68);
+        // Two rows of 5 when 10 bosses; adjust for other counts
+        const cols = count > 6 ? Math.ceil(count / 2) : count;
+        const rows = Math.ceil(count / cols);
 
-        // Scanline
-        const scan = this.add.rectangle(w / 2, 34, w, 2, 0x38bdf8, 0.06).setDepth(10);
-        this.tweens.add({
-            targets: scan,
-            alpha: { from: 0.02, to: 0.14 },
-            duration: 2800,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-        });
+        const contentTop    = 130;
+        const contentBottom = height - 70;
+        const contentH      = contentBottom - contentTop;
 
-        // Title
-        const title = this.add.text(w / 2, 34, 'SELECT BOSS', {
-            fontSize: '26px',
-            fill: UI.text,
-            fontStyle: 'bold',
-            stroke: '#22d3ee',
-            strokeThickness: 1,
-        }).setOrigin(0.5).setDepth(11);
+        const CARD_W = Math.min(158, Math.floor((width - 100) / cols) - 14);
+        const CARD_H = Math.min(210, Math.floor(contentH / rows) - 16);
+        const GAP_X  = Math.floor((width - 100 - cols * CARD_W) / (cols + 1));
+        const GAP_Y  = Math.floor((contentH - rows * CARD_H) / (rows + 1));
 
-        this.tweens.add({
-            targets: title,
-            alpha: { from: 0.85, to: 1 },
-            duration: 1800,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-        });
-
-        // Back button
-        const back = this.add.text(24, 34, '‹  BACK', {
-            fontSize: '15px',
-            fill: UI.sub,
-            fontStyle: 'bold',
-            backgroundColor: '#0d1a2e',
-            padding: { x: 12, y: 7 }
-        }).setOrigin(0, 0.5).setDepth(11).setInteractive({ useHandCursor: true });
-
-        back.on('pointerover', () => back.setStyle({ fill: UI.accent }));
-        back.on('pointerout',  () => back.setStyle({ fill: UI.sub }));
-        back.on('pointerdown', () => {
-            this.scene.start('WeaponSelectScene', { playerClass: this.playerClass });
-        });
-
-        // Class · weapon badge
-        this.add.text(w - 20, 34, `${this.playerClass}  ·  ${this.weapon}`, {
-            fontSize: '12px', fill: UI.muted
-        }).setOrigin(1, 0.5).setDepth(11);
-    }
-
-    _drawBossGrid() {
-        const { w, h } = this;
-
-        const bossIds  = Object.keys(BOSSES).map(Number).sort((a, b) => a - b);
-        const count    = bossIds.length;
-
-        // Layout — two rows of 5 if 10 bosses, else single row
-        const cols     = count > 6 ? Math.ceil(count / 2) : count;
-        const rows     = Math.ceil(count / cols);
-
-        const CARD_W   = Math.min(160, Math.floor((w - 100) / cols) - 12);
-        const CARD_H   = 220;
-        const GAP_X    = Math.floor((w - 100) / cols) - CARD_W + 12;
-        const GAP_Y    = 24;
-
-        const totalW   = cols * CARD_W + (cols - 1) * GAP_X;
-        const totalH   = rows * CARD_H + (rows - 1) * GAP_Y;
-        const startX   = w / 2 - totalW / 2;
-        const startY   = h / 2 - totalH / 2 + 10;
+        const gridW  = cols * CARD_W + (cols - 1) * GAP_X;
+        const gridH  = rows * CARD_H + (rows - 1) * GAP_Y;
+        const startX = width / 2 - gridW / 2;
+        const startY = contentTop + (contentH - gridH) / 2;
 
         bossIds.forEach((bossId, idx) => {
-            const col  = idx % cols;
-            const row  = Math.floor(idx / cols);
-            const cx   = startX + col * (CARD_W + GAP_X) + CARD_W / 2;
-            const cy   = startY + row * (CARD_H + GAP_Y) + CARD_H / 2;
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx  = startX + col * (CARD_W + GAP_X) + CARD_W / 2;
+            const cy  = startY + row * (CARD_H + GAP_Y) + CARD_H / 2;
             this._drawCard(bossId, cx, cy, CARD_W, CARD_H);
         });
     }
 
     _drawCard(bossId, cx, cy, cw, ch) {
-        const bossData  = BOSSES[bossId];
-        const unlocked  = bossId <= GameData.unlockedBosses;
-        const defeated  = GameData.isBossDefeated(bossId);
-        const colorNum  = bossData.color;
-        const glowNum   = bossData.glowColor;
-        const colorS    = hexStr(colorNum);
-        const glowS     = hexStr(glowNum);
+        const bossData = BOSSES[bossId];
+        const unlocked = bossId <= GameData.unlockedBosses;
+        const defeated = GameData.isBossDefeated(bossId);
+        const colorNum = bossData.color;
+        const glowNum  = bossData.glowColor;
+        const glowS    = hexStr(glowNum);
 
-        const alpha = defeated ? 0.45 : unlocked ? 1 : 0.3;
+        const alpha = defeated ? 0.48 : unlocked ? 1 : 0.28;
 
-        // ── Card panel ──
+        // ── Panel ──
         const bg = this.add.graphics().setDepth(5).setAlpha(alpha);
-        bg.fillStyle(UI.panel, 1);
-        bg.fillRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 8);
-        // Boss-colour tint overlay on lower half
-        bg.fillStyle(colorNum, 0.06);
-        bg.fillRoundedRect(cx - cw / 2, cy, cw, ch / 2, { bl: 8, br: 8, tl: 0, tr: 0 });
-        // Border
-        bg.lineStyle(1, unlocked ? glowNum : UI.border, unlocked ? 0.45 : 0.15);
-        bg.strokeRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 8);
+        bg.fillStyle(UI.panelAlt, 1);
+        bg.fillRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 7);
+        // Colour tint on lower third
+        bg.fillStyle(colorNum, 0.07);
+        bg.fillRoundedRect(cx - cw / 2, cy + ch / 6, cw, ch / 3,
+            { bl: 7, br: 7, tl: 0, tr: 0 });
+        // Border — matching ClassSelectScene panel stroke style
+        bg.lineStyle(2, unlocked ? glowNum : UI.border, unlocked ? 0.42 : 0.18);
+        bg.strokeRoundedRect(cx - cw / 2, cy - ch / 2, cw, ch, 7);
 
-        // Top colour stripe
+        // Top colour stripe (same 3px stripe as ClassSelectScene panels use via createPanel)
         const stripe = this.add.graphics().setDepth(6).setAlpha(alpha);
-        stripe.fillStyle(colorNum, 0.9);
-        stripe.fillRoundedRect(cx - cw / 2, cy - ch / 2, cw, 3, { tl: 8, tr: 8, bl: 0, br: 0 });
+        stripe.fillStyle(colorNum, 0.85);
+        stripe.fillRoundedRect(cx - cw / 2, cy - ch / 2, cw, 3,
+            { tl: 7, tr: 7, bl: 0, br: 0 });
 
-        // Glow ring for active/unlocked card
+        // Pulsing border glow for fight-ready cards
         if (unlocked && !defeated) {
-            const glowBorder = this.add.graphics().setDepth(4);
-            glowBorder.lineStyle(2, glowNum, 0.35);
-            glowBorder.strokeRoundedRect(cx - cw / 2 - 1, cy - ch / 2 - 1, cw + 2, ch + 2, 9);
+            const glow = this.add.graphics().setDepth(4);
+            glow.lineStyle(2, glowNum, 0.3);
+            glow.strokeRoundedRect(cx - cw / 2 - 1, cy - ch / 2 - 1, cw + 2, ch + 2, 8);
             this.tweens.add({
-                targets: glowBorder, alpha: { from: 0.15, to: 0.65 },
-                duration: 1400, ease: 'Sine.easeInOut', yoyo: true, repeat: -1
+                targets: glow, alpha: { from: 0.12, to: 0.7 },
+                duration: 1300, ease: 'Sine.easeInOut', yoyo: true, repeat: -1
             });
         }
 
         // ── Boss orb ──
-        const orbY = cy - ch / 2 + 52;
+        const orbY = cy - ch / 2 + 50;
         if (unlocked) {
-            const orbGlow = this.add.circle(cx, orbY, 30, glowNum, 0.12)
+            const orbGlow = this.add.circle(cx, orbY, 28, glowNum, 0.14)
                 .setDepth(7).setAlpha(alpha);
-            const orb = this.add.circle(cx, orbY, 24, colorNum, defeated ? 0.35 : 0.85)
+            const orb = this.add.circle(cx, orbY, 22, colorNum, defeated ? 0.38 : 0.88)
                 .setDepth(8).setAlpha(alpha);
             orb.setStrokeStyle(2, glowNum, 0.9);
-            this.add.circle(cx, orbY, 7, 0xffffff, defeated ? 0.25 : 0.9)
+            this.add.circle(cx, orbY, 6, 0xffffff, defeated ? 0.22 : 0.9)
                 .setDepth(9).setAlpha(alpha);
-
             if (!defeated) {
                 this.tweens.add({
-                    targets: orbGlow, scale: 1.4, alpha: 0.04,
+                    targets: orbGlow, scale: 1.45, alpha: 0.04,
                     duration: 1100, ease: 'Sine.easeInOut', yoyo: true, repeat: -1
                 });
             }
         } else {
-            this.add.circle(cx, orbY, 24, 0x111a2a, 0.7)
-                .setStrokeStyle(1, 0x1d2d4a, 0.5).setDepth(7);
-            // Lock icon
-            const lockG = this.add.graphics().setDepth(8).setAlpha(0.4);
-            lockG.fillStyle(0x29446f, 0.7);
-            lockG.fillRoundedRect(cx - 9, orbY - 2, 18, 14, 3);
-            lockG.lineStyle(2.5, 0x29446f, 0.9);
-            lockG.beginPath();
-            lockG.arc(cx, orbY - 2, 7, Math.PI, 0, false);
-            lockG.strokePath();
+            this.add.circle(cx, orbY, 22, 0x0d1628, 0.8)
+                .setStrokeStyle(1, UI.border, 0.5).setDepth(7);
+            const lg = this.add.graphics().setDepth(8).setAlpha(0.35);
+            lg.fillStyle(UI.border, 0.8);
+            lg.fillRoundedRect(cx - 8, orbY - 1, 16, 12, 3);
+            lg.lineStyle(2, UI.border, 0.9);
+            lg.beginPath(); lg.arc(cx, orbY - 1, 6, Math.PI, 0, false); lg.strokePath();
         }
 
         // ── Boss number badge ──
-        const badgeG = this.add.graphics().setDepth(7).setAlpha(alpha);
-        badgeG.fillStyle(0x060d1a, 0.95);
-        badgeG.fillRoundedRect(cx - cw / 2 + 8, cy - ch / 2 + 8, 28, 20, 4);
-        badgeG.lineStyle(1, glowNum, unlocked ? 0.5 : 0.2);
-        badgeG.strokeRoundedRect(cx - cw / 2 + 8, cy - ch / 2 + 8, 28, 20, 4);
-        this.add.text(cx - cw / 2 + 22, cy - ch / 2 + 18, String(bossId), {
-            fontSize: '10px', fill: unlocked ? glowS : '#334455', fontStyle: 'bold'
+        const nb = this.add.graphics().setDepth(7).setAlpha(alpha);
+        nb.fillStyle(0x0a1020, 0.95);
+        nb.fillRoundedRect(cx - cw / 2 + 7, cy - ch / 2 + 7, 26, 18, 4);
+        nb.lineStyle(1, glowNum, unlocked ? 0.5 : 0.18);
+        nb.strokeRoundedRect(cx - cw / 2 + 7, cy - ch / 2 + 7, 26, 18, 4);
+        this.add.text(cx - cw / 2 + 20, cy - ch / 2 + 16, String(bossId), {
+            fontSize: '10px', fill: unlocked ? glowS : '#2a3a4a', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(8).setAlpha(alpha);
 
-        // ── Text content ──
-        const textY = cy - ch / 2 + 90;
-
+        // ── Text ──
+        const textY = cy - ch / 2 + 84;
         this.add.text(cx, textY, unlocked ? bossData.name : '? ? ? ? ?', {
-            fontSize: '14px',
-            fill: unlocked ? (defeated ? UI.muted : UI.text) : '#1e2a3a',
-            fontStyle: 'bold',
-            wordWrap: { width: cw - 16 },
-            align: 'center'
+            fontSize: '14px', fill: unlocked ? (defeated ? UI.muted : UI.text) : '#1a2535',
+            fontStyle: 'bold', wordWrap: { width: cw - 14 }, align: 'center'
         }).setOrigin(0.5, 0).setDepth(8).setAlpha(alpha);
 
         if (unlocked) {
             this.add.text(cx, textY + 22, bossData.attackType || '', {
-                fontSize: '10px',
-                fill: glowS,
-                fontStyle: 'italic'
+                fontSize: '10px', fill: glowS, fontStyle: 'italic'
             }).setOrigin(0.5, 0).setDepth(8).setAlpha(alpha);
 
+            // Divider
+            const dv = this.add.graphics().setDepth(7).setAlpha(alpha * 0.5);
+            const dvY = cy + ch / 2 - 54;
+            dv.lineStyle(1, UI.border, 0.7);
+            dv.lineBetween(cx - cw / 2 + 12, dvY, cx + cw / 2 - 12, dvY);
+
             // HP
-            const hpY = cy + ch / 2 - 50;
-            const hpG = this.add.graphics().setDepth(7).setAlpha(alpha);
-            hpG.lineStyle(1, 0x29446f, 0.5);
-            hpG.lineBetween(cx - cw / 2 + 14, hpY - 10, cx + cw / 2 - 14, hpY - 10);
-            this.add.text(cx, hpY + 2, `${bossData.hp} HP`, {
-                fontSize: '13px', fill: defeated ? '#4a6040' : '#d4a040', fontStyle: 'bold'
+            this.add.text(cx, dvY + 8, `${bossData.hp}  HP`, {
+                fontSize: '13px', fill: defeated ? '#3a5040' : '#c8952a', fontStyle: 'bold'
             }).setOrigin(0.5, 0).setDepth(8).setAlpha(alpha);
 
             // Status badge
-            const badY = cy + ch / 2 - 22;
-            const statusLabel = defeated ? 'CLEARED' : 'FIGHT';
-            const statusColor = defeated ? 0x00ff88 : glowNum;
-            const statusBg    = defeated ? 0x001a0d : 0x050f1a;
-            const pillW = statusLabel.length * 6.5 + 18;
+            const label      = defeated ? 'CLEARED' : 'FIGHT';
+            const badgeColor = defeated ? 0x00ff88 : glowNum;
+            const badgeBg    = defeated ? 0x001a0d : 0x060f1c;
+            const pillW = label.length * 6.5 + 18;
+            const badY  = cy + ch / 2 - 16;
 
             const pillG = this.add.graphics().setDepth(7).setAlpha(alpha);
-            pillG.fillStyle(statusBg, 0.85);
+            pillG.fillStyle(badgeBg, 0.9);
             pillG.fillRoundedRect(cx - pillW / 2, badY - 9, pillW, 18, 9);
-            pillG.lineStyle(1, statusColor, defeated ? 0.6 : 0.9);
+            pillG.lineStyle(1, badgeColor, defeated ? 0.55 : 0.9);
             pillG.strokeRoundedRect(cx - pillW / 2, badY - 9, pillW, 18, 9);
-            this.add.text(cx, badY, statusLabel, {
-                fontSize: '10px', fill: hexStr(statusColor), fontStyle: 'bold'
+            this.add.text(cx, badY, label, {
+                fontSize: '10px', fill: hexStr(badgeColor), fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(8).setAlpha(alpha);
 
             if (!defeated) {
                 this.tweens.add({
                     targets: pillG,
-                    alpha: { from: alpha * 0.5, to: alpha },
-                    duration: 800, ease: 'Sine.easeInOut', yoyo: true, repeat: -1
+                    alpha: { from: alpha * 0.45, to: alpha },
+                    duration: 750, ease: 'Sine.easeInOut', yoyo: true, repeat: -1
                 });
             }
         }
@@ -290,16 +241,16 @@ export class BossSelectScene extends Phaser.Scene {
             .setDepth(20).setInteractive({ useHandCursor: true });
 
         hit.on('pointerover', () => {
-            this.tweens.add({ targets: bg, alpha: Math.min(alpha + 0.15, 1), duration: 150 });
-            this.tweens.add({ targets: [hit], scaleX: 1.03, scaleY: 1.03, duration: 150 });
+            this.tweens.add({ targets: bg, alpha: Math.min(alpha + 0.18, 1), duration: 130 });
+            this.tweens.add({ targets: hit, scaleX: 1.03, scaleY: 1.03, duration: 130 });
         });
         hit.on('pointerout', () => {
-            this.tweens.add({ targets: bg, alpha, duration: 150 });
-            this.tweens.add({ targets: [hit], scaleX: 1, scaleY: 1, duration: 150 });
+            this.tweens.add({ targets: bg, alpha, duration: 130 });
+            this.tweens.add({ targets: hit, scaleX: 1, scaleY: 1, duration: 130 });
         });
         hit.on('pointerdown', () => {
-            this.cameras.main.fade(350, 5, 9, 21);
-            this.time.delayedCall(350, () => {
+            this.cameras.main.fade(260, 5, 10, 20);
+            this.time.delayedCall(260, () => {
                 this.scene.start('GameScene', {
                     playerConfig: { class: this.playerClass, weapon: this.weapon },
                     bossId
@@ -308,32 +259,32 @@ export class BossSelectScene extends Phaser.Scene {
         });
     }
 
-    _drawFooter() {
-        const { w, h } = this;
+    _drawBottomButtons(width, height) {
+        const y = height - 32;
 
-        // Gradient fade at bottom
-        const fade = this.add.graphics().setDepth(8);
-        for (let i = 0; i < 40; i++) {
-            fade.fillStyle(UI.bgBottom, i / 40 * 0.7);
-            fade.fillRect(0, h - 60 + i, w, 1);
-        }
+        // ← BACK — identical style to ClassSelectScene createBottomButton
+        const backBtn = this.add.text(80, y, '← BACK', {
+            fontSize: '20px',
+            fill: UI.btnFill,
+            backgroundColor: UI.btnBg,
+            stroke: UI.btnBorder,
+            strokeThickness: 1,
+            padding: { x: 12, y: 7 }
+        }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
 
+        backBtn.on('pointerdown', () => {
+            this.scene.start('WeaponSelectScene', { playerClass: this.playerClass });
+        });
+        backBtn.on('pointerover', () =>
+            backBtn.setStyle({ fill: UI.btnHoverFill, backgroundColor: UI.btnHoverBg }));
+        backBtn.on('pointerout', () =>
+            backBtn.setStyle({ fill: UI.btnFill, backgroundColor: UI.btnBg }));
+
+        // Progress indicator — centre
         const total    = Object.keys(BOSSES).length;
         const defeated = GameData.defeatedBosses.size;
-
-        this.add.text(w / 2, h - 28, `${defeated} / ${total}  BOSSES CLEARED`, {
-            fontSize: '12px', fill: UI.muted
-        }).setOrigin(0.5).setDepth(9);
-
-        // Progress bar
-        const bw = 260;
-        const bx = w / 2 - bw / 2;
-        const barG = this.add.graphics().setDepth(9);
-        barG.fillStyle(0x111d35, 1);
-        barG.fillRoundedRect(bx, h - 14, bw, 4, 2);
-        if (defeated > 0) {
-            barG.fillStyle(0x67e8f9, 0.7);
-            barG.fillRoundedRect(bx, h - 14, bw * (defeated / total), 4, 2);
-        }
+        this.add.text(width / 2, y, `${defeated} / ${total}  bosses cleared`, {
+            fontSize: '15px', fill: UI.muted
+        }).setOrigin(0.5);
     }
 }
