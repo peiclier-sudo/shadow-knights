@@ -390,6 +390,7 @@ export class GameScene extends Phaser.Scene {
         }).setScrollFactor(0);
 
         this.createWeaponHelpButtons(width, height);
+        this.createPotionButton(width, height);
 
         this.rangePreviewToggleText = this.add.text(width - 28, 80, '', {
             fontSize: '14px',
@@ -402,7 +403,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 46, 
-            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS (HOOK: R then R)', {
+            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS | 1: POTION', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -445,6 +446,73 @@ export class GameScene extends Phaser.Scene {
             { shape: 'circle', x, y, radius: 34 },
             { shape: 'rect', x: x + 50, y: y - 8, w: 120, h: 26 }
         ];
+    }
+
+    createPotionButton(width, height) {
+        this.potionCount = 2;
+
+        const px = 160;
+        const py = height - 92;
+
+        const ring = this.add.circle(px, py, 34, 0x000000, 0.68)
+            .setScrollFactor(0).setDepth(210)
+            .setStrokeStyle(2, 0x44ff99, 0.95)
+            .setInteractive({ useHandCursor: true });
+
+        const icon = this.add.text(px, py - 4, '🧪', { fontSize: '24px' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(211)
+            .setInteractive({ useHandCursor: true });
+
+        this.potionCountText = this.add.text(px + 16, py + 14, `×${this.potionCount}`, {
+            fontSize: '13px', fill: '#aaffcc', stroke: '#000', strokeThickness: 2
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(212);
+
+        const label = this.add.text(px + 50, py - 8, '[1] POTION', {
+            fontSize: '12px', fill: '#aaffcc',
+            backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(211)
+          .setInteractive({ useHandCursor: true });
+
+        [ring, icon, label].forEach(obj => {
+            obj.on('pointerdown', () => this.usePotion());
+            obj.on('pointerover', () => { ring.setFillStyle(0x002211, 0.85); });
+            obj.on('pointerout',  () => { ring.setFillStyle(0x000000, 0.68); });
+        });
+
+        this._potionRing = ring;
+    }
+
+    usePotion() {
+        if (this.potionCount <= 0) return;
+        if (!this.player) return;
+        if (this.player.health >= this.player.maxHealth) return;
+
+        const healAmount = Math.round(this.player.maxHealth * 0.3);
+        this.player.health = Math.min(this.player.maxHealth, this.player.health + healAmount);
+        this.potionCount--;
+
+        // Update count display
+        if (this.potionCountText) this.potionCountText.setText(`×${this.potionCount}`);
+
+        // Dim the ring when empty
+        if (this.potionCount === 0 && this._potionRing) {
+            this._potionRing.setStrokeStyle(2, 0x334433, 0.5);
+            this._potionRing.setFillStyle(0x000000, 0.35);
+        }
+
+        // Green heal flash on player
+        const flash = this.add.circle(this.player.x, this.player.y, 38, 0x44ff88, 0.35);
+        this.tweens.add({ targets: flash, scale: 1.7, alpha: 0, duration: 420,
+            onComplete: () => flash.destroy() });
+
+        // Floating heal number
+        const num = this.add.text(this.player.x, this.player.y - 30,
+            `+${healAmount} HP`, {
+            fontSize: '18px', fill: '#44ff88',
+            stroke: '#000', strokeThickness: 2
+        }).setScrollFactor(1).setDepth(300);
+        this.tweens.add({ targets: num, y: num.y - 45, alpha: 0, duration: 900,
+            onComplete: () => num.destroy() });
     }
 
     showWeaponHelpTooltip(x, y) {
@@ -648,6 +716,11 @@ export class GameScene extends Phaser.Scene {
             if (this.skills?.e?.handleConfirmKeyUp) {
                 this.skills.e.handleConfirmKeyUp();
             }
+        });
+
+        // 1 — Use regen potion
+        this.input.keyboard.on('keydown-ONE', () => {
+            this.usePotion();
         });
     }
     
@@ -1191,7 +1264,9 @@ export class GameScene extends Phaser.Scene {
 
             const ultimateRatio = (this.player.ultimateGauge || 0) / (this.player.ultimateGaugeMax || 100);
             this.ultimateBar.width = 250 * ultimateRatio;
-            this.ultimateText.setText(`ULT ${Math.floor(ultimateRatio * 100)}%`);
+            const ultReady = this.weapon?.canUseUltimate?.();
+            this.ultimateBar.fillColor = ultReady ? 0xd966ff : 0xa64dff;
+            this.ultimateText.setText(ultReady ? 'ULT  READY ▸F' : `ULT ${Math.floor(ultimateRatio * 100)}%`);
         }
 
         if (this.boss) {

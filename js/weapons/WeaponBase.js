@@ -185,13 +185,14 @@ export class WeaponBase {
 
     canUseUltimate() {
         const max = this.player?.ultimateGaugeMax || 100;
-        return (this.player?.ultimateGauge || 0) >= max;
+        const threshold = Math.round(max * 0.3);   // 30% required
+        return (this.player?.ultimateGauge || 0) >= threshold;
     }
 
     consumeUltimate(amount) {
         if (!this.player) return false;
         const max = this.player.ultimateGaugeMax || 100;
-        const cost = amount ?? max;
+        const cost = amount ?? Math.round(max * 0.3);   // costs 30%
         if ((this.player.ultimateGauge || 0) < cost) return false;
         this.player.ultimateGauge = Math.max(0, this.player.ultimateGauge - cost);
         return true;
