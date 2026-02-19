@@ -11,6 +11,7 @@ import { GameOverScene } from './scenes/GameOverScene.js';
 import { DashboardScene } from './scenes/DashboardScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
 import { ControlsScene } from './scenes/ControlsScene.js';
+import { SettingsScene } from './scenes/SettingsScene.js';
 
 // Game configuration with all scenes
 const config = {
@@ -26,7 +27,8 @@ const config = {
         GameOverScene,
         DashboardScene,
         PauseScene,
-        ControlsScene
+        ControlsScene,
+        SettingsScene
     ]
 };
 

@@ -34,7 +34,7 @@ export class PauseScene extends Phaser.Scene {
 
         // ── Panel ────────────────────────────────────────────────────
         const panW = 400;
-        const panH = 340;
+        const panH = 420;
         this.add.rectangle(cx, cy, panW, panH, C.panel, 0.98)
             .setStrokeStyle(2, C.panelBorder, 1);
 
@@ -73,7 +73,7 @@ export class PauseScene extends Phaser.Scene {
                 hint: 'ESC',
                 color: C.green,
                 hexColor: '#34d399',
-                y: cy - 64,
+                y: cy - 90,
                 action: () => this._resume(),
             },
             {
@@ -81,15 +81,23 @@ export class PauseScene extends Phaser.Scene {
                 hint: '',
                 color: C.blue,
                 hexColor: '#67e8f9',
-                y: cy + 10,
+                y: cy - 16,
                 action: () => this._openControls(),
+            },
+            {
+                label: '⚙  SETTINGS',
+                hint: '',
+                color: C.blue,
+                hexColor: '#67e8f9',
+                y: cy + 58,
+                action: () => this._openSettings(),
             },
             {
                 label: '⌂  RETURN TO MENU',
                 hint: '',
                 color: C.red,
                 hexColor: '#f87171',
-                y: cy + 84,
+                y: cy + 132,
                 action: () => this._quit(),
             },
         ];
@@ -147,6 +155,11 @@ export class PauseScene extends Phaser.Scene {
             originScene: 'PauseScene',
             gameSceneKey: this._gameSceneKey,
         });
+        this.scene.pause('PauseScene');
+    }
+
+    _openSettings() {
+        this.scene.launch('SettingsScene', { originScene: 'PauseScene' });
         this.scene.pause('PauseScene');
     }
 

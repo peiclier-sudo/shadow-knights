@@ -724,6 +724,24 @@ export class GameScene extends Phaser.Scene {
         this._setupKeyboardListeners();
     }
 
+    /** Called by boss when it enters phase 2 — update health bar to phase 2 color */
+    onBossPhaseChange() {
+        if (!this.bossHealthBar) return;
+        this.bossHealthBar.fillColor = 0xff7700;
+        // Pulse the bar a few times
+        this.tweens.add({
+            targets: this.bossHealthBar,
+            alpha: { from: 0.4, to: 1 },
+            duration: 180,
+            yoyo: true,
+            repeat: 5
+        });
+        // Also add a "PHASE 2" indicator next to the boss name
+        if (this.bossName) {
+            this.bossName.setStyle({ fill: '#ff7700' });
+        }
+    }
+
     /** Launch / close the pause overlay. */
     togglePause() {
         if (this._gameEndTriggered) return; // don't pause on victory/defeat screen
@@ -1124,8 +1142,9 @@ export class GameScene extends Phaser.Scene {
                     const critChance = Phaser.Math.Clamp((this.player.critChanceBonus || 0), 0, 0.6);
                     const isCrit = Math.random() < critChance;
                     const critMultiplier = isCrit ? 2 : 1;
+                    const comboMultiplier = this.comboDisplay ? this.comboDisplay.getDamageMultiplier() : 1.0;
 
-                    const finalDamage = proj.damage * damageMultiplier * critMultiplier;
+                    const finalDamage = proj.damage * damageMultiplier * critMultiplier * comboMultiplier;
                     this.boss.takeDamage(finalDamage);
 
                     // Track damage & combo
@@ -1145,19 +1164,26 @@ export class GameScene extends Phaser.Scene {
                     }
 
                     if (isCrit) {
-                        const critText = this.add.text(this.boss.x, this.boss.y - 92, 'CRIT!', {
-                            fontSize: '22px',
-                            fill: '#facc15',
-                            stroke: '#000',
-                            strokeThickness: 4,
-                            fontStyle: 'bold'
-                        }).setOrigin(0.5);
+                        const critText = this.add.text(
+                            this.boss.x + Phaser.Math.Between(-12, 12),
+                            this.boss.y - 100,
+                            `✦ CRIT  ${Math.round(finalDamage)} ✦`, {
+                            fontSize: '26px',
+                            fill: '#ffe44d',
+                            stroke: '#b45309',
+                            strokeThickness: 5,
+                            fontStyle: 'bold',
+                            shadow: { offsetX: 0, offsetY: 0, color: '#facc15', blur: 16, fill: true }
+                        }).setOrigin(0.5).setDepth(250);
 
                         this.tweens.add({
                             targets: critText,
-                            y: this.boss.y - 126,
+                            y: critText.y - 60,
                             alpha: 0,
-                            duration: 420,
+                            scaleX: 1.2,
+                            scaleY: 1.2,
+                            duration: 600,
+                            ease: 'Power2',
                             onComplete: () => critText.destroy()
                         });
                     }

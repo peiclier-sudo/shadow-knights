@@ -69,7 +69,7 @@ export class MenuScene extends Phaser.Scene {
             fill: COLORS.secondaryText
         });
 
-        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.3 • LIVE', {
+        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.4 • LIVE', {
             fontSize: '14px',
             fill: '#a5b4fc',
             backgroundColor: '#1e1b4b',
@@ -115,7 +115,7 @@ export class MenuScene extends Phaser.Scene {
             { label: 'NOUVELLE PARTIE', icon: '▶', action: () => this.scene.start('ClassSelectScene') },
             { label: 'DASHBOARD JOUEUR', icon: '📊', action: () => this.scene.start('DashboardScene') },
             { label: 'AIDE & CONTRÔLES', icon: '❓', action: () => this.scene.start('ControlsScene', { originScene: 'MenuScene' }) },
-            { label: 'PARAMÈTRES', icon: '⚙', action: () => this.showToast('Menu paramètres disponible dans la prochaine mise à jour.') }
+            { label: 'PARAMÈTRES', icon: '⚙', action: () => this.scene.start('SettingsScene', { originScene: 'MenuScene' }) }
         ];
 
         buttons.forEach((item, index) => {
@@ -169,7 +169,7 @@ export class MenuScene extends Phaser.Scene {
         });
 
         this.add.text(secondPanel.x + 24, secondPanel.y + 56,
-            '• v1.3: Shadow Crystal currency & permanent upgrades\n• v1.3: Save Code system (cross-device progress)\n• v1.2: Procedural sound engine (Web Audio API)\n• v1.2: 16 achievements + in-game popups\n• v1.2: Hit combo system with milestones', {
+            '• v1.4: Combo damage multiplier (up to ×2.0 at 50 hits)\n• v1.4: Boss phase 2 transitions — sound, slow-time, camera\n• v1.4: Dynamic damage numbers (scaled by hit magnitude)\n• v1.4: Settings scene (volume, toggles, keybindings)\n• v1.3: Shadow Crystal currency & permanent upgrades', {
             fontSize: '14px',
             fill: '#dbe5ff',
             lineSpacing: 8

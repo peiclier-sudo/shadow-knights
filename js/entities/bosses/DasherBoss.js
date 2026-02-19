@@ -5,13 +5,20 @@ import { BOSSES } from '../../data/BossData.js';
 export class DasherBoss extends Boss {
     constructor(scene) {
         super(scene, 3);
+        this.phaseTransitioned = false;
     }
-    
+
     attack(player) {
         if (this.isAttacking || this.frozen) return;
-        
+
+        if (this.health <= this.maxHealth * 0.5 && !this.phaseTransitioned) {
+            this.phaseTransitioned = true;
+            this.triggerPhaseTransition('SHADOW FURY!', 0xcc00ff);
+        }
+
+        const phase2 = this.health <= this.maxHealth * 0.5;
         this.isAttacking = true;
-        
+
         const targetX = player.x;
         const targetY = player.y;
         
@@ -66,22 +73,49 @@ export class DasherBoss extends Boss {
                         if (!this.frozen) {
                             const dist = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
                             if (dist < 60 && !player.isInvulnerable) {
-                                player.takeDamage(20);
+                                player.takeDamage(phase2 ? 24 : 20);
                             }
+
+                            // Phase 2: immediately dash a second time (afterimage strike)
+                            if (phase2 && !this.frozen) {
+                                this.scene.time.delayedCall(200, () => {
+                                    if (this.frozen || !player?.active) { this.isAttacking = false; return; }
+                                    const t2x = player.x;
+                                    const t2y = player.y;
+                                    this.scene.tweens.add({
+                                        targets: this,
+                                        x: t2x, y: t2y,
+                                        duration: 80, ease: 'Power3',
+                                        onUpdate: () => {
+                                            const shadow = this.scene.add.circle(this.x, this.y, 14, 0xaa00ff, 0.3);
+                                            this.scene.tweens.add({ targets: shadow, alpha: 0, scale: 0.4, duration: 180, onComplete: () => shadow.destroy() });
+                                        },
+                                        onComplete: () => {
+                                            const d2 = Phaser.Math.Distance.Between(player.x, player.y, this.x, this.y);
+                                            if (d2 < 60 && !player.isInvulnerable) player.takeDamage(14);
+                                            this.isAttacking = false;
+                                        }
+                                    });
+                                });
+                            } else {
+                                this.isAttacking = false;
+                            }
+                        } else {
+                            this.isAttacking = false;
                         }
-                        this.isAttacking = false;
                     }
                 });
             }
         });
     }
-    
+
     update(time, player) {
         super.update(time, player);
-        
+
         if (time > this.nextAttackTime && !this.isAttacking && !this.frozen && !player?.untargetable) {
             this.attack(player);
-            this.nextAttackTime = time + 3000;
+            const phase2 = this.health <= this.maxHealth * 0.5;
+            this.nextAttackTime = time + (phase2 ? 2200 : 3000);
         }
     }
 }

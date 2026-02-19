@@ -108,6 +108,7 @@ export class NebulaBoss extends Boss {
     }
 
     triggerPhaseTransition() {
+        this._phaseCommonEffects();
         const camW = this.scene.cameras.main.width;
         const camH = this.scene.cameras.main.height;
 

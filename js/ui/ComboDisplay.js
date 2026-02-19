@@ -74,7 +74,8 @@ export class ComboDisplay {
         const tier = this._getTier();
         this._numText.setText(`${this.count}x`);
         this._numText.setStyle({ fill: tier.color });
-        this._labelText.setText(`COMBO ${tier.label}`);
+        const multStr = tier.mult > 1.0 ? `  ×${tier.mult.toFixed(1)} DMG` : '';
+        this._labelText.setText(`COMBO ${tier.label}${multStr}`);
         this._labelText.setStyle({ fill: tier.color });
 
         this._numText.setAlpha(1);
@@ -92,11 +93,17 @@ export class ComboDisplay {
     }
 
     _getTier() {
-        if (this.count >= 50) return { color: '#f87171', label: '• GODLIKE •' };
-        if (this.count >= 25) return { color: '#c084fc', label: '• LEGENDARY •' };
-        if (this.count >= 15) return { color: '#fb923c', label: '• EPIC •' };
-        if (this.count >= 10) return { color: '#facc15', label: '• GREAT •' };
-        return { color: '#a3e635', label: '' };
+        if (this.count >= 50) return { color: '#f87171', label: '• GODLIKE •', mult: 2.0 };
+        if (this.count >= 25) return { color: '#c084fc', label: '• LEGENDARY •', mult: 1.6 };
+        if (this.count >= 15) return { color: '#fb923c', label: '• EPIC •', mult: 1.4 };
+        if (this.count >= 10) return { color: '#facc15', label: '• GREAT •', mult: 1.25 };
+        if (this.count >= 5)  return { color: '#a3e635', label: '• RISING •', mult: 1.1 };
+        return { color: '#a3e635', label: '', mult: 1.0 };
+    }
+
+    /** Returns the current combo damage multiplier (1.0 = no bonus) */
+    getDamageMultiplier() {
+        return this._getTier().mult;
     }
 
     _resetTimeout() {
