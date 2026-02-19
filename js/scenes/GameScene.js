@@ -13,6 +13,7 @@ import { SkillUI } from '../ui/SkillUI.js';
 import { AchievementNotifier } from '../ui/AchievementNotifier.js';
 import { ComboDisplay } from '../ui/ComboDisplay.js';
 import { soundManager } from '../utils/SoundManager.js';
+import { ALL_UPGRADES, calcCrystalReward } from '../data/ShopData.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -95,6 +96,9 @@ export class GameScene extends Phaser.Scene {
         // ✅ Create skill UI
         this.skillUI = new SkillUI(this);
 
+        // Apply purchased shop upgrades to player stats
+        this._applyUpgrades();
+
         // Achievement notifier (checks + shows popups)
         this.achievementNotifier = new AchievementNotifier(this);
 
@@ -113,6 +117,14 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
+    _applyUpgrades() {
+        for (const upg of ALL_UPGRADES) {
+            if (GameData.isUpgradePurchased(upg.id)) {
+                upg.apply(this.player);
+            }
+        }
+    }
+
     _applyAffixes() {
         for (const key of this.affixes) {
             const affix = AFFIXES[key];
@@ -1207,13 +1219,24 @@ export class GameScene extends Phaser.Scene {
             soundManager.playDefeat();
             GameData.endRun(false);
             this.achievementNotifier?.check();
+
+            const crystals = calcCrystalReward({
+                victory: false,
+                bossId: this.bossId,
+                noHit: false,
+                highestCombo: GameData.runStats.highestCombo,
+                infiniteFloor: this.infiniteFloor
+            });
+            GameData.addCoins(crystals);
+
             this.scene.start('GameOverScene', {
                 victory: false,
                 bossId: this.bossId,
                 playerConfig: this.playerConfig,
                 affixes: this.affixes,
                 scaledHp: this.scaledHp,
-                infiniteFloor: this.infiniteFloor
+                infiniteFloor: this.infiniteFloor,
+                crystalsEarned: crystals
             });
         } else if (this.boss?.health <= 0 && !this._gameEndTriggered) {
             this._gameEndTriggered = true;
@@ -1221,13 +1244,25 @@ export class GameScene extends Phaser.Scene {
             GameData.endRun(true);
             if (!this.infiniteFloor) GameData.unlockNextBoss();
             this.achievementNotifier?.check();
+
+            // Calculate and award crystals
+            const crystals = calcCrystalReward({
+                victory: true,
+                bossId: this.bossId,
+                noHit: GameData.runStats.noHit,
+                highestCombo: GameData.runStats.highestCombo,
+                infiniteFloor: this.infiniteFloor
+            });
+            GameData.addCoins(crystals);
+
             this.scene.start('GameOverScene', {
                 victory: true,
                 bossId: this.bossId,
                 playerConfig: this.playerConfig,
                 affixes: this.affixes,
                 scaledHp: this.scaledHp,
-                infiniteFloor: this.infiniteFloor
+                infiniteFloor: this.infiniteFloor,
+                crystalsEarned: crystals
             });
         }
     }

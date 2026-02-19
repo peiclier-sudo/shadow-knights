@@ -11,12 +11,13 @@ export class GameOverScene extends Phaser.Scene {
     }
     
     init(data) {
-        this.victory       = data.victory       || false;
-        this.bossId        = data.bossId        || 1;
-        this.playerConfig  = data.playerConfig  || { class: 'WARRIOR', weapon: 'SWORD' };
-        this.infiniteFloor = data.infiniteFloor || null;
-        this.affixes       = data.affixes       || [];
-        this.scaledHp      = data.scaledHp      || null;
+        this.victory        = data.victory        || false;
+        this.bossId         = data.bossId         || 1;
+        this.playerConfig   = data.playerConfig   || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.infiniteFloor  = data.infiniteFloor  || null;
+        this.affixes        = data.affixes        || [];
+        this.scaledHp       = data.scaledHp       || null;
+        this.crystalsEarned = data.crystalsEarned || 0;
     }
     
     create() {
@@ -77,11 +78,27 @@ export class GameOverScene extends Phaser.Scene {
 
         const statLine = `Damage: ${Math.floor(rs.damage).toLocaleString()}  |  Crits: ${rs.crits}  |  Dodges: ${rs.dodges}  |  Best Combo: ${rs.highestCombo}x  |  Time: ${timeStr}${noHitLabel}`;
         this.add.text(width/2, height/2 - 20, statLine, {
-            fontSize: '14px',
-            fill: '#aaa',
-            stroke: '#000',
-            strokeThickness: 1
+            fontSize: '14px', fill: '#aaa', stroke: '#000', strokeThickness: 1
         }).setOrigin(0.5);
+
+        // Crystal reward display
+        if (this.crystalsEarned > 0) {
+            const crystalText = this.add.text(width/2, height/2 + 10, `+${this.crystalsEarned} 💎 Shadow Crystals`, {
+                fontSize: '20px', fill: '#a78bfa', fontStyle: 'bold',
+                stroke: '#000', strokeThickness: 2
+            }).setOrigin(0.5).setAlpha(0);
+
+            this.tweens.add({
+                targets: crystalText,
+                alpha: 1, y: height/2 + 2,
+                duration: 600, delay: 400, ease: 'Back.easeOut'
+            });
+
+            // Show total crystals
+            this.add.text(width/2, height/2 + 34, `Total: ${GameData.coins} 💎`, {
+                fontSize: '13px', fill: '#7c6fa8'
+            }).setOrigin(0.5);
+        }
 
         // Buttons
         const buttonStyle = {
@@ -94,10 +111,8 @@ export class GameOverScene extends Phaser.Scene {
         };
         
         // Retry button
-        const retryBtn = this.add.text(width/2 - 200, height/2 + 80, 'RETRY', buttonStyle)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-        
+        const retryBtn = this.add.text(width/2 - 220, height/2 + 80, 'RETRY', buttonStyle)
+            .setOrigin(0.5).setInteractive({ useHandCursor: true });
         retryBtn.on('pointerover', () => { soundManager.playHover(); retryBtn.setStyle({ fill: '#00d4ff' }); });
         retryBtn.on('pointerout', () => retryBtn.setStyle({ fill: '#fff' }));
         retryBtn.on('pointerdown', () => {
@@ -110,12 +125,23 @@ export class GameOverScene extends Phaser.Scene {
                 infiniteFloor: this.infiniteFloor
             });
         });
-        
+
+        // Shop shortcut button
+        const shopBtn = this.add.text(width/2, height/2 + 80, '💎 SHOP', {
+            ...buttonStyle, fill: '#a78bfa', stroke: '#7c3aed'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        shopBtn.on('pointerover', () => { soundManager.playHover(); shopBtn.setStyle({ fill: '#c4b5fd' }); });
+        shopBtn.on('pointerout', () => shopBtn.setStyle({ fill: '#a78bfa' }));
+        shopBtn.on('pointerdown', () => {
+            soundManager.playClick();
+            // Go to dashboard with shop tab pre-selected
+            this.registry.set('dashboardTab', 'shop');
+            this.scene.start('DashboardScene');
+        });
+
         // Menu button
-        const menuBtn = this.add.text(width/2 + 200, height/2 + 80, 'MENU', buttonStyle)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-        
+        const menuBtn = this.add.text(width/2 + 220, height/2 + 80, 'MENU', buttonStyle)
+            .setOrigin(0.5).setInteractive({ useHandCursor: true });
         menuBtn.on('pointerover', () => { soundManager.playHover(); menuBtn.setStyle({ fill: '#ff6600' }); });
         menuBtn.on('pointerout', () => menuBtn.setStyle({ fill: '#fff' }));
         menuBtn.on('pointerdown', () => {
