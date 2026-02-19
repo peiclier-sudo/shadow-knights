@@ -161,6 +161,11 @@ export const GameData = {
         }
     },
 
+    recordKill() {
+        this.stats.totalKills = (this.stats.totalKills || 0) + 1;
+        this.saveStats();
+    },
+
     // ── Boss tracking ─────────────────────────────────────────────────────
     markBossDefeated(bossId) {
         this.defeatedBosses.add(bossId);

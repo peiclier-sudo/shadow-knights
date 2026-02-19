@@ -393,6 +393,50 @@ export class GameScene extends Phaser.Scene {
         this.createWeaponHelpButtons(width, height);
         this.createPotionButton(width, height);
 
+        // ── Infinite Tower: floor badge + affix pills ───────────────────
+        if (this.infiniteFloor) {
+            this._floorBadge = this.add.text(width / 2, 18, `FLOOR ${this.infiniteFloor}`, {
+                fontSize: '18px',
+                fill: '#ffe066',
+                fontStyle: 'bold',
+                stroke: '#000',
+                strokeThickness: 3,
+                backgroundColor: '#00000088',
+                padding: { x: 12, y: 4 }
+            }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(200);
+
+            if (this.affixes && this.affixes.length > 0) {
+                const affixY = 48;
+                const pillSpacing = 10;
+                // Measure total width to centre the row
+                const pillW = 110;
+                const totalW = this.affixes.length * pillW + (this.affixes.length - 1) * pillSpacing;
+                let startX = width / 2 - totalW / 2;
+                this.affixes.forEach((affixId) => {
+                    const affix = AFFIXES[affixId];
+                    if (!affix) return;
+                    const pill = this.add.text(startX, affixY, `${affix.icon} ${affix.name}`, {
+                        fontSize: '12px',
+                        fill: '#ffcc55',
+                        backgroundColor: '#1a0d3388',
+                        padding: { x: 8, y: 3 }
+                    }).setOrigin(0, 0).setScrollFactor(0).setDepth(200);
+                    startX += pill.width + pillSpacing;
+                });
+            }
+        }
+
+        // ── No-Hit indicator ────────────────────────────────────────────
+        this._noHitText = this.add.text(width - 16, height - 82, '✦ NO HIT', {
+            fontSize: '13px',
+            fill: '#00ffaa',
+            fontStyle: 'bold',
+            stroke: '#000',
+            strokeThickness: 2,
+            backgroundColor: '#00000088',
+            padding: { x: 8, y: 3 }
+        }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(200);
+
         this.rangePreviewToggleText = this.add.text(width - 28, 80, '', {
             fontSize: '14px',
             fill: '#9ecbff',
@@ -1316,6 +1360,12 @@ export class GameScene extends Phaser.Scene {
             this.bossHealthText.setText(`${Math.floor(this.boss.health)}/${this.boss.maxHealth}`);
         }
         
+        // ── No-hit badge visibility ──────────────────────────────────────
+        if (this._noHitText) {
+            const stillNoHit = GameData.runStats.noHit;
+            this._noHitText.setVisible(stillNoHit);
+        }
+
         // ✅ Update skills UI
         if (this.skillUI && this.skills) {
             this.skillUI.update(this.skills);
@@ -1357,6 +1407,7 @@ export class GameScene extends Phaser.Scene {
             this._gameEndTriggered = true;
             soundManager.playVictory();
             GameData.endRun(true);
+            GameData.recordKill();
             if (!this.infiniteFloor) GameData.unlockNextBoss();
             this.achievementNotifier?.check();
 

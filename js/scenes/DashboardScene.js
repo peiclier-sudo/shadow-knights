@@ -178,6 +178,7 @@ export class DashboardScene extends Phaser.Scene {
         const rows = [
             ['Total Runs',       s.totalRuns || 0],
             ['Bosses Defeated',  s.bossesDefeated || 0],
+            ['Total Kills',      s.totalKills || 0],
             ['Total Dodges',     s.totalDodges || 0],
             ['Total Crits',      s.totalCrits || 0],
             ['Total Damage',     Math.floor(s.totalDamage || 0).toLocaleString()],
