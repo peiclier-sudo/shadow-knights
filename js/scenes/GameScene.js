@@ -1,4 +1,4 @@
-// GameScene.js - Main gameplay scene (UPDATED - Grappling Hook)
+// GameScene.js - Main gameplay scene
 import { Player } from '../entities/Player.js';
 import { BossFactory } from '../entities/BossFactory.js';
 import { GameData } from '../data/GameData.js';
@@ -10,6 +10,11 @@ import { DaggerWeapon } from '../weapons/DaggerWeapon.js';
 import { GreatswordWeapon } from '../weapons/GreatswordWeapon.js';
 import { ThunderGauntletWeapon } from '../weapons/ThunderGauntletWeapon.js';
 import { SkillUI } from '../ui/SkillUI.js';
+import { AchievementNotifier } from '../ui/AchievementNotifier.js';
+import { ComboDisplay } from '../ui/ComboDisplay.js';
+import { soundManager } from '../utils/SoundManager.js';
+import { keybindingsManager } from '../utils/KeybindingsManager.js';
+import { ALL_UPGRADES, calcCrystalReward } from '../data/ShopData.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -17,12 +22,13 @@ export class GameScene extends Phaser.Scene {
     }
     
     init(data) {
-        this.playerConfig  = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
-        this.bossId        = data.bossId || GameData.currentBossId;
-        this.affixes       = data.affixes       || [];
-        this.scaledHp      = data.scaledHp      || null;
-        this.infiniteFloor = data.infiniteFloor || null;
-        GameData.currentBossId = this.bossId;
+        this.playerConfig       = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.bossId             = data.bossId || GameData.currentBossId;
+        this.affixes            = data.affixes       || [];
+        this.scaledHp           = data.scaledHp      || null;
+        this.infiniteFloor      = data.infiniteFloor || null;
+        this._gameEndTriggered  = false;   // ← reset every run so RETRY works correctly
+        GameData.currentBossId  = this.bossId;
     }
     
     create() {
@@ -91,7 +97,19 @@ export class GameScene extends Phaser.Scene {
         
         // ✅ Create skill UI
         this.skillUI = new SkillUI(this);
-        
+
+        // Apply purchased shop upgrades to player stats
+        this._applyUpgrades();
+
+        // Achievement notifier (checks + shows popups)
+        this.achievementNotifier = new AchievementNotifier(this);
+
+        // Combo display (consecutive hits tracker)
+        this.comboDisplay = new ComboDisplay(this, this.player);
+
+        // Start run tracking
+        GameData.startRun();
+
         // Input
         this.setupInput();
         
@@ -101,6 +119,14 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
+    _applyUpgrades() {
+        for (const upg of ALL_UPGRADES) {
+            if (GameData.isUpgradePurchased(upg.id)) {
+                upg.apply(this.player);
+            }
+        }
+    }
+
     _applyAffixes() {
         for (const key of this.affixes) {
             const affix = AFFIXES[key];
@@ -365,6 +391,7 @@ export class GameScene extends Phaser.Scene {
         }).setScrollFactor(0);
 
         this.createWeaponHelpButtons(width, height);
+        this.createPotionButton(width, height);
 
         this.rangePreviewToggleText = this.add.text(width - 28, 80, '', {
             fontSize: '14px',
@@ -377,7 +404,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 46, 
-            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS (HOOK: R then R)', {
+            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS | 1: POTION', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -420,6 +447,73 @@ export class GameScene extends Phaser.Scene {
             { shape: 'circle', x, y, radius: 34 },
             { shape: 'rect', x: x + 50, y: y - 8, w: 120, h: 26 }
         ];
+    }
+
+    createPotionButton(width, height) {
+        this.potionCount = 2;
+
+        const px = 160;
+        const py = height - 92;
+
+        const ring = this.add.circle(px, py, 34, 0x000000, 0.68)
+            .setScrollFactor(0).setDepth(210)
+            .setStrokeStyle(2, 0x44ff99, 0.95)
+            .setInteractive({ useHandCursor: true });
+
+        const icon = this.add.text(px, py - 4, '🧪', { fontSize: '24px' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(211)
+            .setInteractive({ useHandCursor: true });
+
+        this.potionCountText = this.add.text(px + 16, py + 14, `×${this.potionCount}`, {
+            fontSize: '13px', fill: '#aaffcc', stroke: '#000', strokeThickness: 2
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(212);
+
+        const label = this.add.text(px + 50, py - 8, '[1] POTION', {
+            fontSize: '12px', fill: '#aaffcc',
+            backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+        }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(211)
+          .setInteractive({ useHandCursor: true });
+
+        [ring, icon, label].forEach(obj => {
+            obj.on('pointerdown', () => this.usePotion());
+            obj.on('pointerover', () => { ring.setFillStyle(0x002211, 0.85); });
+            obj.on('pointerout',  () => { ring.setFillStyle(0x000000, 0.68); });
+        });
+
+        this._potionRing = ring;
+    }
+
+    usePotion() {
+        if (this.potionCount <= 0) return;
+        if (!this.player) return;
+        if (this.player.health >= this.player.maxHealth) return;
+
+        const healAmount = Math.round(this.player.maxHealth * 0.3);
+        this.player.health = Math.min(this.player.maxHealth, this.player.health + healAmount);
+        this.potionCount--;
+
+        // Update count display
+        if (this.potionCountText) this.potionCountText.setText(`×${this.potionCount}`);
+
+        // Dim the ring when empty
+        if (this.potionCount === 0 && this._potionRing) {
+            this._potionRing.setStrokeStyle(2, 0x334433, 0.5);
+            this._potionRing.setFillStyle(0x000000, 0.35);
+        }
+
+        // Green heal flash on player
+        const flash = this.add.circle(this.player.x, this.player.y, 38, 0x44ff88, 0.35);
+        this.tweens.add({ targets: flash, scale: 1.7, alpha: 0, duration: 420,
+            onComplete: () => flash.destroy() });
+
+        // Floating heal number
+        const num = this.add.text(this.player.x, this.player.y - 30,
+            `+${healAmount} HP`, {
+            fontSize: '18px', fill: '#44ff88',
+            stroke: '#000', strokeThickness: 2
+        }).setScrollFactor(1).setDepth(300);
+        this.tweens.add({ targets: num, y: num.y - 45, alpha: 0, duration: 900,
+            onComplete: () => num.destroy() });
     }
 
     showWeaponHelpTooltip(x, y) {
@@ -558,11 +652,15 @@ export class GameScene extends Phaser.Scene {
                     this.aimCurrentY - this.player.y,
                     this.aimCurrentX - this.player.x
                 );
-                
+
+                const weaponType = this.playerConfig?.weapon || 'SWORD';
                 if (!this.weapon.releaseCharge(angle)) {
                     this.weapon.attack(angle);
+                    soundManager.playWeaponFire(weaponType, false);
+                } else {
+                    soundManager.playWeaponFire(weaponType, true);
                 }
-                
+
                 if (this.chargeGraphics) {
                     this.chargeGraphics.destroy();
                     this.chargeGraphics = null;
@@ -570,56 +668,91 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
-        // DASH avec ESPACE
-        this.input.keyboard.on('keydown-SPACE', () => {
-            this.performDash();
+        // Keyboard bindings (dynamic — supports rebinding via ControlsScene)
+        this._kbListeners = [];
+        this._setupKeyboardListeners();
+    }
+
+    /**
+     * Register all keyboard listeners using current keybinding settings.
+     * Safe to call multiple times — clears previous listeners first.
+     */
+    _setupKeyboardListeners() {
+        // Remove previously registered listeners
+        this._kbListeners.forEach(({ event, fn }) => {
+            this.input.keyboard.off(event, fn);
         });
+        this._kbListeners = [];
 
-        this.ultimateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        const kb = keybindingsManager;
 
-        // ULTIMATE (F): hold to charge, release to launch
-        this.input.keyboard.on('keydown-F', () => {
+        const bind = (event, fn) => {
+            this.input.keyboard.on(event, fn);
+            this._kbListeners.push({ event, fn });
+        };
+
+        // Dash
+        bind(`keydown-${kb.get('dash')}`, () => this.performDash());
+
+        // Ultimate (hold to charge, release to fire)
+        bind(`keydown-${kb.get('ultimate')}`, () => {
             this.weapon?.startUltimateCharge(this.worldMouseX, this.worldMouseY);
         });
-
-        this.input.keyboard.on('keyup-F', () => {
+        bind(`keyup-${kb.get('ultimate')}`, () => {
             this.weapon?.releaseUltimate(this.worldMouseX, this.worldMouseY);
         });
-        
-        this.input.keyboard.on('keydown-T', () => {
-            this.toggleAttackRangePreview();
-        });
 
-        // ✅ COMPÉTENCES avec Q, E, R
-        this.input.keyboard.on('keydown-Q', () => {
-            if (this.skills?.q) {
-                this.skills.q.use();
-            }
-        });
-        
-        this.input.keyboard.on('keydown-E', () => {
-            if (this.skills?.e) {
-                this.skills.e.use();
-            }
-        });
-        
-        this.input.keyboard.on('keydown-R', () => {
-            if (this.skills?.r) {
-                this.skills.r.use();
-            }
-        });
+        // Range preview toggle
+        bind(`keydown-${kb.get('rangePreview')}`, () => this.toggleAttackRangePreview());
 
-        this.input.keyboard.on('keyup-R', () => {
-            if (this.skills?.r?.handleConfirmKeyUp) {
-                this.skills.r.handleConfirmKeyUp();
-            }
-        });
+        // Skills
+        bind(`keydown-${kb.get('skillQ')}`, () => this.skills?.q?.use());
+        bind(`keydown-${kb.get('skillE')}`, () => this.skills?.e?.use());
+        bind(`keyup-${kb.get('skillE')}`,   () => this.skills?.e?.handleConfirmKeyUp?.());
+        bind(`keydown-${kb.get('skillR')}`, () => this.skills?.r?.use());
+        bind(`keyup-${kb.get('skillR')}`,   () => this.skills?.r?.handleConfirmKeyUp?.());
 
-        this.input.keyboard.on('keyup-E', () => {
-            if (this.skills?.e?.handleConfirmKeyUp) {
-                this.skills.e.handleConfirmKeyUp();
-            }
+        // Potion
+        bind(`keydown-${kb.get('potion')}`, () => this.usePotion());
+
+        // Pause (ESC — always reserved, not rebindable)
+        bind('keydown-ESC', () => this.togglePause());
+    }
+
+    /** Called by PauseScene / ControlsScene after bindings are updated. */
+    rebindInputs() {
+        this._setupKeyboardListeners();
+    }
+
+    /** Called by boss when it enters phase 2 — update health bar to phase 2 color */
+    onBossPhaseChange() {
+        if (!this.bossHealthBar) return;
+        this.bossHealthBar.fillColor = 0xff7700;
+        // Pulse the bar a few times
+        this.tweens.add({
+            targets: this.bossHealthBar,
+            alpha: { from: 0.4, to: 1 },
+            duration: 180,
+            yoyo: true,
+            repeat: 5
         });
+        // Also add a "PHASE 2" indicator next to the boss name
+        if (this.bossName) {
+            this.bossName.setStyle({ fill: '#ff7700' });
+        }
+    }
+
+    /** Launch / close the pause overlay. */
+    togglePause() {
+        if (this._gameEndTriggered) return; // don't pause on victory/defeat screen
+        if (this.scene.isActive('PauseScene')) {
+            // Already open — resume
+            this.scene.resume('GameScene');
+            this.scene.stop('PauseScene');
+        } else {
+            this.scene.launch('PauseScene', { gameSceneKey: 'GameScene' });
+            this.scene.pause('GameScene');
+        }
     }
     
     setMoveTarget(x, y) {
@@ -639,13 +772,18 @@ export class GameScene extends Phaser.Scene {
     
     performDash() {
         if (!this.player) return;
-        
+
         const angle = Math.atan2(
             this.worldMouseY - this.player.y,
             this.worldMouseX - this.player.x
         );
-        
-        this.player.dash(Math.cos(angle), Math.sin(angle));
+
+        const dashed = this.player.dash(Math.cos(angle), Math.sin(angle));
+        if (dashed) {
+            soundManager.playDash();
+            GameData.recordDodge();
+            this.achievementNotifier?.check();
+        }
     }
     
 
@@ -903,6 +1041,7 @@ export class GameScene extends Phaser.Scene {
                 
                 if (isFullyCharged && !this.chargeFlashShown) {
                     this.chargeFlashShown = true;
+                    soundManager.playChargeFull();
                     const flash = this.add.circle(this.player.x, this.player.y, 60, 0x00ff88, 0.3);
                     this.tweens.add({
                         targets: flash,
@@ -1003,24 +1142,48 @@ export class GameScene extends Phaser.Scene {
                     const critChance = Phaser.Math.Clamp((this.player.critChanceBonus || 0), 0, 0.6);
                     const isCrit = Math.random() < critChance;
                     const critMultiplier = isCrit ? 2 : 1;
+                    const comboMultiplier = this.comboDisplay ? this.comboDisplay.getDamageMultiplier() : 1.0;
 
-                    const finalDamage = proj.damage * damageMultiplier * critMultiplier;
+                    const finalDamage = proj.damage * damageMultiplier * critMultiplier * comboMultiplier;
                     this.boss.takeDamage(finalDamage);
 
+                    // Track damage & combo
                     if (isCrit) {
-                        const critText = this.add.text(this.boss.x, this.boss.y - 92, 'CRIT!', {
-                            fontSize: '22px',
-                            fill: '#facc15',
-                            stroke: '#000',
-                            strokeThickness: 4,
-                            fontStyle: 'bold'
-                        }).setOrigin(0.5);
+                        GameData.recordCrit(finalDamage);
+                    } else {
+                        GameData.recordDamage(finalDamage);
+                    }
+                    this.comboDisplay?.registerHit(isCrit);
+                    this.achievementNotifier?.check();
+
+                    // Play weapon hit sound
+                    if (isCrit) {
+                        soundManager.playCrit();
+                    } else {
+                        soundManager.playHit();
+                    }
+
+                    if (isCrit) {
+                        const critText = this.add.text(
+                            this.boss.x + Phaser.Math.Between(-12, 12),
+                            this.boss.y - 100,
+                            `✦ CRIT  ${Math.round(finalDamage)} ✦`, {
+                            fontSize: '26px',
+                            fill: '#ffe44d',
+                            stroke: '#b45309',
+                            strokeThickness: 5,
+                            fontStyle: 'bold',
+                            shadow: { offsetX: 0, offsetY: 0, color: '#facc15', blur: 16, fill: true }
+                        }).setOrigin(0.5).setDepth(250);
 
                         this.tweens.add({
                             targets: critText,
-                            y: this.boss.y - 126,
+                            y: critText.y - 60,
                             alpha: 0,
-                            duration: 420,
+                            scaleX: 1.2,
+                            scaleY: 1.2,
+                            duration: 600,
+                            ease: 'Power2',
                             onComplete: () => critText.destroy()
                         });
                     }
@@ -1097,7 +1260,10 @@ export class GameScene extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(proj.x, proj.y, this.player.x, this.player.y);
             if (dist < 25 && !this.player.isInvulnerable && !this.player.untargetable) {
                 this.player.takeDamage(10);
-                
+                GameData.recordDamageTaken(10);
+                this.comboDisplay?.reset();
+                soundManager.playPlayerHit();
+
                 const hit = this.add.circle(this.player.x, this.player.y, 15, 0xff0000, 0.4);
                 this.tweens.add({
                     targets: hit,
@@ -1137,7 +1303,9 @@ export class GameScene extends Phaser.Scene {
 
             const ultimateRatio = (this.player.ultimateGauge || 0) / (this.player.ultimateGaugeMax || 100);
             this.ultimateBar.width = 250 * ultimateRatio;
-            this.ultimateText.setText(`ULT ${Math.floor(ultimateRatio * 100)}%`);
+            const ultReady = this.weapon?.canUseUltimate?.();
+            this.ultimateBar.fillColor = ultReady ? 0xd966ff : 0xa64dff;
+            this.ultimateText.setText(ultReady ? 'ULT  READY ▸F' : `ULT ${Math.floor(ultimateRatio * 100)}%`);
         }
 
         if (this.boss) {
@@ -1161,24 +1329,55 @@ export class GameScene extends Phaser.Scene {
         }
         
         // Game over
-        if (this.player.health <= 0) {
+        if (this.player.health <= 0 && !this._gameEndTriggered) {
+            this._gameEndTriggered = true;
+            soundManager.playDefeat();
+            GameData.endRun(false);
+            this.achievementNotifier?.check();
+
+            const crystals = calcCrystalReward({
+                victory: false,
+                bossId: this.bossId,
+                noHit: false,
+                highestCombo: GameData.runStats.highestCombo,
+                infiniteFloor: this.infiniteFloor
+            });
+            GameData.addCoins(crystals);
+
             this.scene.start('GameOverScene', {
                 victory: false,
                 bossId: this.bossId,
                 playerConfig: this.playerConfig,
                 affixes: this.affixes,
                 scaledHp: this.scaledHp,
+                infiniteFloor: this.infiniteFloor,
+                crystalsEarned: crystals
+            });
+        } else if (this.boss?.health <= 0 && !this._gameEndTriggered) {
+            this._gameEndTriggered = true;
+            soundManager.playVictory();
+            GameData.endRun(true);
+            if (!this.infiniteFloor) GameData.unlockNextBoss();
+            this.achievementNotifier?.check();
+
+            // Calculate and award crystals
+            const crystals = calcCrystalReward({
+                victory: true,
+                bossId: this.bossId,
+                noHit: GameData.runStats.noHit,
+                highestCombo: GameData.runStats.highestCombo,
                 infiniteFloor: this.infiniteFloor
             });
-        } else if (this.boss?.health <= 0) {
-            if (!this.infiniteFloor) GameData.unlockNextBoss();
+            GameData.addCoins(crystals);
+
             this.scene.start('GameOverScene', {
                 victory: true,
                 bossId: this.bossId,
                 playerConfig: this.playerConfig,
                 affixes: this.affixes,
                 scaledHp: this.scaledHp,
-                infiniteFloor: this.infiniteFloor
+                infiniteFloor: this.infiniteFloor,
+                crystalsEarned: crystals
             });
         }
     }

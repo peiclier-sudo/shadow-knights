@@ -713,6 +713,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             arcGraphics,
             chargeWebGfx,
             nodes: [],
+            orbitGfxList: [],
             timers: [],
             tweens: []
         };
@@ -913,6 +914,8 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
                 // Orbiting plasma sparks around node
                 const nodeOrbitGfx = this.scene.add.graphics().setDepth(189);
+                // Track so destroyUltimateState can clean it up even if nodeTween is killed early
+                if (state?.orbitGfxList) state.orbitGfxList.push(nodeOrbitGfx);
                 let nodeOrbitTick = 0;
                 const nodeOrbitTimer = this.scene.time.addEvent({
                     delay: 35,
@@ -956,7 +959,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
                 const dmg = cfg.blitzDamage * (this.player.damageMultiplier || 1.0);
                 boss.takeDamage(dmg);
-                this.gainUltimateGaugeFromDamage(dmg, { charged: true });
+                // No gauge gain from the ultimate's own damage — prevents immediate re-use
                 boss.setTint(0x98e2ff);
                 this.scene.time.delayedCall(60, () => boss?.clearTint?.());
 
@@ -1001,13 +1004,12 @@ export class ThunderGauntletWeapon extends WeaponBase {
             }
         }
 
-        const webTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: webGfx,
             alpha: 0,
             duration: 220,
             onComplete: () => webGfx.destroy()
         });
-        state.tweens.push(webTween);
 
         // Plasma expansion sphere: multi-ring outward pulse
         for (let r = 0; r < 4; r++) {
@@ -1018,7 +1020,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ).setStrokeStyle(2.5 - r * 0.4, [0xe6fbff, 0xc8f4ff, 0x88d8ff, 0x5ec8ff][r], 0.9 - r * 0.15)
              .setDepth(192);
 
-            const pRingTween = this.scene.tweens.add({
+            this.scene.tweens.add({
                 targets: plasmaRing,
                 radius: cfg.nodeRadius * (0.6 + r * 0.25),
                 alpha: 0,
@@ -1027,7 +1029,6 @@ export class ThunderGauntletWeapon extends WeaponBase {
                 ease: 'Cubic.easeOut',
                 onComplete: () => plasmaRing.destroy()
             });
-            state.tweens.push(pRingTween);
         }
 
         // Electric cage visual with rotating arcs
@@ -1043,19 +1044,18 @@ export class ThunderGauntletWeapon extends WeaponBase {
             this.drawChainLightningLine(cageArcGfx, centerX, centerY, ex, ey, 0xc8f4ff, 0.7, 1.8);
         }
 
-        const cageArcTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: cageArcGfx,
             alpha: 0,
             duration: 250,
             onComplete: () => cageArcGfx.destroy()
         });
-        state.tweens.push(cageArcTween);
 
         const ring = this.scene.add.circle(centerX, centerY, 32, 0x000000, 0)
             .setStrokeStyle(4, 0xe6fbff, 0.95)
             .setDepth(192);
 
-        const cageTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: cage,
             radius: cfg.nodeRadius,
             alpha: 0,
@@ -1063,7 +1063,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => cage.destroy()
         });
-        const ringTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: ring,
             radius: cfg.nodeRadius * 1.25,
             alpha: 0,
@@ -1071,14 +1071,13 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => ring.destroy()
         });
-        state.tweens.push(cageTween, ringTween);
 
         // EMP shockwave with ionization ripple
         const shockwave = this.scene.add.circle(centerX, centerY, 30, 0x000000, 0)
             .setStrokeStyle(5, 0xffffff, 0.6).setDepth(194);
         const ionRipple = this.scene.add.circle(centerX, centerY, 35, 0x63cfff, 0.15).setDepth(193);
 
-        const shockTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: shockwave,
             radius: cfg.nodeRadius * 1.5,
             alpha: 0,
@@ -1086,7 +1085,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Sine.easeOut',
             onComplete: () => shockwave.destroy()
         });
-        const ionTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: ionRipple,
             radius: cfg.nodeRadius * 1.35,
             alpha: 0,
@@ -1094,7 +1093,6 @@ export class ThunderGauntletWeapon extends WeaponBase {
             ease: 'Cubic.easeOut',
             onComplete: () => ionRipple.destroy()
         });
-        state.tweens.push(shockTween, ionTween);
 
         // Chain lightning discharge burst: radial bolts
         const dischargeGfx = this.scene.add.graphics().setDepth(195);
@@ -1103,13 +1101,12 @@ export class ThunderGauntletWeapon extends WeaponBase {
             const dLen = Phaser.Math.Between(60, cfg.nodeRadius);
             this.drawChainLightningBolt(dischargeGfx, centerX, centerY, dAngle, dLen);
         }
-        const dischargeTween = this.scene.tweens.add({
+        this.scene.tweens.add({
             targets: dischargeGfx,
             alpha: 0,
             duration: 200,
             onComplete: () => dischargeGfx.destroy()
         });
-        state.tweens.push(dischargeTween);
 
         // Chain spark particle explosion
         for (let cs = 0; cs < 16; cs++) {
@@ -1149,7 +1146,7 @@ export class ThunderGauntletWeapon extends WeaponBase {
 
         const empDamage = cfg.empDamage * (this.player.damageMultiplier || 1.0);
         boss.takeDamage(empDamage);
-        this.gainUltimateGaugeFromDamage(empDamage, { charged: true });
+        // No gauge gain from the ultimate's own damage — prevents immediate re-use
         boss.setTint(0xe8fbff);
 
         const knockAngle = Math.atan2(boss.y - this.player.y, boss.x - this.player.x);
@@ -1200,6 +1197,9 @@ export class ThunderGauntletWeapon extends WeaponBase {
             this.scene.tweens.killTweensOf(node);
             node?.destroy?.();
         }
+        // nodeOrbitGfx objects are tracked separately because their normal cleanup
+        // (nodeTween onComplete) won't fire when the node tween is killed early.
+        for (const gfx of state.orbitGfxList || []) gfx?.destroy?.();
 
         this.player.alpha = 1;
         this.player.untargetable = false;

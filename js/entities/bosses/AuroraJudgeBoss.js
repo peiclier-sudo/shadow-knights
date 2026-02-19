@@ -67,6 +67,7 @@ export class AuroraJudgeBoss extends Boss {
     }
 
     triggerPhaseTransition() {
+        this._phaseCommonEffects();
         const w = this.scene.cameras.main.width;
         const h = this.scene.cameras.main.height;
         const flash = this.scene.add.rectangle(w / 2, h / 2, w, h, 0x84ff6b, 0.24).setScrollFactor(0).setDepth(500);

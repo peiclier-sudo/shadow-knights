@@ -1,5 +1,6 @@
 // Boss.js - Base boss entity
 import { BOSSES } from '../data/BossData.js';
+import { soundManager } from '../utils/SoundManager.js';
 
 export class Boss extends Phaser.GameObjects.Container {
     constructor(scene, bossId) {
@@ -394,6 +395,56 @@ export class Boss extends Phaser.GameObjects.Container {
         return this;
     }
 
+    /**
+     * Common phase-2 effects: sound, time-slow, camera zoom, UI color update.
+     * Called by every boss's triggerPhaseTransition() to share these effects.
+     */
+    _phaseCommonEffects() {
+        soundManager.playBossPhase();
+
+        // Camera zoom pulse
+        this.scene.cameras.main.zoomTo(1.06, 200, 'Power2', false, (_cam, progress) => {
+            if (progress === 1) this.scene.cameras.main.zoomTo(1.0, 400, 'Power2');
+        });
+
+        // Brief time-slow (via tween timescale) for dramatic effect
+        this.scene.tweens.timeScale = 0.35;
+        this.scene.time.delayedCall(360, () => { this.scene.tweens.timeScale = 1.0; });
+
+        // Notify GameScene to update boss health bar color
+        if (this.scene.onBossPhaseChange) this.scene.onBossPhaseChange();
+    }
+
+    /**
+     * Fallback for bosses that don't override triggerPhaseTransition.
+     * Plays sound, flashes the screen, shows a banner, and briefly slows time.
+     */
+    triggerPhaseTransition(label = 'PHASE 2', color = 0xff4400) {
+        this._phaseCommonEffects();
+
+        const cw = this.scene.cameras.main.width;
+        const ch = this.scene.cameras.main.height;
+        const hexStr = '#' + color.toString(16).padStart(6, '0');
+
+        const flash = this.scene.add.rectangle(cw / 2, ch / 2, cw, ch, color, 0.40)
+            .setScrollFactor(0).setDepth(500);
+        this.scene.tweens.add({ targets: flash, alpha: 0, duration: 700, onComplete: () => flash.destroy() });
+
+        const banner = this.scene.add.text(cw / 2, ch / 2, label, {
+            fontSize: '52px', fill: hexStr, fontStyle: 'bold',
+            stroke: '#000', strokeThickness: 6,
+            shadow: { offsetX: 0, offsetY: 0, color: hexStr, blur: 28, fill: true }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
+
+        this.scene.tweens.add({
+            targets: banner,
+            y: ch / 2 - 90, alpha: { from: 1, to: 0 },
+            scaleX: { from: 1.15, to: 0.9 }, scaleY: { from: 1.15, to: 0.9 },
+            duration: 1800, ease: 'Power2',
+            onComplete: () => banner.destroy()
+        });
+    }
+
     takeDamage(amount) {
         // ✅ FIX: Appliquer les dégâts directement sans multiplicateurs
         const finalDamage = Math.round(amount * (this.damageTakenMultiplier || 1.0));
@@ -401,31 +452,39 @@ export class Boss extends Phaser.GameObjects.Container {
         // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
         
-        // Debug
-        console.log(`Boss took ${finalDamage} damage. Health: ${this.health}/${this.maxHealth}`);
-        
-        // Visual feedback
+        // Visual feedback — flash
         this.scene.tweens.add({
             targets: this,
             alpha: 0.3,
             duration: 50,
             yoyo: true
         });
-        
-        // Damage number
-        const dmgText = this.scene.add.text(this.x, this.y - 50, finalDamage.toString(), {
-            fontSize: '24px',
-            fill: '#ffaa00',
+
+        // Dynamic damage number: size + color scale with damage magnitude
+        const isBigHit = finalDamage >= 40;
+        const isMedHit = finalDamage >= 20;
+        const fontSize = isBigHit ? '34px' : isMedHit ? '27px' : '20px';
+        const fill = isBigHit ? '#ffe44d' : isMedHit ? '#ffbb33' : '#ff9900';
+        const strokeThickness = isBigHit ? 5 : 3;
+        const offsetX = Phaser.Math.Between(-18, 18);
+        const riseY = isBigHit ? 120 : 80;
+
+        const dmgText = this.scene.add.text(this.x + offsetX, this.y - 50, Math.round(finalDamage).toString(), {
+            fontSize,
+            fill,
             stroke: '#000',
-            strokeThickness: 4,
+            strokeThickness,
             fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
+        }).setOrigin(0.5).setDepth(200);
+
         this.scene.tweens.add({
             targets: dmgText,
-            y: this.y - 100,
+            y: this.y - 50 - riseY,
             alpha: 0,
-            duration: 500,
+            scaleX: isBigHit ? 1.2 : 1,
+            scaleY: isBigHit ? 1.2 : 1,
+            duration: isBigHit ? 700 : 500,
+            ease: 'Power1',
             onComplete: () => dmgText.destroy()
         });
         

@@ -190,6 +190,7 @@ export class PhantomBoss extends Boss {
 
     // ── Phase transition flash ──────────────────────────────────────────────
     triggerPhaseTransition() {
+        this._phaseCommonEffects();
         const cw = this.scene.cameras.main.width;
         const ch = this.scene.cameras.main.height;
         const flash = this.scene.add.rectangle(cw / 2, ch / 2, cw, ch, 0x00ffcc, 0.28)

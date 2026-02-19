@@ -176,15 +176,7 @@ export class SentinelBoss extends Boss {
 
     // ── Phase transition flash ──────────────────────────────────────────────
     _phaseFlash(text, color) {
-        const cw = this.scene.cameras.main.width;
-        const ch = this.scene.cameras.main.height;
-        const flash = this.scene.add.rectangle(cw / 2, ch / 2, cw, ch, color, 0.35)
-            .setScrollFactor(0).setDepth(500);
-        this.scene.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
-        const txt = this.scene.add.text(cw / 2, ch / 2, text, {
-            fontSize: '40px', fill: '#ff3366', fontStyle: 'bold', stroke: '#000', strokeThickness: 5
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
-        this.scene.tweens.add({ targets: txt, y: ch / 2 - 70, alpha: 0, duration: 1600, onComplete: () => txt.destroy() });
+        this.triggerPhaseTransition(text, color);
     }
 
     // ── Update: movement + cooldown override ───────────────────────────────
