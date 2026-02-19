@@ -13,6 +13,7 @@ import { SkillUI } from '../ui/SkillUI.js';
 import { AchievementNotifier } from '../ui/AchievementNotifier.js';
 import { ComboDisplay } from '../ui/ComboDisplay.js';
 import { soundManager } from '../utils/SoundManager.js';
+import { keybindingsManager } from '../utils/KeybindingsManager.js';
 import { ALL_UPGRADES, calcCrystalReward } from '../data/ShopData.js';
 
 export class GameScene extends Phaser.Scene {
@@ -667,61 +668,73 @@ export class GameScene extends Phaser.Scene {
             }
         });
         
-        // DASH avec ESPACE
-        this.input.keyboard.on('keydown-SPACE', () => {
-            this.performDash();
+        // Keyboard bindings (dynamic — supports rebinding via ControlsScene)
+        this._kbListeners = [];
+        this._setupKeyboardListeners();
+    }
+
+    /**
+     * Register all keyboard listeners using current keybinding settings.
+     * Safe to call multiple times — clears previous listeners first.
+     */
+    _setupKeyboardListeners() {
+        // Remove previously registered listeners
+        this._kbListeners.forEach(({ event, fn }) => {
+            this.input.keyboard.off(event, fn);
         });
+        this._kbListeners = [];
 
-        this.ultimateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        const kb = keybindingsManager;
 
-        // ULTIMATE (F): hold to charge, release to launch
-        this.input.keyboard.on('keydown-F', () => {
+        const bind = (event, fn) => {
+            this.input.keyboard.on(event, fn);
+            this._kbListeners.push({ event, fn });
+        };
+
+        // Dash
+        bind(`keydown-${kb.get('dash')}`, () => this.performDash());
+
+        // Ultimate (hold to charge, release to fire)
+        bind(`keydown-${kb.get('ultimate')}`, () => {
             this.weapon?.startUltimateCharge(this.worldMouseX, this.worldMouseY);
         });
-
-        this.input.keyboard.on('keyup-F', () => {
+        bind(`keyup-${kb.get('ultimate')}`, () => {
             this.weapon?.releaseUltimate(this.worldMouseX, this.worldMouseY);
         });
-        
-        this.input.keyboard.on('keydown-T', () => {
-            this.toggleAttackRangePreview();
-        });
 
-        // ✅ COMPÉTENCES avec Q, E, R
-        this.input.keyboard.on('keydown-Q', () => {
-            if (this.skills?.q) {
-                this.skills.q.use();
-            }
-        });
-        
-        this.input.keyboard.on('keydown-E', () => {
-            if (this.skills?.e) {
-                this.skills.e.use();
-            }
-        });
-        
-        this.input.keyboard.on('keydown-R', () => {
-            if (this.skills?.r) {
-                this.skills.r.use();
-            }
-        });
+        // Range preview toggle
+        bind(`keydown-${kb.get('rangePreview')}`, () => this.toggleAttackRangePreview());
 
-        this.input.keyboard.on('keyup-R', () => {
-            if (this.skills?.r?.handleConfirmKeyUp) {
-                this.skills.r.handleConfirmKeyUp();
-            }
-        });
+        // Skills
+        bind(`keydown-${kb.get('skillQ')}`, () => this.skills?.q?.use());
+        bind(`keydown-${kb.get('skillE')}`, () => this.skills?.e?.use());
+        bind(`keyup-${kb.get('skillE')}`,   () => this.skills?.e?.handleConfirmKeyUp?.());
+        bind(`keydown-${kb.get('skillR')}`, () => this.skills?.r?.use());
+        bind(`keyup-${kb.get('skillR')}`,   () => this.skills?.r?.handleConfirmKeyUp?.());
 
-        this.input.keyboard.on('keyup-E', () => {
-            if (this.skills?.e?.handleConfirmKeyUp) {
-                this.skills.e.handleConfirmKeyUp();
-            }
-        });
+        // Potion
+        bind(`keydown-${kb.get('potion')}`, () => this.usePotion());
 
-        // 1 — Use regen potion
-        this.input.keyboard.on('keydown-ONE', () => {
-            this.usePotion();
-        });
+        // Pause (ESC — always reserved, not rebindable)
+        bind('keydown-ESC', () => this.togglePause());
+    }
+
+    /** Called by PauseScene / ControlsScene after bindings are updated. */
+    rebindInputs() {
+        this._setupKeyboardListeners();
+    }
+
+    /** Launch / close the pause overlay. */
+    togglePause() {
+        if (this._gameEndTriggered) return; // don't pause on victory/defeat screen
+        if (this.scene.isActive('PauseScene')) {
+            // Already open — resume
+            this.scene.resume('GameScene');
+            this.scene.stop('PauseScene');
+        } else {
+            this.scene.launch('PauseScene', { gameSceneKey: 'GameScene' });
+            this.scene.pause('GameScene');
+        }
     }
     
     setMoveTarget(x, y) {

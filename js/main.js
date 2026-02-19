@@ -9,6 +9,8 @@ import { BossSelectScene } from './scenes/BossSelectScene.js';
 import { TowerScene } from './scenes/TowerScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { DashboardScene } from './scenes/DashboardScene.js';
+import { PauseScene } from './scenes/PauseScene.js';
+import { ControlsScene } from './scenes/ControlsScene.js';
 
 // Game configuration with all scenes
 const config = {
@@ -22,7 +24,9 @@ const config = {
         BossSelectScene,
         GameScene,
         GameOverScene,
-        DashboardScene
+        DashboardScene,
+        PauseScene,
+        ControlsScene
     ]
 };
 

@@ -114,7 +114,7 @@ export class MenuScene extends Phaser.Scene {
         const buttons = [
             { label: 'NOUVELLE PARTIE', icon: '▶', action: () => this.scene.start('ClassSelectScene') },
             { label: 'DASHBOARD JOUEUR', icon: '📊', action: () => this.scene.start('DashboardScene') },
-            { label: 'AIDE & CONTRÔLES', icon: '❓', action: () => this.showToast('LClick: Move • RClick: Attack/Charge • Space: Dash • Q/E/R: Skills • F: Ultimate • T: Range Preview') },
+            { label: 'AIDE & CONTRÔLES', icon: '❓', action: () => this.scene.start('ControlsScene', { originScene: 'MenuScene' }) },
             { label: 'PARAMÈTRES', icon: '⚙', action: () => this.showToast('Menu paramètres disponible dans la prochaine mise à jour.') }
         ];
 
