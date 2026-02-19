@@ -21,12 +21,13 @@ export class GameScene extends Phaser.Scene {
     }
     
     init(data) {
-        this.playerConfig  = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
-        this.bossId        = data.bossId || GameData.currentBossId;
-        this.affixes       = data.affixes       || [];
-        this.scaledHp      = data.scaledHp      || null;
-        this.infiniteFloor = data.infiniteFloor || null;
-        GameData.currentBossId = this.bossId;
+        this.playerConfig       = data.playerConfig || { class: 'WARRIOR', weapon: 'SWORD' };
+        this.bossId             = data.bossId || GameData.currentBossId;
+        this.affixes            = data.affixes       || [];
+        this.scaledHp           = data.scaledHp      || null;
+        this.infiniteFloor      = data.infiniteFloor || null;
+        this._gameEndTriggered  = false;   // ← reset every run so RETRY works correctly
+        GameData.currentBossId  = this.bossId;
     }
     
     create() {

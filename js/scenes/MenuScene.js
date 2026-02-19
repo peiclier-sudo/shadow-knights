@@ -1,5 +1,4 @@
 // MenuScene.js - Main menu
-import { authManager } from '../data/AuthManager.js';
 
 const COLORS = {
     bgTop: 0x050915,
@@ -15,12 +14,10 @@ const COLORS = {
 export class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
-        this.authElements = null;
-        this.statusText = null;
         this.toastLabel = null;
     }
 
-    async create() {
+    create() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
@@ -28,14 +25,8 @@ export class MenuScene extends Phaser.Scene {
         this.createHeader(width);
         this.createNavigation(width, height);
         this.createInfoPanels(width, height);
+        this.createDataBadge(width, height);
         this.createFooter(width, height);
-
-        await authManager.init();
-        this.createAuthOverlay();
-        this.updateAuthStatus();
-
-        this.events.once('shutdown', () => this.destroyAuthOverlay());
-        this.events.once('destroy', () => this.destroyAuthOverlay());
     }
 
     createBackground(width, height) {
@@ -78,7 +69,7 @@ export class MenuScene extends Phaser.Scene {
             fill: COLORS.secondaryText
         });
 
-        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.2 • LIVE', {
+        const liveBadge = this.add.text(width - 330, 80, 'VERSION 1.3 • LIVE', {
             fontSize: '14px',
             fill: '#a5b4fc',
             backgroundColor: '#1e1b4b',
@@ -131,10 +122,26 @@ export class MenuScene extends Phaser.Scene {
             this.createMenuButton(panel.x + 28, panel.y + 76 + index * 84, `${item.icon}  ${item.label}`, item.action);
         });
 
-        this.statusText = this.add.text(panel.x + 28, panel.y + panel.height - 74, 'Mode invité actif. Connecte-toi en haut à droite.', {
-            fontSize: '16px',
-            fill: COLORS.secondaryText,
-            wordWrap: { width: panel.width - 56 }
+        // Data storage info — replaces old auth status line
+        const infoText = this.add.text(
+            panel.x + 28,
+            panel.y + panel.height - 74,
+            '💾  Progress saved locally on this browser.\nUse Save Codes (Dashboard → Stats) to transfer.',
+            {
+                fontSize: '14px',
+                fill: '#7dd3fc',
+                wordWrap: { width: panel.width - 56 },
+                lineSpacing: 4
+            }
+        );
+
+        this.tweens.add({
+            targets: infoText,
+            alpha: { from: 0.6, to: 1 },
+            duration: 2400,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
         });
     }
 
@@ -161,10 +168,37 @@ export class MenuScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
-        this.add.text(secondPanel.x + 24, secondPanel.y + 56, '• v1.2: Procedural sound engine (Web Audio API)\n• v1.2: 16 achievements + in-game popups\n• v1.2: Hit combo system with milestones\n• v1.2: Dashboard stats & achievement tabs', {
+        this.add.text(secondPanel.x + 24, secondPanel.y + 56,
+            '• v1.3: Shadow Crystal currency & permanent upgrades\n• v1.3: Save Code system (cross-device progress)\n• v1.2: Procedural sound engine (Web Audio API)\n• v1.2: 16 achievements + in-game popups\n• v1.2: Hit combo system with milestones', {
             fontSize: '14px',
             fill: '#dbe5ff',
             lineSpacing: 8
+        });
+    }
+
+    /**
+     * Small floating badge (bottom-right) that quietly explains the no-account design.
+     */
+    createDataBadge(width, height) {
+        const badge = this.add.rectangle(width - 26, height - 26, 340, 60, 0x0b1528, 0.88).setOrigin(1, 1);
+        badge.setStrokeStyle(1, 0x29446f, 0.8);
+
+        const icon = this.add.text(width - 352, height - 56, '🔒', { fontSize: '18px' }).setOrigin(0, 0.5);
+
+        const msg = this.add.text(
+            width - 326,
+            height - 56,
+            'No account needed — progress lives in your browser.',
+            { fontSize: '13px', fill: '#93a8ca', wordWrap: { width: 290 } }
+        ).setOrigin(0, 0.5);
+
+        this.tweens.add({
+            targets: [badge, icon, msg],
+            alpha: { from: 0.55, to: 0.95 },
+            duration: 3000,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
         });
     }
 
@@ -243,133 +277,5 @@ export class MenuScene extends Phaser.Scene {
                 this.toastLabel = null;
             }
         });
-    }
-
-    createAuthOverlay() {
-        const panel = document.createElement('div');
-        panel.id = 'auth-panel';
-        Object.assign(panel.style, {
-            position: 'fixed',
-            top: '16px',
-            right: '16px',
-            width: '320px',
-            padding: '14px',
-            border: '1px solid #38bdf8',
-            borderRadius: '12px',
-            background: 'rgba(6, 14, 30, 0.95)',
-            boxShadow: '0 8px 30px rgba(14,165,233,0.30)',
-            zIndex: '99999',
-            color: '#fff',
-            fontFamily: 'Inter, Arial, sans-serif',
-            backdropFilter: 'blur(8px)'
-        });
-
-        panel.innerHTML = `
-            <h3 style="margin:0 0 10px 0; color:#7dd3fc; font-size:18px;">Compte joueur</h3>
-            <p id="auth-msg" style="margin:0 0 8px 0; min-height:18px; font-size:13px; color:#b8c2e0;"></p>
-            <input id="auth-email" type="email" placeholder="Email" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid #35517b;background:#111d34;color:#fff;" />
-            <input id="auth-password" type="password" placeholder="Mot de passe (6+ caractères)" style="width:100%;margin-bottom:10px;padding:10px;border-radius:8px;border:1px solid #35517b;background:#111d34;color:#fff;" />
-            <div style="display:flex;gap:8px;">
-                <button id="auth-login" style="flex:1;padding:10px;border:none;border-radius:8px;background:#0ea5e9;color:#031224;cursor:pointer;font-weight:bold;">Login</button>
-                <button id="auth-register" style="flex:1;padding:10px;border:1px solid #0ea5e9;border-radius:8px;background:transparent;color:#7dd3fc;cursor:pointer;">Register</button>
-            </div>
-            <button id="auth-logout" style="display:none;width:100%;margin-top:10px;padding:10px;border:none;border-radius:8px;background:#ef4444;color:#fff;cursor:pointer;">Logout</button>
-        `;
-
-        document.body.appendChild(panel);
-
-        const emailInput = panel.querySelector('#auth-email');
-        const passwordInput = panel.querySelector('#auth-password');
-        const loginBtn = panel.querySelector('#auth-login');
-        const registerBtn = panel.querySelector('#auth-register');
-        const logoutBtn = panel.querySelector('#auth-logout');
-        const message = panel.querySelector('#auth-msg');
-
-        const setMessage = (text, isError = false) => {
-            message.textContent = text;
-            message.style.color = isError ? '#fca5a5' : '#b8c2e0';
-        };
-
-        loginBtn.addEventListener('click', async () => {
-            try {
-                await authManager.signIn(emailInput.value.trim(), passwordInput.value.trim());
-                setMessage('Connexion réussie.');
-                this.updateAuthStatus();
-            } catch (error) {
-                setMessage(error.message || 'Impossible de se connecter.', true);
-            }
-        });
-
-        registerBtn.addEventListener('click', async () => {
-            try {
-                await authManager.signUp(emailInput.value.trim(), passwordInput.value.trim());
-                setMessage('Compte créé. Vérifie ton email si confirmation activée.');
-                this.updateAuthStatus();
-            } catch (error) {
-                setMessage(error.message || 'Impossible de créer le compte.', true);
-            }
-        });
-
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                await authManager.signOut();
-                setMessage('Déconnecté.');
-                this.updateAuthStatus();
-            } catch (error) {
-                setMessage(error.message || 'Erreur de déconnexion.', true);
-            }
-        });
-
-        this.authElements = { panel, emailInput, passwordInput, loginBtn, registerBtn, logoutBtn, setMessage };
-    }
-
-    updateAuthStatus() {
-        if (!this.authElements) {
-            return;
-        }
-
-        if (!authManager.isConfigured()) {
-            this.authElements.setMessage('Supabase non configuré. Ajoute SUPABASE_URL et SUPABASE_ANON_KEY.');
-            this.authElements.loginBtn.disabled = true;
-            this.authElements.registerBtn.disabled = true;
-            this.authElements.logoutBtn.style.display = 'none';
-            return;
-        }
-
-        this.authElements.loginBtn.disabled = false;
-        this.authElements.registerBtn.disabled = false;
-
-        const user = authManager.getCurrentUser();
-
-        if (user) {
-            this.authElements.emailInput.value = user.email || '';
-            this.authElements.passwordInput.value = '';
-            this.authElements.emailInput.disabled = true;
-            this.authElements.passwordInput.disabled = true;
-            this.authElements.loginBtn.style.display = 'none';
-            this.authElements.registerBtn.style.display = 'none';
-            this.authElements.logoutBtn.style.display = 'block';
-            this.authElements.setMessage(`Connecté: ${user.email}`);
-            this.statusText.setText(`Session active: ${user.email}`);
-        } else {
-            this.authElements.emailInput.disabled = false;
-            this.authElements.passwordInput.disabled = false;
-            this.authElements.loginBtn.style.display = 'block';
-            this.authElements.registerBtn.style.display = 'block';
-            this.authElements.logoutBtn.style.display = 'none';
-            this.statusText.setText('Mode invité actif. Connecte-toi en haut à droite.');
-        }
-    }
-
-    destroyAuthOverlay() {
-        this.toastLabel?.destroy();
-        this.toastLabel = null;
-
-        if (!this.authElements?.panel) {
-            return;
-        }
-
-        this.authElements.panel.remove();
-        this.authElements = null;
     }
 }

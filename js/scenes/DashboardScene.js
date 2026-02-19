@@ -4,7 +4,6 @@ import { BOSSES } from '../data/BossData.js';
 import { ACHIEVEMENTS, RARITY_COLORS } from '../data/AchievementData.js';
 import { SHOP_CATEGORIES, SHOP_UPGRADES, ALL_UPGRADES } from '../data/ShopData.js';
 import { exportSaveCode, importSaveCode } from '../data/SaveCodeManager.js';
-import { authManager } from '../data/AuthManager.js';
 import { soundManager } from '../utils/SoundManager.js';
 
 const C = {
@@ -53,8 +52,7 @@ export class DashboardScene extends Phaser.Scene {
         const title = this.add.text(70, 48, 'PLAYER DASHBOARD', {
             fontSize: '38px', fill: C.text, fontStyle: 'bold' });
         this.add.text(72, 95, 'Progression & statistics', { fontSize: '18px', fill: C.muted });
-        const user = authManager.getCurrentUser();
-        this.add.text(width - 300, 58, user?.email || 'Guest Mode', {
+        this.add.text(width - 300, 58, '💾 Local Save', {
             fontSize: '14px', fill: '#d9f99d', backgroundColor: '#365314', padding: { x: 10, y: 5 } });
         this.tweens.add({ targets: title, x: { from: 70, to: 77 }, duration: 2600,
             ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
