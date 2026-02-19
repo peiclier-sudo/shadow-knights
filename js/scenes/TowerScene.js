@@ -66,13 +66,13 @@ export class TowerScene extends Phaser.Scene {
     _drawBackground() {
         const { w, h } = this;
 
-        // Full-page deep dark fill
+        // Full-page gradient fill matching Dashboard theme
         const bg = this.add.graphics();
-        bg.fillStyle(0x04040e, 1);
+        bg.fillGradientStyle(0x050915, 0x050915, 0x0d1628, 0x0d1628, 1);
         bg.fillRect(0, 0, w, h * 6); // oversized so it covers any scroll
 
         // Subtle radial atmosphere
-        const atmo = this.add.circle(w / 2, h * 0.4, w * 0.6, 0x0a0d2a, 0.35);
+        const atmo = this.add.circle(w / 2, h * 0.4, w * 0.6, 0x0a132a, 0.3);
 
         // Twinkling stars (behind everything, scrolls with world)
         for (let i = 0; i < 90; i++) {
@@ -95,27 +95,34 @@ export class TowerScene extends Phaser.Scene {
         const { w } = this;
         const HEADER_H = 64;
 
-        // Dark header bar
+        // Header bar — matching Dashboard palette
         const hdr = this.add.graphics().setScrollFactor(0).setDepth(300);
-        hdr.fillStyle(0x060610, 0.97);
+        hdr.fillStyle(0x080f1e, 0.98);
         hdr.fillRect(0, 0, w, HEADER_H);
-        hdr.lineStyle(1, 0x1a1a3a, 1);
+        hdr.lineStyle(1, 0x29446f, 0.85);
         hdr.lineBetween(0, HEADER_H, w, HEADER_H);
 
+        // Scanline accent
+        const scan = this.add.rectangle(w / 2, HEADER_H / 2, w, 2, 0x38bdf8, 0.06)
+            .setScrollFactor(0).setDepth(300);
+        this.tweens.add({ targets: scan, alpha: { from: 0.02, to: 0.13 },
+            duration: 2600, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+
         // Back button
-        const back = this.add.text(18, HEADER_H / 2, '‹ BACK', {
-            fontSize: '16px', fill: '#556677', fontStyle: 'bold'
+        const back = this.add.text(18, HEADER_H / 2, '‹  BACK', {
+            fontSize: '15px', fill: '#8fa7cf', fontStyle: 'bold',
+            backgroundColor: '#0d1a2e', padding: { x: 10, y: 5 }
         }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(301).setInteractive({ useHandCursor: true });
-        back.on('pointerover', () => back.setStyle({ fill: '#00d4ff' }));
-        back.on('pointerout',  () => back.setStyle({ fill: '#556677' }));
+        back.on('pointerover', () => back.setStyle({ fill: '#67e8f9' }));
+        back.on('pointerout',  () => back.setStyle({ fill: '#8fa7cf' }));
         back.on('pointerdown', () => {
             this.scene.start('WeaponSelectScene', { playerClass: this.playerClass });
         });
 
         // Title
         this.add.text(w / 2, HEADER_H / 2, 'THE TOWER', {
-            fontSize: '20px', fill: '#00d4ff', fontStyle: 'bold',
-            shadow: { offsetX: 0, offsetY: 0, color: '#00d4ff', blur: 14, fill: true }
+            fontSize: '20px', fill: '#ecf4ff', fontStyle: 'bold',
+            stroke: '#22d3ee', strokeThickness: 1
         }).setOrigin(0.5).setScrollFactor(0).setDepth(301);
 
         // ── Tabs ──
@@ -126,19 +133,19 @@ export class TowerScene extends Phaser.Scene {
             const active = this.mode === modeKey;
             const txt = this.add.text(rx, TAB_Y, label, {
                 fontSize: '14px',
-                fill: active ? '#ffffff' : '#445566',
+                fill: active ? '#ecf4ff' : '#6e86ad',
                 fontStyle: active ? 'bold' : 'normal'
             }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(301).setInteractive({ useHandCursor: true });
 
             if (active) {
                 // Underline
                 const ul = this.add.graphics().setScrollFactor(0).setDepth(301);
-                ul.lineStyle(2, 0x00d4ff, 1);
+                ul.lineStyle(2, 0x67e8f9, 1);
                 ul.lineBetween(txt.x - txt.width, TAB_Y + 12, txt.x, TAB_Y + 12);
             }
 
-            txt.on('pointerover', () => { if (!active) txt.setStyle({ fill: '#aabbcc' }); });
-            txt.on('pointerout',  () => { if (!active) txt.setStyle({ fill: '#445566' }); });
+            txt.on('pointerover', () => { if (!active) txt.setStyle({ fill: '#8fa7cf' }); });
+            txt.on('pointerout',  () => { if (!active) txt.setStyle({ fill: '#6e86ad' }); });
             txt.on('pointerdown', () => {
                 if (!active) {
                     this.mode = modeKey;
@@ -153,7 +160,7 @@ export class TowerScene extends Phaser.Scene {
 
         // Separator between tabs
         const sepG = this.add.graphics().setScrollFactor(0).setDepth(301);
-        sepG.lineStyle(1, 0x334455, 0.8);
+        sepG.lineStyle(1, 0x29446f, 0.6);
         sepG.lineBetween(tabRx - endlessTab.width - 14, TAB_Y - 10, tabRx - endlessTab.width - 14, TAB_Y + 10);
     }
 
@@ -161,17 +168,17 @@ export class TowerScene extends Phaser.Scene {
     _drawFooter() {
         const { w, h } = this;
 
-        // Bottom gradient fade
+        // Bottom gradient fade — matching Dashboard bgBottom
         const fade = this.add.graphics().setScrollFactor(0).setDepth(299);
         for (let i = 0; i < 50; i++) {
-            fade.fillStyle(0x04040e, i / 50);
+            fade.fillStyle(0x0d1628, i / 50);
             fade.fillRect(0, h - 50 + i - 50, w, 1);
         }
-        fade.fillStyle(0x04040e, 0.97);
+        fade.fillStyle(0x0d1628, 0.97);
         fade.fillRect(0, h - 50, w, 50);
 
         // Footer line
-        fade.lineStyle(1, 0x1a1a3a, 0.8);
+        fade.lineStyle(1, 0x29446f, 0.6);
         fade.lineBetween(0, h - 50, w, h - 50);
 
         if (this.mode === 'story') {
@@ -179,7 +186,7 @@ export class TowerScene extends Phaser.Scene {
             const defeated = GameData.defeatedBosses.size;
 
             this.add.text(w / 2, h - 32, `${defeated} / ${total}  CLEARED`, {
-                fontSize: '13px', fill: '#445566'
+                fontSize: '13px', fill: '#6e86ad'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
 
             // Progress bar
@@ -197,13 +204,13 @@ export class TowerScene extends Phaser.Scene {
             const floor = GameData.infiniteFloor || 1;
             const best  = GameData.infiniteBest  || 0;
             this.add.text(w / 2, h - 28, `CURRENT FLOOR  ${floor}   ·   BEST  ${best}`, {
-                fontSize: '13px', fill: '#445566'
+                fontSize: '13px', fill: '#6e86ad'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
         }
 
         // Class · weapon info
         this.add.text(w - 16, h - 28, `${this.playerClass} · ${this.weapon}`, {
-            fontSize: '11px', fill: '#334455'
+            fontSize: '11px', fill: '#4a6080'
         }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(300);
     }
 
@@ -230,7 +237,7 @@ export class TowerScene extends Phaser.Scene {
         const spineY0 = PAD_TOP + 10;
         const spineY1 = PAD_TOP + bossIds.length * (CARD_H + CARD_GAP) - CARD_GAP;
         const spineG  = this.add.graphics().setDepth(5);
-        spineG.lineStyle(2, 0x1a1a3a, 1);
+        spineG.lineStyle(2, 0x1d2d4a, 1);
         spineG.lineBetween(spineX, spineY0, spineX, spineY1);
 
         // ── Build each card ──────────────────────────────────────────────
@@ -275,7 +282,7 @@ export class TowerScene extends Phaser.Scene {
         // ── Card background ──────────────────────────────────────────────
         const cardBg = this.add.graphics().setDepth(10).setAlpha(alpha);
         // Main dark fill
-        cardBg.fillStyle(0x08080f, 1);
+        cardBg.fillStyle(0x0d1628, 1);
         cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 6);
         // Tinted right half
         cardBg.fillStyle(colorNum, 0.04);
@@ -312,7 +319,7 @@ export class TowerScene extends Phaser.Scene {
         const tierX  = cardX + 36;
         const tierY  = cardY + cardH / 2;
         const tierBg = this.add.graphics().setDepth(12).setAlpha(alpha);
-        tierBg.fillStyle(0x0d0d1a, 0.95);
+        tierBg.fillStyle(0x060e1c, 0.95);
         tierBg.fillRoundedRect(tierX - 22, tierY - 14, 44, 28, 5);
         tierBg.lineStyle(1, glowNum, unlocked ? 0.5 : 0.15);
         tierBg.strokeRoundedRect(tierX - 22, tierY - 14, 44, 28, 5);
@@ -458,14 +465,14 @@ export class TowerScene extends Phaser.Scene {
 
         // Endless header notice
         this.add.text(w / 2, PAD_TOP - 28, `ASCENDING FROM FLOOR  ${currentFloor}`, {
-            fontSize: '12px', fill: '#334455', fontStyle: 'italic'
+            fontSize: '12px', fill: '#4a6080', fontStyle: 'italic'
         }).setOrigin(0.5).setDepth(5);
 
         const spineX = CARD_X + 50;
         const spineY0 = PAD_TOP + 10;
         const spineY1 = PAD_TOP + VISIBLE * (CARD_H + CARD_GAP);
         const spineG = this.add.graphics().setDepth(5);
-        spineG.lineStyle(2, 0x1a1a3a, 1);
+        spineG.lineStyle(2, 0x1d2d4a, 1);
         spineG.lineBetween(spineX, spineY0, spineX, spineY1);
 
         for (let i = 0; i < VISIBLE; i++) {
@@ -495,7 +502,7 @@ export class TowerScene extends Phaser.Scene {
 
         // Card BG
         const cardBg = this.add.graphics().setDepth(10).setAlpha(alpha);
-        cardBg.fillStyle(0x08080f, 1);
+        cardBg.fillStyle(0x0d1628, 1);
         cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 6);
         cardBg.fillStyle(colorNum, 0.05);
         cardBg.fillRoundedRect(cardX + cardW * 0.5, cardY, cardW * 0.5, cardH,
@@ -526,7 +533,7 @@ export class TowerScene extends Phaser.Scene {
         const badX = cardX + 36;
         const badY = cardY + cardH / 2;
         const badG = this.add.graphics().setDepth(12).setAlpha(alpha);
-        badG.fillStyle(0x0d0d1a, 0.95);
+        badG.fillStyle(0x060e1c, 0.95);
         badG.fillRoundedRect(badX - 22, badY - 14, 44, 28, 5);
         badG.lineStyle(1, glowNum, 0.4);
         badG.strokeRoundedRect(badX - 22, badY - 14, 44, 28, 5);
