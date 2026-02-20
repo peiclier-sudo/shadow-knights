@@ -15,6 +15,7 @@ import { ComboDisplay } from '../ui/ComboDisplay.js';
 import { soundManager } from '../utils/SoundManager.js';
 import { keybindingsManager } from '../utils/KeybindingsManager.js';
 import { ALL_UPGRADES, calcCrystalReward } from '../data/ShopData.js';
+import { TALENTS } from '../data/TalentData.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -101,6 +102,9 @@ export class GameScene extends Phaser.Scene {
         // Apply purchased shop upgrades to player stats
         this._applyUpgrades();
 
+        // Apply purchased class talents to player stats
+        this._applyTalents();
+
         // Achievement notifier (checks + shows popups)
         this.achievementNotifier = new AchievementNotifier(this);
 
@@ -123,6 +127,16 @@ export class GameScene extends Phaser.Scene {
         for (const upg of ALL_UPGRADES) {
             if (GameData.isUpgradePurchased(upg.id)) {
                 upg.apply(this.player);
+            }
+        }
+    }
+
+    _applyTalents() {
+        const playerClass = (this.playerConfig.class || 'WARRIOR').toUpperCase();
+        for (const talent of TALENTS) {
+            if (talent.class !== playerClass) continue;
+            if (GameData.isTalentPurchased(talent.id)) {
+                talent.apply(this.player);
             }
         }
     }
