@@ -141,6 +141,47 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    // ── Hit-stop & screen-shake feedback ─────────────────────────────────
+    /**
+     * Called whenever the player lands a hit on the boss.
+     * isCrit = true for critical hits → stronger stop + heavier shake.
+     */
+    _triggerHitFeedback(isCrit) {
+        // Camera shake
+        const shakeDur = isCrit ? 90  : 55;
+        const shakeAmt = isCrit ? 0.006 : 0.003;
+        this.cameras.main.shake(shakeDur, shakeAmt);
+
+        // Hit-stop: freeze boss for a short window (already respected by all boss AI)
+        if (this.boss && !this.boss.frozen) {
+            this.boss.frozen = true;
+            const stopMs = isCrit ? 85 : 50;
+            this.time.delayedCall(stopMs, () => {
+                if (this.boss) this.boss.frozen = false;
+            });
+        }
+    }
+
+    /**
+     * Called whenever the player takes damage.
+     * No boss freeze — only strong shake + red screen flash.
+     */
+    _triggerDamageFeedback() {
+        this.cameras.main.shake(180, 0.010);
+
+        // Red vignette flash
+        const W = this.cameras.main.width;
+        const H = this.cameras.main.height;
+        const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xff1111, 0.32)
+            .setScrollFactor(0)
+            .setDepth(900);
+        this.tweens.add({
+            targets: flash, alpha: 0,
+            duration: 320, ease: 'Power2',
+            onComplete: () => flash.destroy()
+        });
+    }
+
     _applyAffixes() {
         for (const key of this.affixes) {
             const affix = AFFIXES[key];
@@ -1204,6 +1245,7 @@ export class GameScene extends Phaser.Scene {
 
                     const finalDamage = proj.damage * damageMultiplier * critMultiplier * comboMultiplier;
                     this.boss.takeDamage(finalDamage);
+                    this._triggerHitFeedback(isCrit);
 
                     // Track damage & combo
                     if (isCrit) {
