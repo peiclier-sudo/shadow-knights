@@ -158,7 +158,7 @@ export class Player extends Phaser.GameObjects.Container {
         const reducedAmount = amount * (1 - this.damageReduction);
 
         this.health = Math.max(0, this.health - reducedAmount);
-        
+
         this.scene.tweens.add({
             targets: this,
             alpha: 0.3,
@@ -166,7 +166,10 @@ export class Player extends Phaser.GameObjects.Container {
             yoyo: true,
             repeat: 1
         });
-        
+
+        // Screen shake + red flash via GameScene
+        this.scene._triggerDamageFeedback?.();
+
         return reducedAmount;
     }
     

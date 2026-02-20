@@ -31,6 +31,13 @@ function loadPurchasedUpgrades() {
     } catch { return new Set(); }
 }
 
+function loadPurchasedTalents() {
+    try {
+        const raw = localStorage.getItem('sk_talents');
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+}
+
 const _savedStats = loadStats();
 
 export const GameData = {
@@ -43,6 +50,7 @@ export const GameData = {
     // ── Shadow Crystals (meta-currency) ───────────────────────────────────
     coins: parseInt(localStorage.getItem('sk_coins')) || 0,
     purchasedUpgrades: loadPurchasedUpgrades(),
+    purchasedTalents: loadPurchasedTalents(),
 
     // ── Lifetime stats (persist across sessions) ───────────────────────────
     stats: {
@@ -87,6 +95,9 @@ export const GameData = {
     saveUpgrades() {
         localStorage.setItem('sk_upgrades', JSON.stringify([...this.purchasedUpgrades]));
     },
+    saveTalents() {
+        localStorage.setItem('sk_talents', JSON.stringify([...this.purchasedTalents]));
+    },
 
     // ── Crystal economy ───────────────────────────────────────────────────
     addCoins(amount) {
@@ -110,6 +121,14 @@ export const GameData = {
 
     isUpgradePurchased(id) {
         return this.purchasedUpgrades.has(id);
+    },
+
+    purchaseTalent(id) {
+        this.purchasedTalents.add(id);
+        this.saveTalents();
+    },
+    isTalentPurchased(id) {
+        return this.purchasedTalents.has(id);
     },
 
     // ── Run lifecycle ──────────────────────────────────────────────────────
@@ -159,6 +178,11 @@ export const GameData = {
             this.stats.highestCombo = count;
             this.saveStats();
         }
+    },
+
+    recordKill() {
+        this.stats.totalKills = (this.stats.totalKills || 0) + 1;
+        this.saveStats();
     },
 
     // ── Boss tracking ─────────────────────────────────────────────────────

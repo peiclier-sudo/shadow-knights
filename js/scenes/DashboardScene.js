@@ -3,6 +3,7 @@ import { GameData } from '../data/GameData.js';
 import { BOSSES } from '../data/BossData.js';
 import { ACHIEVEMENTS, RARITY_COLORS } from '../data/AchievementData.js';
 import { SHOP_CATEGORIES, SHOP_UPGRADES, ALL_UPGRADES } from '../data/ShopData.js';
+import { getBranchesByClass, getPrerequisite, CLASS_META } from '../data/TalentData.js';
 import { exportSaveCode, importSaveCode } from '../data/SaveCodeManager.js';
 import { soundManager } from '../utils/SoundManager.js';
 
@@ -90,8 +91,9 @@ export class DashboardScene extends Phaser.Scene {
             { id: 'stats',        label: 'STATS' },
             { id: 'achievements', label: 'ACHIEVEMENTS' },
             { id: 'shop',         label: '💎 SHOP' },
+            { id: 'talents',      label: '🌟 TALENTS' },
         ];
-        const tabY = 282, tabW = 148, startX = 70;
+        const tabY = 282, tabW = 130, startX = 50;
         this._tabButtons = {};
         tabs.forEach((tab, i) => {
             const x = startX + i * (tabW + 8);
@@ -134,6 +136,7 @@ export class DashboardScene extends Phaser.Scene {
             case 'stats':        this._renderStatsTab(width, height); break;
             case 'achievements': this._renderAchievementsTab(width, height); break;
             case 'shop':         this._renderShopTab(width, height); break;
+            case 'talents':      this._renderTalentsTab(width, height); break;
         }
     }
 
@@ -178,6 +181,7 @@ export class DashboardScene extends Phaser.Scene {
         const rows = [
             ['Total Runs',       s.totalRuns || 0],
             ['Bosses Defeated',  s.bossesDefeated || 0],
+            ['Total Kills',      s.totalKills || 0],
             ['Total Dodges',     s.totalDodges || 0],
             ['Total Crits',      s.totalCrits || 0],
             ['Total Damage',     Math.floor(s.totalDamage || 0).toLocaleString()],
@@ -412,6 +416,178 @@ export class DashboardScene extends Phaser.Scene {
             padding: { x: 16, y: 8 }, stroke: '#4f46e5', strokeThickness: 1
         }).setOrigin(0.5).setScrollFactor(0).setDepth(500);
         this.tweens.add({ targets: flash, y: flash.y - 40, alpha: 0, duration: 1600, onComplete: () => flash.destroy() });
+    }
+
+    // ── Talent Tree ───────────────────────────────────────────────────────
+    _renderTalentsTab(width, height) {
+        const x = 70, y = 306, w = width - 140, h = height - 406;
+        this._panel(x, y, w, h);
+
+        this._t(x + 20, y + 14, '🌟 TALENT TREE', { fontSize: '19px', fill: C.accent, fontStyle: 'bold' });
+        this._t(x + w - 20, y + 14, `Balance: ${GameData.coins} 💎`, {
+            fontSize: '14px', fill: '#ffe066', fontStyle: 'bold'
+        }).setOrigin(1, 0);
+        this._t(x + 20, y + 38, 'Class-specific passives — active every run. Each tier requires the previous one.', {
+            fontSize: '11px', fill: C.muted
+        });
+
+        // ── Class selector ──────────────────────────────────────────
+        const classes = ['WARRIOR', 'MAGE', 'ROGUE'];
+        const selClass = this._talentSelectedClass || 'WARRIOR';
+        const clsBtnW = 120, clsBtnH = 32, clsBtnGap = 10;
+        const clsRowW = classes.length * clsBtnW + (classes.length - 1) * clsBtnGap;
+        const clsStartX = x + w / 2 - clsRowW / 2;
+        const clsBtnY = y + 67;
+
+        classes.forEach((cls, i) => {
+            const bx = clsStartX + i * (clsBtnW + clsBtnGap);
+            const meta = CLASS_META[cls];
+            const active = cls === selClass;
+
+            const btn = this.add.rectangle(bx, clsBtnY, clsBtnW, clsBtnH,
+                active ? meta.hex : 0x0a1526, 1)
+                .setOrigin(0, 0.5)
+                .setStrokeStyle(2, active ? meta.hex : 0x2f4a74, 1)
+                .setInteractive({ useHandCursor: true });
+            this._contentGroup.push(btn);
+
+            const lbl = this._t(bx + clsBtnW / 2, clsBtnY, `${meta.icon} ${meta.label}`, {
+                fontSize: '13px', fill: active ? '#ffffff' : C.muted, fontStyle: active ? 'bold' : 'normal'
+            }).setOrigin(0.5);
+
+            if (!active) {
+                btn.on('pointerover', () => btn.setFillStyle(0x0e2135, 1));
+                btn.on('pointerout',  () => btn.setFillStyle(0x0a1526, 1));
+            }
+            btn.on('pointerdown', () => {
+                if (cls === selClass) return;
+                this._talentSelectedClass = cls;
+                soundManager.playClick();
+                this._contentGroup.forEach(o => o?.destroy());
+                this._contentGroup = [];
+                this._renderTalentsTab(width, height);
+            });
+        });
+
+        // ── Branch columns ──────────────────────────────────────────
+        const branches = getBranchesByClass(selClass);
+        const branchNames = Object.keys(branches);
+        const meta = CLASS_META[selClass];
+        const colPad = 14;
+        const colW = Math.floor((w - colPad * 2 - (branchNames.length - 1) * 10) / branchNames.length);
+        const nodeH  = 62;
+        const connH  = 8;
+        const treeY  = clsBtnY + clsBtnH / 2 + 14;
+
+        branchNames.forEach((branchName, bi) => {
+            const cx = x + colPad + bi * (colW + 10);
+            let ey = treeY;
+
+            // Branch label
+            this._t(cx + colW / 2, ey, branchName.toUpperCase(), {
+                fontSize: '12px', fill: meta.color, fontStyle: 'bold'
+            }).setOrigin(0.5, 0);
+            ey += 20;
+
+            branches[branchName].forEach((talent, ti) => {
+                const prereq    = getPrerequisite(talent);
+                const purchased = GameData.isTalentPurchased(talent.id);
+                const prereqMet = prereq === null || GameData.isTalentPurchased(prereq);
+                const available = !purchased && prereqMet;
+                const locked    = !purchased && !prereqMet;
+                const canAfford = GameData.coins >= talent.cost;
+
+                // Connector between nodes
+                if (ti > 0) {
+                    const line = this.add.rectangle(cx + colW / 2, ey + connH / 2, 2, connH,
+                        purchased ? 0x34d399 : 0x2f4a74, 1).setOrigin(0.5);
+                    this._contentGroup.push(line);
+                    ey += connH;
+                }
+
+                // Card background
+                const bgColor     = locked ? 0x070d1a : (purchased ? 0x0a2218 : 0x0c1828);
+                const strokeColor = locked ? 0x1a2a3a : (purchased ? 0x34d399 : 0x2f4a74);
+                const card = this.add.rectangle(cx, ey, colW, nodeH, bgColor, 1)
+                    .setOrigin(0, 0).setStrokeStyle(1, strokeColor, 1);
+                this._contentGroup.push(card);
+
+                // Tier badge + icon
+                this._t(cx + 7, ey + 8, `T${talent.tier}`, {
+                    fontSize: '10px', fill: locked ? '#3a4a5a' : meta.color, fontStyle: 'bold'
+                }).setOrigin(0, 0);
+                this._t(cx + 7, ey + 22, talent.icon, { fontSize: '19px' }).setOrigin(0, 0);
+
+                // Name + description
+                const nameCol = locked ? '#3a4a6a' : (purchased ? '#a7f3d0' : '#ecf4ff');
+                this._t(cx + 36, ey + 8, talent.name, {
+                    fontSize: '12px', fill: nameCol, fontStyle: 'bold'
+                }).setOrigin(0, 0);
+                this._t(cx + 36, ey + 23, talent.description, {
+                    fontSize: '10px', fill: locked ? '#2a3a4a' : C.muted,
+                    wordWrap: { width: colW - 44 }
+                }).setOrigin(0, 0);
+
+                // Status / action
+                if (purchased) {
+                    this._t(cx + colW - 7, ey + nodeH - 8, '✓ OWNED', {
+                        fontSize: '11px', fill: '#34d399', fontStyle: 'bold'
+                    }).setOrigin(1, 1);
+                } else if (locked) {
+                    this._t(cx + colW - 7, ey + nodeH - 8, '🔒 LOCKED', {
+                        fontSize: '10px', fill: '#3a4a6a'
+                    }).setOrigin(1, 1);
+                } else {
+                    this._t(cx + 36, ey + nodeH - 8, `${talent.cost} 💎`, {
+                        fontSize: '11px', fill: canAfford ? '#ffe066' : '#7a6030'
+                    }).setOrigin(0, 1);
+
+                    const bW = 48, bH = 22;
+                    const bx2 = cx + colW - bW - 6;
+                    const by2 = ey + nodeH - bH - 6;
+                    const buyBtn = this.add.rectangle(bx2, by2, bW, bH,
+                        canAfford ? 0x1a3a6a : 0x121225, 1)
+                        .setOrigin(0, 0)
+                        .setStrokeStyle(1, canAfford ? 0x38bdf8 : 0x2a2a4a, 1)
+                        .setInteractive({ useHandCursor: canAfford });
+                    this._contentGroup.push(buyBtn);
+                    const buyLbl = this._t(bx2 + bW / 2, by2 + bH / 2,
+                        canAfford ? 'BUY' : 'NEED', {
+                            fontSize: '11px', fill: canAfford ? '#67e8f9' : '#3a3a5a', fontStyle: 'bold'
+                        }).setOrigin(0.5);
+
+                    if (canAfford) {
+                        buyBtn.on('pointerover', () => buyBtn.setFillStyle(0x1e5090, 1));
+                        buyBtn.on('pointerout',  () => buyBtn.setFillStyle(0x1a3a6a, 1));
+                        buyBtn.on('pointerdown', () => this._buyTalent(talent, width, height));
+                        buyLbl.setInteractive({ useHandCursor: true });
+                        buyLbl.on('pointerdown', () => this._buyTalent(talent, width, height));
+                    }
+                }
+
+                ey += nodeH;
+            });
+        });
+    }
+
+    _buyTalent(talent, width, height) {
+        if (!GameData.spendCoins(talent.cost)) return;
+        GameData.purchaseTalent(talent.id);
+        soundManager.playAchievement();
+
+        this._contentGroup.forEach(o => o?.destroy());
+        this._contentGroup = [];
+        this._renderTalentsTab(width, height);
+
+        const flash = this.add.text(this.cameras.main.width / 2, 140,
+            `${talent.name} unlocked!  -${talent.cost} 💎`, {
+                fontSize: '17px', fill: '#ffe066', backgroundColor: '#140a00',
+                padding: { x: 16, y: 8 }, stroke: '#f59e0b', strokeThickness: 1
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(500);
+        this.tweens.add({
+            targets: flash, y: flash.y - 40, alpha: 0, duration: 1600,
+            onComplete: () => flash.destroy()
+        });
     }
 
     // ── Action Buttons ────────────────────────────────────────────────────
