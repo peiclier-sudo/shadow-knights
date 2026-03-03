@@ -15,6 +15,8 @@ export class CharacterRenderer3D {
         this.size = options.size || 128;
         this.modelPath = options.modelPath || '/RogueV3.glb';
         this.animationName = options.animationName || 'Runfast';
+        this._frustum = options.frustum || 2.0;
+        this._modelScale = options.modelScale || 2.6;
 
         this.ready = false;
         this.model = null;
@@ -45,7 +47,7 @@ export class CharacterRenderer3D {
 
         // Top-down camera (orthographic, looking straight down)
         // Use a generous frustum so animated limbs don't clip
-        const frustum = 2.0;
+        const frustum = this._frustum;
         this.camera = new THREE.OrthographicCamera(
             -frustum, frustum,
             frustum, -frustum,
@@ -84,13 +86,12 @@ export class CharacterRenderer3D {
                 (gltf) => {
                     this.model = gltf.scene;
 
-                    // Auto-center and scale the model to fit the wider frustum
+                    // Auto-center and scale the model to fit the frustum
                     const box = new THREE.Box3().setFromObject(this.model);
                     const center = box.getCenter(new THREE.Vector3());
                     const bsize = box.getSize(new THREE.Vector3());
                     const maxDim = Math.max(bsize.x, bsize.y, bsize.z);
-                    // Scale to ~2.6 so it fills the 2.0 frustum with room for animation movement
-                    const scale = 2.6 / maxDim;
+                    const scale = this._modelScale / maxDim;
                     this.model.scale.setScalar(scale);
                     // Center horizontally/depth, pin feet to ground (bottom of bbox)
                     this.model.position.set(
