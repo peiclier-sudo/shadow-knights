@@ -42,14 +42,21 @@ export class CharacterRenderer3D {
         this.clock = new THREE.Clock();
         this._modelCenterY = 0;
 
-        // Offscreen canvas
+        // WebGL canvas (internal — Three.js renders here)
+        this._glCanvas = document.createElement('canvas');
+        this._glCanvas.width = this.size;
+        this._glCanvas.height = this.size;
+
+        // Output 2D canvas (what callers read via .canvas)
+        // We copy from WebGL and force all alpha to 1.0 here.
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.size;
         this.canvas.height = this.size;
+        this._outputCtx = this.canvas.getContext('2d');
 
         // Three.js renderer
         this.renderer = new THREE.WebGLRenderer({
-            canvas: this.canvas,
+            canvas: this._glCanvas,
             alpha: true,
             antialias: true,
             premultipliedAlpha: false,
@@ -138,17 +145,6 @@ export class CharacterRenderer3D {
                                 mat.transparent = false;
                                 mat.depthWrite = true;
                                 mat.opacity = 1.0;
-                                // Force fragment shader to output alpha = 1.0.
-                                // Even with transparent=false, the texture's
-                                // alpha channel still gets written to the
-                                // framebuffer, making the model look see-through
-                                // when copied to a 2D canvas.
-                                mat.onBeforeCompile = (shader) => {
-                                    shader.fragmentShader = shader.fragmentShader.replace(
-                                        '#include <dithering_fragment>',
-                                        'gl_FragColor.a = 1.0;\n#include <dithering_fragment>'
-                                    );
-                                };
                             }
                         }
                     });
@@ -236,8 +232,22 @@ export class CharacterRenderer3D {
         }
 
         this.renderer.render(this.scene, this.camera);
-        // Force GPU flush so the canvas pixels are ready for 2D drawImage
         this.renderer.getContext().flush();
+
+        // Copy WebGL output to 2D canvas and force full opacity.
+        // The texture alpha channel leaks into the framebuffer no matter
+        // what material settings we use, so we fix it at the pixel level.
+        const ctx = this._outputCtx;
+        const sz = this.size;
+        ctx.clearRect(0, 0, sz, sz);
+        ctx.drawImage(this._glCanvas, 0, 0);
+        const imageData = ctx.getImageData(0, 0, sz, sz);
+        const pixels = imageData.data;
+        for (let i = 3; i < pixels.length; i += 4) {
+            if (pixels[i] > 0) pixels[i] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
         return this.canvas;
     }
 
