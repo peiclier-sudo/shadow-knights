@@ -123,6 +123,17 @@ export class CharacterRenderer3D {
                         -center.z * scale
                     );
 
+                    // Force double-sided rendering to fix models with
+                    // flipped normals that cause transparent holes
+                    this.model.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            for (const mat of mats) {
+                                mat.side = THREE.DoubleSide;
+                            }
+                        }
+                    });
+
                     this.scene.add(this.model);
 
                     // Compute model's vertical center for camera lookAt
