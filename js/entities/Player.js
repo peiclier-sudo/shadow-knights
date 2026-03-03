@@ -2,14 +2,15 @@
 import { WarriorClass } from '../classes/WarriorClass.js';
 import { MageClass } from '../classes/MageClass.js';
 import { RogueClass } from '../classes/RogueClass.js';
+import { CharacterRenderer3D } from '../utils/CharacterRenderer3D.js';
 
 export class Player extends Phaser.GameObjects.Container {
     constructor(scene, config) {
         super(scene, scene.cameras.main.width * 0.15, scene.cameras.main.height * 0.5);
-        
+
         this.scene = scene;
         this.config = config;
-        
+
         // Stats de base (seront écrasées par la classe)
         this.health = 100;
         this.maxHealth = 100;
@@ -17,7 +18,7 @@ export class Player extends Phaser.GameObjects.Container {
         this.maxStamina = 100;
         this.speed = 300;
         this.staminaRegen = 0.18;
-        
+
         // State
         this.isDashing = false;
         this.isInvulnerable = false;
@@ -38,13 +39,20 @@ export class Player extends Phaser.GameObjects.Container {
         // Ultimate gauge (future weapon ultimate skill)
         this.ultimateGauge = 0;
         this.ultimateGaugeMax = 100;
-        
+
+        // Track previous position for facing direction
+        this._prevX = this.x;
+        this._prevY = this.y;
+
         // Créer la classe
         this.createClass();
-        
-        // Créer les visuels
+
+        // Créer les visuels (fallback 2D circles, replaced once 3D loads)
         this.createVisuals();
-        
+
+        // Initialize 3D character renderer
+        this._init3DCharacter();
+
         // Ajouter à la scène
         scene.add.existing(this);
         scene.physics.add.existing(this);
@@ -69,32 +77,48 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     createVisuals() {
-        const color = this.classData?.data?.color || 0x00d4ff;
-        const glowColor = this.classData?.data?.glowColor || 0x88ddff;
-        
-        // Core
-        const core = this.scene.add.circle(0, 0, 18, color);
-        core.setStrokeStyle(2, 0xffffff);
-        
-        // Glow effects
-        const innerGlow = this.scene.add.circle(0, 0, 22, color, 0.3);
-        const outerGlow = this.scene.add.circle(0, 0, 28, color, 0.15);
-        
-        // Rings
-        const ring1 = this.scene.add.circle(0, 0, 24, color, 0);
-        ring1.setStrokeStyle(1.5, glowColor, 0.6);
-        
-        const ring2 = this.scene.add.circle(0, 0, 30, color, 0);
-        ring2.setStrokeStyle(1, glowColor, 0.3);
-        
-        // Highlight
-        const highlight = this.scene.add.circle(-4, -4, 5, 0xffffff, 0.3);
-        
-        this.add([outerGlow, innerGlow, core, ring1, ring2, highlight]);
-        
-        this.core = core;
-        this.ring1 = ring1;
-        this.ring2 = ring2;
+        // Small shadow circle on the ground beneath the character
+        const shadow = this.scene.add.ellipse(0, 4, 40, 16, 0x000000, 0.35);
+        this.add([shadow]);
+        this.shadow = shadow;
+
+        // The 3D sprite will be added once the model loads (see _init3DCharacter)
+        this.core = null;
+        this.ring1 = null;
+        this.ring2 = null;
+    }
+
+    _init3DCharacter() {
+        const SPRITE_SIZE = 128;
+        const DISPLAY_SIZE = 64;
+        this.charRenderer = new CharacterRenderer3D({
+            size: SPRITE_SIZE,
+            modelPath: 'RogueV3.glb',
+            animationName: 'Runfast'
+        });
+
+        const texKey = '__char3d_' + Date.now();
+        this._charTexKey = texKey;
+
+        this.charRenderer.load().then(() => {
+            if (!this.scene || !this.scene.textures) return;
+
+            // Create a Phaser CanvasTexture we can update every frame
+            this._canvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
+
+            // Initial render
+            this.charRenderer.render();
+            this._canvasTex.context.drawImage(this.charRenderer.canvas, 0, 0);
+            this._canvasTex.refresh();
+
+            this._charSprite = this.scene.add.image(0, 0, texKey);
+            this._charSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
+            this.add(this._charSprite);
+            this.bringToTop(this._charSprite);
+            this._char3DReady = true;
+        }).catch(err => {
+            console.warn('3D character failed to load, keeping fallback visuals:', err);
+        });
     }
     
     move(velocityX, velocityY) {
@@ -180,10 +204,27 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     update() {
-        // Animer les rings
-        if (this.ring1) this.ring1.rotation += 0.01;
-        if (this.ring2) this.ring2.rotation -= 0.005;
-        
+        // Update 3D character: facing direction + re-render each frame
+        if (this._char3DReady && this.charRenderer && this._canvasTex) {
+            const dx = this.x - this._prevX;
+            const dy = this.y - this._prevY;
+
+            // Update facing when moving
+            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                this.charRenderer.setFacing(Math.atan2(dy, dx));
+            }
+
+            this._prevX = this.x;
+            this._prevY = this.y;
+
+            // Re-render 3D model and copy to Phaser canvas texture
+            this.charRenderer.render();
+            const ctx = this._canvasTex.context;
+            ctx.clearRect(0, 0, this._canvasTex.width, this._canvasTex.height);
+            ctx.drawImage(this.charRenderer.canvas, 0, 0);
+            this._canvasTex.refresh();
+        }
+
         // Mettre à jour la classe
         if (this.classData) {
             this.classData.update(Date.now(), 16);
