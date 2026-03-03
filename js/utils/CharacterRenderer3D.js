@@ -162,6 +162,8 @@ export class CharacterRenderer3D {
                                         #endif`
                                     );
                                 };
+                                // Force shader recompilation so onBeforeCompile fires
+                                mat.needsUpdate = true;
                             }
                         }
                     });
