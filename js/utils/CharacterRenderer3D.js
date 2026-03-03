@@ -298,6 +298,54 @@ export class CharacterRenderer3D {
                 }
             }
         }
+
+        // Dilate opaque pixels inward to fill small transparent gaps
+        // caused by holes in the mesh geometry (e.g. shoulder pad gaps).
+        // Each pass fills 1-pixel-deep transparent regions adjacent to
+        // opaque pixels, so N passes fills holes up to N pixels across.
+        const DILATE_PASSES = 6;
+        const stride = sz * 4;
+        // Double-buffer: alternate src/dst each pass
+        let src = out;
+        let dst = new Uint8Array(out.length);
+        for (let pass = 0; pass < DILATE_PASSES; pass++) {
+            dst.set(src);
+            for (let y = 1; y < sz - 1; y++) {
+                for (let x = 1; x < sz - 1; x++) {
+                    const i = y * stride + x * 4;
+                    if (src[i + 3] !== 0) continue; // already opaque
+                    // Check 8 neighbours for opaque pixels
+                    let tr = 0, tg = 0, tb = 0, count = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const ni = (y + dy) * stride + (x + dx) * 4;
+                            if (src[ni + 3] === 255) {
+                                tr += src[ni];
+                                tg += src[ni + 1];
+                                tb += src[ni + 2];
+                                count++;
+                            }
+                        }
+                    }
+                    if (count > 0) {
+                        dst[i]     = (tr / count) | 0;
+                        dst[i + 1] = (tg / count) | 0;
+                        dst[i + 2] = (tb / count) | 0;
+                        dst[i + 3] = 255;
+                    }
+                }
+            }
+            // Swap buffers
+            const tmp = src;
+            src = dst;
+            dst = tmp;
+        }
+        // Copy final result back into imageData
+        if (src !== out) {
+            for (let i = 0; i < out.length; i++) out[i] = src[i];
+        }
+
         ctx.putImageData(imageData, 0, 0);
 
         return this.canvas;
