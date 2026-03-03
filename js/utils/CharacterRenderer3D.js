@@ -54,16 +54,17 @@ export class CharacterRenderer3D {
         this.canvas.height = this.size;
         this._outputCtx = this.canvas.getContext('2d');
 
-        // Three.js renderer
+        // Three.js renderer — no alpha, solid magenta background.
+        // We chroma-key the magenta out in the render() post-process
+        // to create proper transparency without any alpha issues.
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
-            alpha: true,
+            alpha: false,
             antialias: true,
-            premultipliedAlpha: false,
             preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);
-        this.renderer.setClearColor(0x000000, 0);
+        this.renderer.setClearColor(0xff00ff, 1);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Scene
@@ -234,28 +235,37 @@ export class CharacterRenderer3D {
         this.renderer.render(this.scene, this.camera);
         this.renderer.getContext().flush();
 
-        // Read raw pixels from WebGL (bypasses drawImage alpha compositing
-        // which discards RGB for pixels with alpha=0) and force any pixel
-        // with visible color to be fully opaque.
+        // Chroma-key: read raw pixels, replace magenta background with
+        // transparent, make everything else fully opaque.
         const gl = this.renderer.getContext();
         const sz = this.size;
         const buf = new Uint8Array(sz * sz * 4);
         gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
 
-        // Force opaque: any pixel with non-zero RGB gets alpha=255
-        for (let i = 0; i < buf.length; i += 4) {
-            if (buf[i] > 0 || buf[i + 1] > 0 || buf[i + 2] > 0) {
-                buf[i + 3] = 255;
-            }
-        }
-
-        // WebGL readPixels is bottom-up, canvas is top-down — flip rows
         const ctx = this._outputCtx;
         const imageData = ctx.createImageData(sz, sz);
+        const out = imageData.data;
+
         for (let y = 0; y < sz; y++) {
-            const srcRow = (sz - 1 - y) * sz * 4;
+            const srcRow = (sz - 1 - y) * sz * 4;  // flip vertically
             const dstRow = y * sz * 4;
-            imageData.data.set(buf.subarray(srcRow, srcRow + sz * 4), dstRow);
+            for (let x = 0; x < sz; x++) {
+                const si = srcRow + x * 4;
+                const di = dstRow + x * 4;
+                const r = buf[si], g = buf[si + 1], b = buf[si + 2];
+                // Magenta background (or close to it) → transparent
+                if (r > 200 && g < 30 && b > 200) {
+                    out[di] = 0;
+                    out[di + 1] = 0;
+                    out[di + 2] = 0;
+                    out[di + 3] = 0;
+                } else {
+                    out[di] = r;
+                    out[di + 1] = g;
+                    out[di + 2] = b;
+                    out[di + 3] = 255;
+                }
+            }
         }
         ctx.putImageData(imageData, 0, 0);
 
