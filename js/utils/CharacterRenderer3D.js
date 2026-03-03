@@ -123,11 +123,15 @@ export class CharacterRenderer3D {
                         -center.z * scale
                     );
 
-                    // Force fully opaque + double-sided rendering.
-                    // Some models have alphaMode:BLEND with texture alpha
-                    // that creates unwanted transparent holes.
+                    // Fix rendering issues for animated/skinned meshes:
+                    // 1. Disable frustum culling — Three.js computes bounding
+                    //    spheres from the rest pose, so animated vertices that
+                    //    move outside that sphere get incorrectly culled,
+                    //    creating transparent holes and clipped body parts.
+                    // 2. Force opaque + double-sided materials.
                     this.model.traverse((child) => {
-                        if (child.isMesh && child.material) {
+                        if (child.isMesh) {
+                            child.frustumCulled = false;
                             const mats = Array.isArray(child.material) ? child.material : [child.material];
                             for (const mat of mats) {
                                 mat.side = THREE.DoubleSide;
