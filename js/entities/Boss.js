@@ -61,9 +61,7 @@ export class Boss extends Phaser.GameObjects.Container {
             size: SPRITE_SIZE,
             modelPath: cfg.model,
             animationName: cfg.idleAnim,
-            // Slightly larger frustum than player default (2.0) to prevent clipping
-            // on the bigger boss model. Maintain same fill ratio (1.3) for quality.
-            frustum: 3.0,
+            frustum: 4.5,
             modelScale: 3.9
         });
 
@@ -79,7 +77,7 @@ export class Boss extends Phaser.GameObjects.Container {
             this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);
             this._bossCanvasTex.refresh();
 
-            this._bossSprite = this.scene.add.image(0, 0, texKey);
+            this._bossSprite = this.scene.add.image(0, -20, texKey);
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
             this.add(this._bossSprite);
             this.bringToTop(this._bossSprite);
@@ -93,8 +91,8 @@ export class Boss extends Phaser.GameObjects.Container {
             if (this.glow1) this.glow1.setVisible(false);
             if (this.glow2) this.glow2.setVisible(false);
 
-            // Ground shadow (same offset ratio as player: 4/64 ≈ 6% of display size)
-            this._bossShadow = this.scene.add.ellipse(0, 8, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.18, 0x000000, 0.35);
+            // Ground shadow beneath the boss feet
+            this._bossShadow = this.scene.add.ellipse(0, 20, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.18, 0x000000, 0.35);
             this.add(this._bossShadow);
             this.sendToBack(this._bossShadow);
 
