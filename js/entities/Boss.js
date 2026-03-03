@@ -54,16 +54,17 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossRunAnim = cfg.runAnim;
         this._bossIdleAnim = cfg.idleAnim;
 
-        // Use the exact same rendering pipeline as the player:
-        // same canvas size, same CharacterRenderer3D defaults (frustum 2.0, modelScale 2.6).
-        // Only the display size differs (boss is visually larger on screen).
-        const SPRITE_SIZE = 128;
+        const SPRITE_SIZE = 256;
         const DISPLAY_SIZE = 130;
 
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim
+            animationName: cfg.idleAnim,
+            // Boss1_3k.glb is oriented upside-down compared to player models.
+            // Rotate 180° around X in 3D space to fix orientation before rendering,
+            // so we don't need any Phaser-level flip that would break positioning.
+            correctionRotation: { x: Math.PI }
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
