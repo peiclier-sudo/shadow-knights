@@ -33,6 +33,7 @@ export class CharacterRenderer3D {
             canvas: this.canvas,
             alpha: true,
             antialias: true,
+            premultipliedAlpha: false,
             preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);
@@ -43,10 +44,10 @@ export class CharacterRenderer3D {
         this.scene = new THREE.Scene();
 
         // Top-down camera (orthographic, looking straight down)
-        const aspect = 1;
-        const frustum = 1.2;
+        // Use a generous frustum so animated limbs don't clip
+        const frustum = 2.0;
         this.camera = new THREE.OrthographicCamera(
-            -frustum * aspect, frustum * aspect,
+            -frustum, frustum,
             frustum, -frustum,
             0.1, 100
         );
@@ -83,16 +84,18 @@ export class CharacterRenderer3D {
                 (gltf) => {
                     this.model = gltf.scene;
 
-                    // Auto-center and scale the model
+                    // Auto-center and scale the model to fit the wider frustum
                     const box = new THREE.Box3().setFromObject(this.model);
                     const center = box.getCenter(new THREE.Vector3());
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scale = 1.8 / maxDim;
+                    const bsize = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(bsize.x, bsize.y, bsize.z);
+                    // Scale to ~2.6 so it fills the 2.0 frustum with room for animation movement
+                    const scale = 2.6 / maxDim;
                     this.model.scale.setScalar(scale);
+                    // Center horizontally/depth, pin feet to ground (bottom of bbox)
                     this.model.position.set(
                         -center.x * scale,
-                        -center.y * scale,
+                        -box.min.y * scale,
                         -center.z * scale
                     );
 
@@ -153,6 +156,8 @@ export class CharacterRenderer3D {
         }
 
         this.renderer.render(this.scene, this.camera);
+        // Force GPU flush so the canvas pixels are ready for 2D drawImage
+        this.renderer.getContext().flush();
         return this.canvas;
     }
 
