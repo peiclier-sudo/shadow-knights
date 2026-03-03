@@ -95,8 +95,8 @@ export class Boss extends Phaser.GameObjects.Container {
             if (this.glow1) this.glow1.setVisible(false);
             if (this.glow2) this.glow2.setVisible(false);
 
-            // Add a ground shadow beneath the 3D model
-            this._bossShadow = this.scene.add.ellipse(0, DISPLAY_SIZE * 0.35, DISPLAY_SIZE * 0.7, DISPLAY_SIZE * 0.22, 0x000000, 0.35);
+            // Add a ground shadow beneath the 3D model (same proportional offset as the player: ~6% of display size)
+            this._bossShadow = this.scene.add.ellipse(0, 8, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.18, 0x000000, 0.35);
             this.add(this._bossShadow);
             this.sendToBack(this._bossShadow);
 
