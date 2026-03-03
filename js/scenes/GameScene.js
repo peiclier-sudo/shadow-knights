@@ -286,19 +286,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     createBackground(width, height) {
-        // Deep gradient backdrop
-        const gradient = this.add.graphics();
-        gradient.fillGradientStyle(0x040409, 0x0d1222, 0x050810, 0x111a2f, 1);
-        gradient.fillRect(0, 0, width, height);
+        // Dark stone floor base
+        const floor = this.add.graphics();
+        floor.fillGradientStyle(0x1a1a2e, 0x16213e, 0x1a1a2e, 0x0f3460, 1);
+        floor.fillRect(0, 0, width, height);
 
-        // Subtle radial glow to focus center combat area
-        const centerGlow = this.add.circle(width * 0.52, height * 0.5, Math.max(width, height) * 0.45, 0x21406f, 0.06)
-            .setBlendMode(Phaser.BlendModes.SCREEN);
-
-        // Faint grid lines for a cleaner arena feel
+        // Stone tile grid (top-down floor perspective)
         const grid = this.add.graphics();
-        grid.lineStyle(1, 0x9ecbff, 0.03);
         const spacing = 64;
+
+        // Main tile lines - dark mortar between stones
+        grid.lineStyle(2, 0x0a0a18, 0.6);
         for (let x = 0; x <= width; x += spacing) {
             grid.lineBetween(x, 0, x, height);
         }
@@ -306,45 +304,46 @@ export class GameScene extends Phaser.Scene {
             grid.lineBetween(0, y, width, y);
         }
 
-        // Layered star particles with gentle parallax drift
-        const makeStarLayer = (count, alphaMin, alphaMax, speedMin, speedMax, sizeMin, sizeMax) => {
-            for (let i = 0; i < count; i++) {
-                const x = Phaser.Math.Between(0, width);
-                const y = Phaser.Math.Between(0, height);
-                const size = Phaser.Math.FloatBetween(sizeMin, sizeMax);
-                const alpha = Phaser.Math.FloatBetween(alphaMin, alphaMax);
+        // Subtle highlight on tile edges (top-left light source)
+        grid.lineStyle(1, 0x2a3a5e, 0.15);
+        for (let x = 1; x <= width; x += spacing) {
+            grid.lineBetween(x, 0, x, height);
+        }
+        for (let y = 1; y <= height; y += spacing) {
+            grid.lineBetween(0, y, width, y);
+        }
 
-                const star = this.add.circle(x, y, size, 0xffffff, alpha);
+        // Scattered floor texture details (small stone cracks / variation)
+        const details = this.add.graphics();
+        for (let i = 0; i < 60; i++) {
+            const dx = Phaser.Math.Between(0, width);
+            const dy = Phaser.Math.Between(0, height);
+            const shade = Phaser.Math.Between(0x12, 0x22);
+            const color = (shade << 16) | (shade << 8) | (shade + 0x10);
+            details.fillStyle(color, Phaser.Math.FloatBetween(0.05, 0.15));
+            details.fillCircle(dx, dy, Phaser.Math.FloatBetween(1, 4));
+        }
 
-                this.tweens.add({
-                    targets: star,
-                    alpha: alpha * 0.35,
-                    duration: Phaser.Math.Between(1600, 3200),
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
+        // Subtle warm center glow (torch / ambient light on arena floor)
+        const centerGlow = this.add.circle(
+            width * 0.5, height * 0.5,
+            Math.max(width, height) * 0.4,
+            0x2a1a0a, 0.08
+        ).setBlendMode(Phaser.BlendModes.SCREEN);
 
-                this.tweens.add({
-                    targets: star,
-                    x: x + Phaser.Math.Between(-18, 18),
-                    y: y + Phaser.Math.Between(-12, 12),
-                    duration: Phaser.Math.Between(speedMin, speedMax),
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
-            }
-        };
+        // Dark edge vignette
+        const vignette = this.add.graphics();
+        vignette.fillStyle(0x000000, 0.3);
+        vignette.fillRect(0, 0, width, height);
+        const clearRadius = Math.min(width, height) * 0.55;
+        vignette.fillStyle(0x000000, 0);
+        // We use a second circle with ERASE blend to cut out the center
+        const vignetteCenter = this.add.circle(
+            width * 0.5, height * 0.5,
+            clearRadius, 0x000000, 0.25
+        ).setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        makeStarLayer(80, 0.05, 0.22, 5000, 9000, 0.8, 1.6);
-        makeStarLayer(30, 0.08, 0.28, 3500, 6500, 1.2, 2.3);
-
-        const vignette = this.add.circle(width * 0.5, height * 0.5, Math.max(width, height) * 0.78, 0x000000, 0.22)
-            .setBlendMode(Phaser.BlendModes.MULTIPLY);
-
-        // Keep references if we want to tune/destroy later
-        this.backgroundDecor = { gradient, centerGlow, grid, vignette };
+        this.backgroundDecor = { floor, grid, details, centerGlow, vignetteCenter };
     }
 
     createWeapon() {
