@@ -61,9 +61,10 @@ export class Boss extends Phaser.GameObjects.Container {
             size: SPRITE_SIZE,
             modelPath: cfg.model,
             animationName: cfg.idleAnim,
-            // Boss1_3k.glb is upside-down compared to player models.
-            // 180° Z rotation flips Y (vertical) without swapping front/back.
-            correctionRotation: { z: Math.PI }
+            // Slightly larger frustum than player default (2.0) to prevent clipping
+            // on the bigger boss model. Maintain same fill ratio (1.3) for quality.
+            frustum: 3.0,
+            modelScale: 3.9
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
@@ -738,12 +739,10 @@ export class Boss extends Phaser.GameObjects.Container {
             const dy = this.y - this._prevBossY;
             const isMoving = Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3;
 
-            // Face the player
-            // The correctionRotation {z:PI} mirrors the X axis, which reverses
-            // the apparent facing direction. Offset by PI to compensate.
+            // Face the player (same as player pipeline, no offset needed)
             if (player) {
                 const faceAngle = Math.atan2(player.y - this.y, player.x - this.x);
-                this._bossRenderer.setFacing(faceAngle + Math.PI);
+                this._bossRenderer.setFacing(faceAngle);
             }
 
             // Auto-switch idle/walk when not overridden by attack animation
