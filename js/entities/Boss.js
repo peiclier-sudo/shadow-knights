@@ -44,8 +44,10 @@ export class Boss extends Phaser.GameObjects.Container {
     
     _init3DBoss() {
         // 3D model config per boss ID
+        // frustum: wider = more room for animated limbs (less clipping)
+        // modelScale: how large the model fills the frustum
         const BOSS_3D = {
-            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 192, displaySize: 110 }
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 3.5, modelScale: 3.8 }
         };
 
         const cfg = BOSS_3D[this.bossId];
@@ -60,7 +62,9 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim
+            animationName: cfg.idleAnim,
+            frustum: cfg.frustum,
+            modelScale: cfg.modelScale
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
@@ -531,12 +535,15 @@ export class Boss extends Phaser.GameObjects.Container {
         // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
         
-        // Visual feedback — flash
-        this.scene.tweens.add({
+        // Visual feedback — flash (kill previous to avoid alpha stacking)
+        if (this._dmgFlashTween) this._dmgFlashTween.stop();
+        this.alpha = 1;
+        this._dmgFlashTween = this.scene.tweens.add({
             targets: this,
-            alpha: 0.3,
-            duration: 50,
-            yoyo: true
+            alpha: 0.5,
+            duration: 60,
+            yoyo: true,
+            onComplete: () => { this.alpha = 1; this._dmgFlashTween = null; }
         });
 
         // Dynamic damage number: size + color scale with damage magnitude
