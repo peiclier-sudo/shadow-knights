@@ -138,6 +138,17 @@ export class CharacterRenderer3D {
                                 mat.transparent = false;
                                 mat.depthWrite = true;
                                 mat.opacity = 1.0;
+                                // Force fragment shader to output alpha = 1.0.
+                                // Even with transparent=false, the texture's
+                                // alpha channel still gets written to the
+                                // framebuffer, making the model look see-through
+                                // when copied to a 2D canvas.
+                                mat.onBeforeCompile = (shader) => {
+                                    shader.fragmentShader = shader.fragmentShader.replace(
+                                        '#include <dithering_fragment>',
+                                        'gl_FragColor.a = 1.0;\n#include <dithering_fragment>'
+                                    );
+                                };
                             }
                         }
                     });
