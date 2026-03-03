@@ -45,9 +45,9 @@ export class Boss extends Phaser.GameObjects.Container {
     _init3DBoss() {
         // 3D model config per boss ID
         // frustum: wider = more room for animated limbs (less clipping)
-        // modelScale: how large the model fills the frustum (relative to frustum)
+        // modelScale: how large the model fills the frustum
         const BOSS_3D = {
-            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 120, frustum: 3.0, modelScale: 3.6 }
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 3.5, modelScale: 3.8 }
         };
 
         const cfg = BOSS_3D[this.bossId];
@@ -535,7 +535,7 @@ export class Boss extends Phaser.GameObjects.Container {
         // Appliquer les dégâts
         this.health = Math.max(0, this.health - finalDamage);
         
-        // Visual feedback — flash (kill previous flash tween to avoid alpha stacking)
+        // Visual feedback — flash (kill previous to avoid alpha stacking)
         if (this._dmgFlashTween) this._dmgFlashTween.stop();
         this.alpha = 1;
         this._dmgFlashTween = this.scene.tweens.add({
