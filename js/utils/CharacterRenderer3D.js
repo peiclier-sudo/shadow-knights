@@ -264,89 +264,13 @@ export class CharacterRenderer3D {
         }
 
         this.renderer.render(this.scene, this.camera);
-        this.renderer.getContext().flush();
 
-        // Chroma-key: read raw pixels, replace magenta background with
-        // transparent, make everything else fully opaque.
-        const gl = this.renderer.getContext();
-        const sz = this.size;
-        const buf = new Uint8Array(sz * sz * 4);
-        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-
+        // DEBUG: bypass all post-processing — just copy the raw WebGL
+        // canvas directly.  With alpha:false every pixel is fully opaque,
+        // so if transparency STILL appears the bug is in Phaser, not here.
         const ctx = this._outputCtx;
-        const imageData = ctx.createImageData(sz, sz);
-        const out = imageData.data;
-
-        for (let y = 0; y < sz; y++) {
-            const srcRow = (sz - 1 - y) * sz * 4;  // flip vertically
-            const dstRow = y * sz * 4;
-            for (let x = 0; x < sz; x++) {
-                const si = srcRow + x * 4;
-                const di = dstRow + x * 4;
-                const r = buf[si], g = buf[si + 1], b = buf[si + 2];
-                // Magenta background (or close to it) → transparent
-                if (r > 200 && g < 30 && b > 200) {
-                    out[di] = 0;
-                    out[di + 1] = 0;
-                    out[di + 2] = 0;
-                    out[di + 3] = 0;
-                } else {
-                    out[di] = r;
-                    out[di + 1] = g;
-                    out[di + 2] = b;
-                    out[di + 3] = 255;
-                }
-            }
-        }
-
-        // Dilate opaque pixels inward to fill small transparent gaps
-        // caused by holes in the mesh geometry (e.g. shoulder pad gaps).
-        // Each pass fills 1-pixel-deep transparent regions adjacent to
-        // opaque pixels, so N passes fills holes up to N pixels across.
-        const DILATE_PASSES = 6;
-        const stride = sz * 4;
-        // Double-buffer: alternate src/dst each pass
-        let src = out;
-        let dst = new Uint8Array(out.length);
-        for (let pass = 0; pass < DILATE_PASSES; pass++) {
-            dst.set(src);
-            for (let y = 1; y < sz - 1; y++) {
-                for (let x = 1; x < sz - 1; x++) {
-                    const i = y * stride + x * 4;
-                    if (src[i + 3] !== 0) continue; // already opaque
-                    // Check 8 neighbours for opaque pixels
-                    let tr = 0, tg = 0, tb = 0, count = 0;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const ni = (y + dy) * stride + (x + dx) * 4;
-                            if (src[ni + 3] === 255) {
-                                tr += src[ni];
-                                tg += src[ni + 1];
-                                tb += src[ni + 2];
-                                count++;
-                            }
-                        }
-                    }
-                    if (count > 0) {
-                        dst[i]     = (tr / count) | 0;
-                        dst[i + 1] = (tg / count) | 0;
-                        dst[i + 2] = (tb / count) | 0;
-                        dst[i + 3] = 255;
-                    }
-                }
-            }
-            // Swap buffers
-            const tmp = src;
-            src = dst;
-            dst = tmp;
-        }
-        // Copy final result back into imageData
-        if (src !== out) {
-            for (let i = 0; i < out.length; i++) out[i] = src[i];
-        }
-
-        ctx.putImageData(imageData, 0, 0);
+        ctx.clearRect(0, 0, this.size, this.size);
+        ctx.drawImage(this._glCanvas, 0, 0);
 
         return this.canvas;
     }
