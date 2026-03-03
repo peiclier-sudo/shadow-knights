@@ -146,6 +146,22 @@ export class CharacterRenderer3D {
                                 mat.transparent = false;
                                 mat.depthWrite = true;
                                 mat.opacity = 1.0;
+                                mat.alphaTest = 0;
+                                // Strip texture alpha from the shader so the
+                                // model never has transparent patches. The
+                                // map_fragment chunk normally does:
+                                //   diffuseColor *= texture2D(map, vMapUv)
+                                // which includes the texture's alpha channel.
+                                // We override it to only use RGB.
+                                mat.onBeforeCompile = (shader) => {
+                                    shader.fragmentShader = shader.fragmentShader.replace(
+                                        '#include <map_fragment>',
+                                        `#ifdef USE_MAP
+                                            vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+                                            diffuseColor.rgb *= sampledDiffuseColor.rgb;
+                                        #endif`
+                                    );
+                                };
                             }
                         }
                     });
