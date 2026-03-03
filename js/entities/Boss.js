@@ -81,6 +81,7 @@ export class Boss extends Phaser.GameObjects.Container {
 
             this._bossSprite = this.scene.add.image(0, 0, texKey);
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
+            this._bossSprite.setFlipY(true);
             this.add(this._bossSprite);
             this.bringToTop(this._bossSprite);
 
