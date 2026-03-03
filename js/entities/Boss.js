@@ -57,13 +57,15 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossIdleAnim = cfg.idleAnim;
 
         // Match the player's render canvas size (128) for identical 3D pipeline
-        const SPRITE_SIZE = 128;
+        const SPRITE_SIZE = 256;
         const DISPLAY_SIZE = 130;
 
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim
+            animationName: cfg.idleAnim,
+            frustum: 3.5,
+            modelScale: 3.5
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
