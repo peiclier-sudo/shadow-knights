@@ -234,17 +234,28 @@ export class CharacterRenderer3D {
         this.renderer.render(this.scene, this.camera);
         this.renderer.getContext().flush();
 
-        // Copy WebGL output to 2D canvas and force full opacity.
-        // The texture alpha channel leaks into the framebuffer no matter
-        // what material settings we use, so we fix it at the pixel level.
-        const ctx = this._outputCtx;
+        // Read raw pixels from WebGL (bypasses drawImage alpha compositing
+        // which discards RGB for pixels with alpha=0) and force any pixel
+        // with visible color to be fully opaque.
+        const gl = this.renderer.getContext();
         const sz = this.size;
-        ctx.clearRect(0, 0, sz, sz);
-        ctx.drawImage(this._glCanvas, 0, 0);
-        const imageData = ctx.getImageData(0, 0, sz, sz);
-        const pixels = imageData.data;
-        for (let i = 3; i < pixels.length; i += 4) {
-            if (pixels[i] > 0) pixels[i] = 255;
+        const buf = new Uint8Array(sz * sz * 4);
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+
+        // Force opaque: any pixel with non-zero RGB gets alpha=255
+        for (let i = 0; i < buf.length; i += 4) {
+            if (buf[i] > 0 || buf[i + 1] > 0 || buf[i + 2] > 0) {
+                buf[i + 3] = 255;
+            }
+        }
+
+        // WebGL readPixels is bottom-up, canvas is top-down — flip rows
+        const ctx = this._outputCtx;
+        const imageData = ctx.createImageData(sz, sz);
+        for (let y = 0; y < sz; y++) {
+            const srcRow = (sz - 1 - y) * sz * 4;
+            const dstRow = y * sz * 4;
+            imageData.data.set(buf.subarray(srcRow, srcRow + sz * 4), dstRow);
         }
         ctx.putImageData(imageData, 0, 0);
 
