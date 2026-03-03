@@ -91,10 +91,23 @@ export class Player extends Phaser.GameObjects.Container {
     _init3DCharacter() {
         const SPRITE_SIZE = 128;
         const DISPLAY_SIZE = 64;
+
+        // Class-specific 3D model and animation mapping
+        const MODEL_CONFIG = {
+            ROGUE:   { model: 'RogueV3.glb',            runAnim: 'RunFast',      idleAnim: 'Idle' },
+            MAGE:    { model: '3K Character Mage.glb',   runAnim: 'Fast running', idleAnim: 'Idle' },
+            WARRIOR: { model: 'RogueV3.glb',            runAnim: 'RunFast',      idleAnim: 'Idle' }  // fallback until warrior model exists
+        };
+
+        const classKey = (this.config.class || 'WARRIOR').toUpperCase();
+        const cfg = MODEL_CONFIG[classKey] || MODEL_CONFIG.WARRIOR;
+        this._runAnimName = cfg.runAnim;
+        this._idleAnimName = cfg.idleAnim;
+
         this.charRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
-            modelPath: 'RogueV3.glb',
-            animationName: 'Runfast'
+            modelPath: cfg.model,
+            animationName: cfg.idleAnim
         });
 
         const texKey = '__char3d_' + Date.now();
@@ -215,13 +228,15 @@ export class Player extends Phaser.GameObjects.Container {
                 this.charRenderer.setFacing(Math.atan2(dy, dx));
             }
 
-            // Switch between Runfast and Idle based on movement
-            if (isMoving && this._currentAnim !== 'Runfast') {
-                this.charRenderer.playAnimation('Runfast');
-                this._currentAnim = 'Runfast';
-            } else if (!isMoving && this._currentAnim !== 'Idle') {
-                this.charRenderer.playAnimation('Idle');
-                this._currentAnim = 'Idle';
+            // Switch between Run and Idle based on movement
+            const runAnim = this._runAnimName || 'RunFast';
+            const idleAnim = this._idleAnimName || 'Idle';
+            if (isMoving && this._currentAnim !== runAnim) {
+                this.charRenderer.playAnimation(runAnim);
+                this._currentAnim = runAnim;
+            } else if (!isMoving && this._currentAnim !== idleAnim) {
+                this.charRenderer.playAnimation(idleAnim);
+                this._currentAnim = idleAnim;
             }
 
             this._prevX = this.x;

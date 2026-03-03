@@ -33,9 +33,10 @@ export class SentinelBoss extends Boss {
         this.isAttacking = true;
         this.body?.setVelocity(0, 0);
 
-        if (type === 'SLASH')  this._slash(player, phase2);
-        if (type === 'STOMP')  this._stomp(player, phase2);
-        if (type === 'CHARGE') this._charge(player, phase2);
+        // Trigger 3D attack animations
+        if (type === 'SLASH')  { this.playBossAnimation('Punch', 0.15);       this._slash(player, phase2); }
+        if (type === 'STOMP')  { this.playBossAnimation('Reverse punch', 0.15); this._stomp(player, phase2); }
+        if (type === 'CHARGE') { this.playBossAnimation('RunFast.001', 0.15);  this._charge(player, phase2); }
     }
 
     // ── SLASH – directional cone swipe ─────────────────────────────────────
@@ -70,7 +71,7 @@ export class SentinelBoss extends Boss {
 
                 this.scene.tweens.add({
                     targets: hit, alpha: 0, duration: 220,
-                    onComplete: () => { hit.destroy(); this.isAttacking = false; }
+                    onComplete: () => { hit.destroy(); this.isAttacking = false; this._bossCurrentAnim = null; }
                 });
             }
         });
@@ -117,6 +118,7 @@ export class SentinelBoss extends Boss {
                 }
             });
             this.isAttacking = false;
+            this._bossCurrentAnim = null;
         });
     }
 
@@ -168,6 +170,7 @@ export class SentinelBoss extends Boss {
                             });
                         }
                         this.isAttacking = false;
+                        this._bossCurrentAnim = null;
                     }
                 });
             }
