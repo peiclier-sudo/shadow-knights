@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Model Debug - Boss vs Player</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+        }
+    }
+    </script>
+    <style>
+        body { margin: 0; background: #111; color: #fff; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        h2 { margin: 10px; }
+        .row { display: flex; gap: 20px; margin: 10px; }
+        .model-box { text-align: center; }
+        canvas { border: 2px solid #444; display: block; }
+        #log { white-space: pre; font-size: 12px; margin: 10px; padding: 10px; background: #222; max-width: 800px; }
+    </style>
+</head>
+<body>
+    <h2>Model Debug: Player (left) vs Boss (right)</h2>
+    <div class="row">
+        <div class="model-box">
+            <div>RogueV3.glb (Player)</div>
+            <canvas id="player" width="256" height="256"></canvas>
+        </div>
+        <div class="model-box">
+            <div>Boss1_3k.glb (Boss)</div>
+            <canvas id="boss" width="256" height="256"></canvas>
+        </div>
+    </div>
+    <div id="log"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        const log = document.getElementById('log');
+        function print(msg) { log.textContent += msg + '\n'; }
+
+        function setupRenderer(canvasId, modelPath, animName) {
+            const canvas = document.getElementById(canvasId);
+            const size = 256;
+            const frustum = 2.0;
+            const modelScale = 2.6;
+            const cameraTilt = 0.35;
+            const camDist = 6;
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(size, size);
+            renderer.setClearColor(0x333333, 1); // Gray background so we can see the model
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            const scene = new THREE.Scene();
+
+            const camera = new THREE.OrthographicCamera(-frustum, frustum, frustum, -frustum, 0.1, 100);
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            const dir = new THREE.DirectionalLight(0xffffff, 2.0);
+            dir.position.set(2, 8, 2);
+            scene.add(dir);
+            const rim = new THREE.DirectionalLight(0x88bbff, 0.8);
+            rim.position.set(-2, 5, -2);
+            scene.add(rim);
+
+            // Add ground grid for reference
+            const grid = new THREE.GridHelper(4, 8, 0x555555, 0x333333);
+            scene.add(grid);
+
+            const loader = new GLTFLoader();
+            loader.load(modelPath, (gltf) => {
+                const model = gltf.scene;
+
+                // Auto-center and scale (same as CharacterRenderer3D)
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const bsize = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(bsize.x, bsize.y, bsize.z);
+                const scale = modelScale / maxDim;
+
+                print(canvasId + ': bbox size=' + bsize.x.toFixed(4) + ',' + bsize.y.toFixed(4) + ',' + bsize.z.toFixed(4));
+                print(canvasId + ': maxDim=' + maxDim.toFixed(4) + ' scale=' + scale.toFixed(2));
+
+                model.scale.setScalar(scale);
+                model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+                scene.add(model);
+
+                const scaledBox = new THREE.Box3().setFromObject(model);
+                const modelCenterY = (scaledBox.min.y + scaledBox.max.y) / 2;
+
+                print(canvasId + ': modelCenterY=' + modelCenterY.toFixed(2));
+                print(canvasId + ': scaledBox Y=[' + scaledBox.min.y.toFixed(2) + ', ' + scaledBox.max.y.toFixed(2) + ']');
+
+                // Setup animation
+                let mixer = null;
+                if (gltf.animations && gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(model);
+                    print(canvasId + ': animations=' + gltf.animations.map(a => a.name).join(', '));
+                    const key = animName.toLowerCase();
+                    const clip = gltf.animations.find(a => a.name.toLowerCase() === key);
+                    if (clip) {
+                        mixer.clipAction(clip).play();
+                        print(canvasId + ': playing "' + clip.name + '"');
+                    }
+                }
+
+                // Set facing to 0 (facing right in 2D)
+                model.rotation.y = -0 + Math.PI / 2;
+
+                // Camera position (same as CharacterRenderer3D)
+                camera.position.set(0, camDist * Math.cos(cameraTilt), camDist * Math.sin(cameraTilt));
+                camera.lookAt(0, modelCenterY, 0);
+
+                const clock = new THREE.Clock();
+                function animate() {
+                    requestAnimationFrame(animate);
+                    if (mixer) mixer.update(clock.getDelta());
+                    // Slowly rotate to show all sides
+                    model.rotation.y += 0.005;
+                    renderer.render(scene, camera);
+                }
+                animate();
+
+                print(canvasId + ': LOADED OK');
+                print('---');
+            }, undefined, (err) => {
+                print(canvasId + ': LOAD ERROR: ' + err);
+            });
+        }
+
+        setupRenderer('player', 'RogueV3.glb', 'Idle');
+        setupRenderer('boss', 'Boss1_3k.glb', 'Idle');
+    </script>
+</body>
+</html>
