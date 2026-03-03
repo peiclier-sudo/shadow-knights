@@ -1,15 +1,16 @@
 // Boss.js - Base boss entity
 import { BOSSES } from '../data/BossData.js';
 import { soundManager } from '../utils/SoundManager.js';
+import { CharacterRenderer3D } from '../utils/CharacterRenderer3D.js';
 
 export class Boss extends Phaser.GameObjects.Container {
     constructor(scene, bossId) {
         super(scene, scene.cameras.main.width * 0.5, scene.cameras.main.height * 0.5);
-        
+
         this.scene = scene;
         this.bossData = BOSSES[bossId];
         this.bossId = bossId;
-        
+
         // Stats
         this.health = this.bossData.hp;
         this.maxHealth = this.bossData.hp;
@@ -20,10 +21,19 @@ export class Boss extends Phaser.GameObjects.Container {
         this.slowed = false;
         this.damageTakenMultiplier = 1.0;
         this.vulnerabilityTimer = null;
-        
+
+        // 3D state tracking
+        this._prevBossX = this.x;
+        this._prevBossY = this.y;
+        this._boss3DReady = false;
+        this._bossCurrentAnim = null;
+
         // Create visuals
         this.createVisuals();
-        
+
+        // Initialize 3D model if available for this boss
+        this._init3DBoss();
+
         // Add to scene
         scene.add.existing(this);
         scene.physics.add.existing(this);
@@ -32,22 +42,91 @@ export class Boss extends Phaser.GameObjects.Container {
         this.body.setImmovable(true);
     }
     
+    _init3DBoss() {
+        // 3D model config per boss ID
+        const BOSS_3D = {
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 192, displaySize: 110 }
+        };
+
+        const cfg = BOSS_3D[this.bossId];
+        if (!cfg) return;
+
+        this._bossRunAnim = cfg.runAnim;
+        this._bossIdleAnim = cfg.idleAnim;
+
+        const SPRITE_SIZE = cfg.size;
+        const DISPLAY_SIZE = cfg.displaySize;
+
+        this._bossRenderer = new CharacterRenderer3D({
+            size: SPRITE_SIZE,
+            modelPath: cfg.model,
+            animationName: cfg.idleAnim
+        });
+
+        const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
+        this._bossTexKey = texKey;
+
+        this._bossRenderer.load().then(() => {
+            if (!this.scene || !this.scene.textures) return;
+
+            this._bossCanvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
+
+            this._bossRenderer.render();
+            this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);
+            this._bossCanvasTex.refresh();
+
+            this._bossSprite = this.scene.add.image(0, 0, texKey);
+            this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
+            this.add(this._bossSprite);
+            this.bringToTop(this._bossSprite);
+
+            // Hide procedural shapes for this boss
+            this.list.forEach(child => {
+                if (child !== this._bossSprite) child.setVisible(false);
+            });
+
+            // Also hide external glow effects
+            if (this.glow1) this.glow1.setVisible(false);
+            if (this.glow2) this.glow2.setVisible(false);
+
+            // Add a ground shadow beneath the 3D model
+            this._bossShadow = this.scene.add.ellipse(0, DISPLAY_SIZE * 0.35, DISPLAY_SIZE * 0.7, DISPLAY_SIZE * 0.22, 0x000000, 0.35);
+            this.add(this._bossShadow);
+            this.sendToBack(this._bossShadow);
+
+            this._boss3DReady = true;
+        }).catch(err => {
+            console.warn('3D boss model failed to load:', err);
+        });
+    }
+
+    /**
+     * Play a named animation on the 3D boss model.
+     * Called by subclass attack methods (e.g. SentinelBoss).
+     */
+    playBossAnimation(name, fadeDuration) {
+        if (!this._boss3DReady || !this._bossRenderer) return;
+        if (this._bossCurrentAnim === name) return;
+        this._bossRenderer.playAnimation(name, fadeDuration);
+        this._bossCurrentAnim = name;
+    }
+
     createVisuals() {
         if (this.bossId === 1) {
-            // Sentinel
+            // Sentinel — procedural fallback (hidden once 3D loads)
             const body = this.scene.add.rectangle(0, 0, 70, 100, this.bossData.color);
             body.setStrokeStyle(3, this.bossData.glowColor);
-            
+
             const head = this.scene.add.circle(0, -60, 25, this.bossData.color);
             head.setStrokeStyle(2, this.bossData.glowColor);
-            
+
             const visor = this.scene.add.rectangle(0, -65, 20, 5, this.bossData.glowColor);
-            
+
             const shoulderL = this.scene.add.circle(-35, -30, 15, this.bossData.secondaryColor);
             const shoulderR = this.scene.add.circle(35, -30, 15, this.bossData.secondaryColor);
-            
+
             this.add([body, head, visor, shoulderL, shoulderR]);
-            
+
         } else if (this.bossId === 2) {
             // Gunner
             const body = this.scene.add.rectangle(0, 0, 60, 90, this.bossData.color);
@@ -646,10 +725,44 @@ export class Boss extends Phaser.GameObjects.Container {
             this.glow2.x = this.x;
             this.glow2.y = this.y;
         }
-        
+
+        // Update 3D boss model
+        if (this._boss3DReady && this._bossRenderer && this._bossCanvasTex) {
+            const dx = this.x - this._prevBossX;
+            const dy = this.y - this._prevBossY;
+            const isMoving = Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3;
+
+            // Face the player
+            if (player) {
+                const faceAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                this._bossRenderer.setFacing(faceAngle);
+            }
+
+            // Auto-switch idle/walk when not overridden by attack animation
+            if (!this.isAttacking) {
+                const runAnim = this._bossRunAnim || 'Walk';
+                const idleAnim = this._bossIdleAnim || 'Idle';
+                if (isMoving && this._bossCurrentAnim !== runAnim) {
+                    this.playBossAnimation(runAnim);
+                } else if (!isMoving && this._bossCurrentAnim !== idleAnim) {
+                    this.playBossAnimation(idleAnim);
+                }
+            }
+
+            this._prevBossX = this.x;
+            this._prevBossY = this.y;
+
+            // Render and copy to Phaser texture
+            this._bossRenderer.render();
+            const ctx = this._bossCanvasTex.context;
+            ctx.clearRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
+            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
+            this._bossCanvasTex.refresh();
+        }
+
         // Don't attack if frozen or stunned
         if (this.frozen || this.stunned) return;
-        
+
         // Attack cooldown
         if (time > this.nextAttackTime && !this.isAttacking) {
             this.attack(player);
