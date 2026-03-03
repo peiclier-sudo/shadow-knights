@@ -17,6 +17,9 @@ export class CharacterRenderer3D {
         this.animationName = options.animationName || 'Runfast';
         this._frustum = options.frustum || 2.0;
         this._modelScale = options.modelScale || 2.6;
+        // Camera tilt from vertical in radians (0 = pure top-down, ~0.35 = subtle 3/4 view)
+        this._cameraTilt = options.cameraTilt != null ? options.cameraTilt : 0.35;
+        this._camDist = 6;
 
         this.ready = false;
         this.model = null;
@@ -45,16 +48,15 @@ export class CharacterRenderer3D {
         // Scene
         this.scene = new THREE.Scene();
 
-        // Top-down camera (orthographic, looking straight down)
-        // Use a generous frustum so animated limbs don't clip
+        // Orthographic camera with slight 3/4 tilt that orbits behind the character
         const frustum = this._frustum;
         this.camera = new THREE.OrthographicCamera(
             -frustum, frustum,
             frustum, -frustum,
             0.1, 100
         );
-        // Position camera above, looking down
-        this.camera.position.set(0, 5, 0);
+        // Initial position (updated each frame in render() based on facing)
+        this.camera.position.set(0, this._camDist, 0);
         this.camera.lookAt(0, 0, 0);
 
         // Lighting
@@ -150,10 +152,29 @@ export class CharacterRenderer3D {
             this.mixer.update(delta);
         }
 
-        // Rotate model to face movement direction
-        // In top-down view: model Y-axis rotation maps to 2D facing angle
         if (this.model) {
+            // Rotate model to face movement direction
             this.model.rotation.y = -this.facingAngle + Math.PI / 2;
+
+            // Orbit camera behind the character with a slight tilt for 3/4 perspective.
+            // tilt=0 → pure top-down, tilt=0.35 → subtle angle showing depth.
+            const tilt = this._cameraTilt;
+            const d = this._camDist;
+
+            // "Behind" the character in the 2D-to-3D mapped XZ plane
+            // Screen: right=+X, down=+Z  →  behind = opposite of facing
+            const behindX = -Math.cos(this.facingAngle);
+            const behindZ = -Math.sin(this.facingAngle);
+
+            const hDist = d * Math.sin(tilt);   // horizontal offset from center
+            const vDist = d * Math.cos(tilt);    // vertical height
+
+            this.camera.position.set(
+                behindX * hDist,
+                vDist,
+                behindZ * hDist
+            );
+            this.camera.lookAt(0, 0.5, 0); // look slightly above ground level
         }
 
         this.renderer.render(this.scene, this.camera);
