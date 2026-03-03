@@ -60,7 +60,8 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim
+            animationName: cfg.idleAnim,
+            frustum: 4.0
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
