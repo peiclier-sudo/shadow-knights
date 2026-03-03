@@ -123,13 +123,17 @@ export class CharacterRenderer3D {
                         -center.z * scale
                     );
 
-                    // Force double-sided rendering to fix models with
-                    // flipped normals that cause transparent holes
+                    // Force fully opaque + double-sided rendering.
+                    // Some models have alphaMode:BLEND with texture alpha
+                    // that creates unwanted transparent holes.
                     this.model.traverse((child) => {
                         if (child.isMesh && child.material) {
                             const mats = Array.isArray(child.material) ? child.material : [child.material];
                             for (const mat of mats) {
                                 mat.side = THREE.DoubleSide;
+                                mat.transparent = false;
+                                mat.depthWrite = true;
+                                mat.opacity = 1.0;
                             }
                         }
                     });
