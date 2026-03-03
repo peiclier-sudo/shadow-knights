@@ -47,7 +47,7 @@ export class Boss extends Phaser.GameObjects.Container {
         // frustum: wider = more room for animated limbs (less clipping)
         // modelScale: how large the model fills the frustum
         const BOSS_3D = {
-            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 3.5, modelScale: 3.8 }
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 4.5, modelScale: 3.2 }
         };
 
         const cfg = BOSS_3D[this.bossId];

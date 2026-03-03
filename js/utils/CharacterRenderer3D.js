@@ -27,6 +27,7 @@ export class CharacterRenderer3D {
         this.actions = {};          // name (lowercase) → THREE.AnimationAction
         this.currentActionName = null;
         this.clock = new THREE.Clock();
+        this._modelCenterY = 0;
 
         // Offscreen canvas
         this.canvas = document.createElement('canvas');
@@ -104,6 +105,10 @@ export class CharacterRenderer3D {
 
                     this.scene.add(this.model);
 
+                    // Compute model's vertical center for camera lookAt
+                    const scaledBox = new THREE.Box3().setFromObject(this.model);
+                    this._modelCenterY = (scaledBox.min.y + scaledBox.max.y) / 2;
+
                     // Setup animations — store every clip for runtime switching
                     if (gltf.animations && gltf.animations.length > 0) {
                         this.mixer = new THREE.AnimationMixer(this.model);
@@ -156,25 +161,18 @@ export class CharacterRenderer3D {
             // Rotate model to face movement direction
             this.model.rotation.y = -this.facingAngle + Math.PI / 2;
 
-            // Orbit camera behind the character with a slight tilt for 3/4 perspective.
-            // tilt=0 → pure top-down, tilt=0.35 → subtle angle showing depth.
+            // Fixed-angle camera with slight tilt for 3/4 perspective (like classic RPGs).
+            // Camera is tilted from the "south" (+Z direction = bottom of screen).
+            // As the model rotates, you naturally see different sides of the character.
             const tilt = this._cameraTilt;
             const d = this._camDist;
 
-            // "Behind" the character in the 2D-to-3D mapped XZ plane
-            // Screen: right=+X, down=+Z  →  behind = opposite of facing
-            const behindX = -Math.cos(this.facingAngle);
-            const behindZ = -Math.sin(this.facingAngle);
-
-            const hDist = d * Math.sin(tilt);   // horizontal offset from center
-            const vDist = d * Math.cos(tilt);    // vertical height
-
             this.camera.position.set(
-                behindX * hDist,
-                vDist,
-                behindZ * hDist
+                0,
+                d * Math.cos(tilt),
+                d * Math.sin(tilt)
             );
-            this.camera.lookAt(0, 0.5, 0); // look slightly above ground level
+            this.camera.lookAt(0, this._modelCenterY, 0);
         }
 
         this.renderer.render(this.scene, this.camera);
