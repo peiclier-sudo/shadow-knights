@@ -44,10 +44,10 @@ export class Boss extends Phaser.GameObjects.Container {
     
     _init3DBoss() {
         // 3D model config per boss ID
-        // frustum: wider = more room for animated limbs (less clipping)
-        // modelScale: how large the model fills the frustum
+        // Uses the same CharacterRenderer3D defaults as the player (frustum 2.0, modelScale 2.6)
+        // so the rendering pipeline is identical — only the model file and display size differ.
         const BOSS_3D = {
-            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 4.5, modelScale: 3.2, correctionRotation: { x: -Math.PI / 2 } }
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk' }
         };
 
         const cfg = BOSS_3D[this.bossId];
@@ -56,16 +56,14 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossRunAnim = cfg.runAnim;
         this._bossIdleAnim = cfg.idleAnim;
 
-        const SPRITE_SIZE = cfg.size;
-        const DISPLAY_SIZE = cfg.displaySize;
+        // Match the player's render canvas size (128) for identical 3D pipeline
+        const SPRITE_SIZE = 128;
+        const DISPLAY_SIZE = 130;
 
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim,
-            frustum: cfg.frustum,
-            modelScale: cfg.modelScale,
-            correctionRotation: cfg.correctionRotation
+            animationName: cfg.idleAnim
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
