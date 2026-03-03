@@ -131,40 +131,53 @@ export class CharacterRenderer3D {
                         -center.z * scale
                     );
 
-                    // Fix rendering issues for animated/skinned meshes:
-                    // 1. Disable frustum culling — Three.js computes bounding
-                    //    spheres from the rest pose, so animated vertices that
-                    //    move outside that sphere get incorrectly culled,
-                    //    creating transparent holes and clipped body parts.
-                    // 2. Force opaque + double-sided materials.
+                    // Fix transparency: replace GLTF materials entirely with
+                    // clean MeshLambertMaterials and strip texture alpha so
+                    // the model is always 100% opaque (no see-through patches).
                     this.model.traverse((child) => {
                         if (child.isMesh) {
                             child.frustumCulled = false;
-                            const mats = Array.isArray(child.material) ? child.material : [child.material];
-                            for (const mat of mats) {
-                                mat.side = THREE.DoubleSide;
-                                mat.transparent = false;
-                                mat.depthWrite = true;
-                                mat.opacity = 1.0;
-                                mat.alphaTest = 0;
-                                // Strip texture alpha from the shader so the
-                                // model never has transparent patches. The
-                                // map_fragment chunk normally does:
-                                //   diffuseColor *= texture2D(map, vMapUv)
-                                // which includes the texture's alpha channel.
-                                // We override it to only use RGB.
-                                mat.onBeforeCompile = (shader) => {
-                                    shader.fragmentShader = shader.fragmentShader.replace(
-                                        '#include <map_fragment>',
-                                        `#ifdef USE_MAP
-                                            vec4 sampledDiffuseColor = texture2D( map, vMapUv );
-                                            diffuseColor.rgb *= sampledDiffuseColor.rgb;
-                                        #endif`
-                                    );
-                                };
-                                // Force shader recompilation so onBeforeCompile fires
-                                mat.needsUpdate = true;
+                            const oldMats = Array.isArray(child.material) ? child.material : [child.material];
+                            const oldMat = oldMats[0];
+
+                            const newMat = new THREE.MeshLambertMaterial({
+                                side: THREE.DoubleSide,
+                                transparent: false,
+                                depthWrite: true,
+                                opacity: 1.0,
+                            });
+
+                            // Copy the diffuse texture but force every pixel opaque
+                            if (oldMat.map && oldMat.map.image) {
+                                const img = oldMat.map.image;
+                                const w = img.width || img.naturalWidth || 256;
+                                const h = img.height || img.naturalHeight || 256;
+                                const c = document.createElement('canvas');
+                                c.width = w;
+                                c.height = h;
+                                const ctx = c.getContext('2d');
+                                // Fill black first so alpha=0 areas get a color
+                                ctx.fillStyle = '#000';
+                                ctx.fillRect(0, 0, w, h);
+                                ctx.drawImage(img, 0, 0, w, h);
+                                // Force every pixel fully opaque
+                                const id = ctx.getImageData(0, 0, w, h);
+                                for (let i = 3; i < id.data.length; i += 4) id.data[i] = 255;
+                                ctx.putImageData(id, 0, 0);
+
+                                const newTex = new THREE.CanvasTexture(c);
+                                newTex.flipY = oldMat.map.flipY;
+                                newTex.wrapS = oldMat.map.wrapS;
+                                newTex.wrapT = oldMat.map.wrapT;
+                                newTex.magFilter = oldMat.map.magFilter;
+                                newTex.minFilter = oldMat.map.minFilter;
+                                newTex.colorSpace = oldMat.map.colorSpace;
+                                newTex.needsUpdate = true;
+                                newMat.map = newTex;
                             }
+
+                            child.material = newMat;
+                            for (const m of oldMats) m.dispose();
                         }
                     });
 
