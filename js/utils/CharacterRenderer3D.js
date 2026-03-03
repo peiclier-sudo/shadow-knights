@@ -21,6 +21,19 @@ export class CharacterRenderer3D {
         this._cameraTilt = options.cameraTilt != null ? options.cameraTilt : 0.35;
         this._camDist = 6;
 
+        // Optional correction rotation for models with non-standard orientation
+        // (e.g. Z-up models from Blender that weren't converted to Y-up on export)
+        this._correctionQuat = null;
+        if (options.correctionRotation) {
+            this._correctionQuat = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(
+                    options.correctionRotation.x || 0,
+                    options.correctionRotation.y || 0,
+                    options.correctionRotation.z || 0
+                )
+            );
+        }
+
         this.ready = false;
         this.model = null;
         this.mixer = null;
@@ -88,6 +101,13 @@ export class CharacterRenderer3D {
                 this.modelPath,
                 (gltf) => {
                     this.model = gltf.scene;
+
+                    // Apply correction rotation before computing bounds
+                    // so that bounding box reflects the corrected orientation
+                    if (this._correctionQuat) {
+                        this.model.quaternion.copy(this._correctionQuat);
+                        this.model.updateMatrixWorld(true);
+                    }
 
                     // Auto-center and scale the model to fit the frustum
                     const box = new THREE.Box3().setFromObject(this.model);
@@ -159,7 +179,17 @@ export class CharacterRenderer3D {
 
         if (this.model) {
             // Rotate model to face movement direction
-            this.model.rotation.y = -this.facingAngle + Math.PI / 2;
+            if (this._correctionQuat) {
+                // Use quaternion math so correction (world X) and facing (world Y)
+                // are both applied in world space without Euler-order issues
+                const facingQuat = new THREE.Quaternion().setFromAxisAngle(
+                    new THREE.Vector3(0, 1, 0),
+                    -this.facingAngle + Math.PI / 2
+                );
+                this.model.quaternion.copy(facingQuat.multiply(this._correctionQuat.clone()));
+            } else {
+                this.model.rotation.y = -this.facingAngle + Math.PI / 2;
+            }
 
             // Fixed-angle camera with slight tilt for 3/4 perspective (like classic RPGs).
             // Camera is tilted from the "south" (+Z direction = bottom of screen).

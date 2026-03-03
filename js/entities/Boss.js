@@ -47,7 +47,7 @@ export class Boss extends Phaser.GameObjects.Container {
         // frustum: wider = more room for animated limbs (less clipping)
         // modelScale: how large the model fills the frustum
         const BOSS_3D = {
-            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 4.5, modelScale: 3.2 }
+            1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk', size: 256, displaySize: 130, frustum: 4.5, modelScale: 3.2, correctionRotation: { x: -Math.PI / 2 } }
         };
 
         const cfg = BOSS_3D[this.bossId];
@@ -64,7 +64,8 @@ export class Boss extends Phaser.GameObjects.Container {
             modelPath: cfg.model,
             animationName: cfg.idleAnim,
             frustum: cfg.frustum,
-            modelScale: cfg.modelScale
+            modelScale: cfg.modelScale,
+            correctionRotation: cfg.correctionRotation
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
@@ -81,7 +82,6 @@ export class Boss extends Phaser.GameObjects.Container {
 
             this._bossSprite = this.scene.add.image(0, 0, texKey);
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
-            this._bossSprite.setFlipY(true);
             this.add(this._bossSprite);
             this.bringToTop(this._bossSprite);
 
