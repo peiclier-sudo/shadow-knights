@@ -19,7 +19,8 @@ export class CharacterRenderer3D {
         this.ready = false;
         this.model = null;
         this.mixer = null;
-        this.currentAction = null;
+        this.actions = {};          // name (lowercase) → THREE.AnimationAction
+        this.currentActionName = null;
         this.clock = new THREE.Clock();
 
         // Offscreen canvas
@@ -97,27 +98,19 @@ export class CharacterRenderer3D {
 
                     this.scene.add(this.model);
 
-                    // Setup animations
+                    // Setup animations — store every clip for runtime switching
                     if (gltf.animations && gltf.animations.length > 0) {
                         this.mixer = new THREE.AnimationMixer(this.model);
 
-                        // Try to find the requested animation
-                        let clip = gltf.animations.find(
-                            c => c.name.toLowerCase().includes(this.animationName.toLowerCase())
-                        );
+                        console.log('Available animations:', gltf.animations.map(a => a.name));
 
-                        // Fallback to first animation
-                        if (!clip) {
-                            console.warn(`Animation "${this.animationName}" not found. Available:`,
-                                gltf.animations.map(a => a.name));
-                            clip = gltf.animations[0];
+                        for (const clip of gltf.animations) {
+                            const action = this.mixer.clipAction(clip);
+                            this.actions[clip.name.toLowerCase()] = action;
                         }
 
-                        if (clip) {
-                            console.log(`Playing animation: ${clip.name}`);
-                            this.currentAction = this.mixer.clipAction(clip);
-                            this.currentAction.play();
-                        }
+                        // Start with the requested animation
+                        this.playAnimation(this.animationName);
                     }
 
                     this.ready = true;
@@ -164,12 +157,39 @@ export class CharacterRenderer3D {
     }
 
     /**
-     * Play a specific animation by name.
+     * Switch to a named animation with a smooth crossfade.
+     * No-op if already playing that animation.
+     * @param {string} name - Animation name (case-insensitive).
+     * @param {number} fadeDuration - Crossfade duration in seconds.
      */
-    playAnimation(name) {
-        if (!this.mixer || !this.model) return;
-        // Would need to store clips - for now the constructor handles this
-        this.animationName = name;
+    playAnimation(name, fadeDuration = 0.25) {
+        if (!this.mixer) return;
+
+        const key = name.toLowerCase();
+        if (this.currentActionName === key) return;   // already playing
+
+        // Find by exact key first, then by substring match
+        let nextAction = this.actions[key];
+        if (!nextAction) {
+            const found = Object.keys(this.actions).find(k => k.includes(key));
+            if (found) nextAction = this.actions[found];
+        }
+
+        if (!nextAction) {
+            console.warn(`Animation "${name}" not found in model.`);
+            return;
+        }
+
+        const prevAction = this.currentActionName ? (this.actions[this.currentActionName]
+            || Object.values(this.actions).find(a => a.isRunning())) : null;
+
+        nextAction.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
+
+        if (prevAction && prevAction !== nextAction) {
+            prevAction.crossFadeTo(nextAction, fadeDuration, true);
+        }
+
+        this.currentActionName = key;
     }
 
     /**

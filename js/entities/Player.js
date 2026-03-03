@@ -204,14 +204,24 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     update() {
-        // Update 3D character: facing direction + re-render each frame
+        // Update 3D character: facing direction, animation, re-render each frame
         if (this._char3DReady && this.charRenderer && this._canvasTex) {
             const dx = this.x - this._prevX;
             const dy = this.y - this._prevY;
+            const isMoving = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
 
             // Update facing when moving
-            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            if (isMoving) {
                 this.charRenderer.setFacing(Math.atan2(dy, dx));
+            }
+
+            // Switch between Runfast and Idle based on movement
+            if (isMoving && this._currentAnim !== 'Runfast') {
+                this.charRenderer.playAnimation('Runfast');
+                this._currentAnim = 'Runfast';
+            } else if (!isMoving && this._currentAnim !== 'Idle') {
+                this.charRenderer.playAnimation('Idle');
+                this._currentAnim = 'Idle';
             }
 
             this._prevX = this.x;
