@@ -44,8 +44,6 @@ export class Boss extends Phaser.GameObjects.Container {
     
     _init3DBoss() {
         // 3D model config per boss ID
-        // Uses the same CharacterRenderer3D defaults as the player (frustum 2.0, modelScale 2.6)
-        // so the rendering pipeline is identical — only the model file and display size differ.
         const BOSS_3D = {
             1: { model: 'Boss1_3k.glb', idleAnim: 'Idle', runAnim: 'Walk' }
         };
@@ -56,34 +54,29 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossRunAnim = cfg.runAnim;
         this._bossIdleAnim = cfg.idleAnim;
 
-        // Match the player's render canvas size (128) for identical 3D pipeline
-        const SPRITE_SIZE = 256;
+        // Use the exact same rendering pipeline as the player:
+        // same canvas size, same CharacterRenderer3D defaults (frustum 2.0, modelScale 2.6).
+        // Only the display size differs (boss is visually larger on screen).
+        const SPRITE_SIZE = 128;
         const DISPLAY_SIZE = 130;
 
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
             modelPath: cfg.model,
-            animationName: cfg.idleAnim,
-            frustum: 3.5,
-            modelScale: 3.5
+            animationName: cfg.idleAnim
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
         this._bossTexKey = texKey;
-
-        // Boss model needs vertical flip — done at canvas level (not Phaser flipY)
-        // so the sprite positioning stays identical to the player pipeline.
-        this._bossFlipY = true;
-        this._bossSpriteSize = SPRITE_SIZE;
 
         this._bossRenderer.load().then(() => {
             if (!this.scene || !this.scene.textures) return;
 
             this._bossCanvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
 
-            // Initial render with canvas-level Y flip
             this._bossRenderer.render();
-            this._drawBossFrame();
+            this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);
+            this._bossCanvasTex.refresh();
 
             this._bossSprite = this.scene.add.image(0, 0, texKey);
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
@@ -99,7 +92,7 @@ export class Boss extends Phaser.GameObjects.Container {
             if (this.glow1) this.glow1.setVisible(false);
             if (this.glow2) this.glow2.setVisible(false);
 
-            // Ground shadow beneath the 3D model (proportional to player: shadow ~6% below center)
+            // Ground shadow (same offset ratio as player: 4/64 ≈ 6% of display size)
             this._bossShadow = this.scene.add.ellipse(0, 8, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.18, 0x000000, 0.35);
             this.add(this._bossShadow);
             this.sendToBack(this._bossShadow);
@@ -108,27 +101,6 @@ export class Boss extends Phaser.GameObjects.Container {
         }).catch(err => {
             console.warn('3D boss model failed to load:', err);
         });
-    }
-
-    /**
-     * Copy the 3D renderer canvas to the Phaser texture, applying a vertical
-     * flip at the canvas pixel level when needed.  This keeps sprite positioning
-     * identical to the player pipeline (no Phaser setFlipY).
-     */
-    _drawBossFrame() {
-        const ctx = this._bossCanvasTex.context;
-        const s = this._bossSpriteSize;
-        ctx.clearRect(0, 0, s, s);
-        if (this._bossFlipY) {
-            ctx.save();
-            ctx.translate(0, s);
-            ctx.scale(1, -1);
-            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
-            ctx.restore();
-        } else {
-            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
-        }
-        this._bossCanvasTex.refresh();
     }
 
     /**
@@ -786,9 +758,12 @@ export class Boss extends Phaser.GameObjects.Container {
             this._prevBossX = this.x;
             this._prevBossY = this.y;
 
-            // Render and copy to Phaser texture (with canvas-level flip if needed)
+            // Render and copy to Phaser texture (identical to player pipeline)
             this._bossRenderer.render();
-            this._drawBossFrame();
+            const ctx = this._bossCanvasTex.context;
+            ctx.clearRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
+            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
+            this._bossCanvasTex.refresh();
         }
 
         // Don't attack if frozen or stunned
