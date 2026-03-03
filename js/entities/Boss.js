@@ -739,9 +739,11 @@ export class Boss extends Phaser.GameObjects.Container {
             const isMoving = Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3;
 
             // Face the player
+            // The correctionRotation {z:PI} mirrors the X axis, which reverses
+            // the apparent facing direction. Offset by PI to compensate.
             if (player) {
                 const faceAngle = Math.atan2(player.y - this.y, player.x - this.x);
-                this._bossRenderer.setFacing(faceAngle);
+                this._bossRenderer.setFacing(faceAngle + Math.PI);
             }
 
             // Auto-switch idle/walk when not overridden by attack animation
