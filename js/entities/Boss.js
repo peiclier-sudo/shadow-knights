@@ -760,7 +760,9 @@ export class Boss extends Phaser.GameObjects.Container {
             this._bossRenderer.render();
             const ctx = this._bossCanvasTex.context;
             ctx.clearRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
-            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
+            // DEBUG: draw solid red square to test Phaser pipeline
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
             this._bossCanvasTex.refresh();
         }
 
