@@ -54,8 +54,8 @@ export class CharacterRenderer3D {
         this.canvas.height = this.size;
         this._outputCtx = this.canvas.getContext('2d');
 
-        // Three.js renderer — no alpha channel, background colour set per-frame
-        // by the dual-render background-subtraction in render().
+        // Three.js renderer — solid black background, no alpha channel.
+        // Transparency is handled by brightness-thresholding + morphological close.
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
             alpha: false,
@@ -63,6 +63,7 @@ export class CharacterRenderer3D {
             preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);
+        this.renderer.setClearColor(0x000000, 1);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Scene
@@ -254,61 +255,47 @@ export class CharacterRenderer3D {
             this.camera.lookAt(0, this._modelCenterY, 0);
         }
 
-        // Dual-render background subtraction: render the same frame with two
-        // different clear colours (red, blue).  Any pixel that changes between
-        // them is background; pixels that stay the same are model.  This is
-        // completely immune to the model having colours that match a chroma-key.
-        // We also recover true alpha for antialiased edges.
+        // Render once with black background.  We identify model pixels by
+        // brightness (anything above near-black is model).  A morphological
+        // close then seals inter-limb gaps so the game world doesn't show
+        // through holes in the 3D geometry.
+        this.renderer.setClearColor(0x000000, 1);
+        this.renderer.render(this.scene, this.camera);
+
         const gl = this.renderer.getContext();
         const sz = this.size;
-        if (!this._readBuf)  this._readBuf  = new Uint8Array(sz * sz * 4);
-        if (!this._readBuf2) this._readBuf2 = new Uint8Array(sz * sz * 4);
-        const buf1 = this._readBuf, buf2 = this._readBuf2;
-
-        // Render 1: red background (R=255, G=0, B=0)
-        this.renderer.setClearColor(0xff0000, 1);
-        this.renderer.render(this.scene, this.camera);
-        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf1);
-
-        // Render 2: blue background (R=0, G=0, B=255)
-        this.renderer.setClearColor(0x0000ff, 1);
-        this.renderer.render(this.scene, this.camera);
-        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf2);
+        if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, this._readBuf);
 
         const ctx = this._outputCtx;
         const imageData = ctx.createImageData(sz, sz);
         const out = imageData.data;
+        if (!this._mask) this._mask = new Uint8Array(sz * sz);
+        if (!this._tmp)  this._tmp  = new Uint8Array(sz * sz);
+        const mask = this._mask;
 
+        // Pass 1 — flip vertically, copy colours, build brightness mask
         for (let y = 0; y < sz; y++) {
-            const srcRow = (sz - 1 - y) * sz * 4;   // flip Y
+            const srcRow = (sz - 1 - y) * sz * 4;
             const dstRow = y * sz * 4;
             for (let x = 0; x < sz; x++) {
                 const si = srcRow + x * 4;
                 const di = dstRow + x * 4;
+                const r = this._readBuf[si], g = this._readBuf[si + 1], b = this._readBuf[si + 2];
+                out[di] = r; out[di + 1] = g; out[di + 2] = b; out[di + 3] = 255;
+                mask[y * sz + x] = (r > 3 || g > 3 || b > 3) ? 1 : 0;
+            }
+        }
 
-                const r1 = buf1[si],     g1 = buf1[si + 1], b1 = buf1[si + 2];
-                const r2 = buf2[si],     g2 = buf2[si + 1], b2 = buf2[si + 2];
+        // Pass 2 — morphological close (dilate then erode) with radius R.
+        // Fills gaps ≤ 2R pixels wide while preserving the outer boundary.
+        this._morphClose(mask, this._tmp, sz, 6);
 
-                // Alpha from red-channel difference:
-                //   r1 = model_r * a + 255 * (1-a)   [red bg]
-                //   r2 = model_r * a                  [blue bg, bg_r = 0]
-                //   r1 - r2 = 255 * (1-a)  →  a = 1 - (r1-r2)/255
-                const a = 1 - (r1 - r2) / 255;
-
-                if (a < 0.02) {
-                    // Transparent
-                    out[di] = out[di + 1] = out[di + 2] = out[di + 3] = 0;
-                } else {
-                    // Recover model colour (un-premultiply):
-                    //   r from render2 (bg_r=0): r2 = model_r * a
-                    //   g from render1 (bg_g=0): g1 = model_g * a (same as g2)
-                    //   b from render1 (bg_b=0): b1 = model_b * a
-                    const ia = 1 / a;
-                    out[di]     = Math.min(255, (r2 * ia + 0.5) | 0);
-                    out[di + 1] = Math.min(255, (g1 * ia + 0.5) | 0);
-                    out[di + 2] = Math.min(255, (b1 * ia + 0.5) | 0);
-                    out[di + 3] = 255;  // force fully opaque for model pixels
-                }
+        // Pass 3 — apply mask: outside closed region → transparent
+        for (let i = 0; i < sz * sz; i++) {
+            if (!mask[i]) {
+                const pi = i * 4;
+                out[pi] = out[pi + 1] = out[pi + 2] = out[pi + 3] = 0;
             }
         }
 
@@ -351,6 +338,75 @@ export class CharacterRenderer3D {
         }
 
         this.currentActionName = key;
+    }
+
+    /**
+     * Separable square morphological close (dilate → erode) in-place.
+     * Fills gaps up to 2*R pixels wide in the binary mask.
+     * O(sz²) per pass thanks to running-distance optimisation.
+     */
+    _morphClose(mask, tmp, sz, R) {
+        // Reusable column buffer (lazily allocated once)
+        if (!this._colDist) this._colDist = new Int32Array(sz);
+        const col = this._colDist;
+
+        // ---------- DILATE ----------
+        // Horizontal: mask → tmp
+        for (let y = 0; y < sz; y++) {
+            const base = y * sz;
+            let dist = R + 1;
+            for (let x = 0; x < sz; x++) {
+                dist = mask[base + x] ? 0 : dist + 1;
+                col[x] = dist;                       // reuse col[] as leftDist
+            }
+            dist = R + 1;
+            for (let x = sz - 1; x >= 0; x--) {
+                dist = mask[base + x] ? 0 : dist + 1;
+                tmp[base + x] = (Math.min(col[x], dist) <= R) ? 1 : 0;
+            }
+        }
+        // Vertical: tmp → mask
+        for (let x = 0; x < sz; x++) {
+            let dist = R + 1;
+            for (let y = 0; y < sz; y++) {
+                dist = tmp[y * sz + x] ? 0 : dist + 1;
+                col[y] = dist;
+            }
+            dist = R + 1;
+            for (let y = sz - 1; y >= 0; y--) {
+                dist = tmp[y * sz + x] ? 0 : dist + 1;
+                mask[y * sz + x] = (Math.min(col[y], dist) <= R) ? 1 : 0;
+            }
+        }
+
+        // ---------- ERODE ----------
+        // Horizontal: mask → tmp
+        for (let y = 0; y < sz; y++) {
+            const base = y * sz;
+            let dist = R + 1;
+            for (let x = 0; x < sz; x++) {
+                dist = mask[base + x] ? dist + 1 : 0;
+                col[x] = dist;
+            }
+            dist = R + 1;
+            for (let x = sz - 1; x >= 0; x--) {
+                dist = mask[base + x] ? dist + 1 : 0;
+                tmp[base + x] = (Math.min(col[x], dist) > R) ? 1 : 0;
+            }
+        }
+        // Vertical: tmp → mask
+        for (let x = 0; x < sz; x++) {
+            let dist = R + 1;
+            for (let y = 0; y < sz; y++) {
+                dist = tmp[y * sz + x] ? dist + 1 : 0;
+                col[y] = dist;
+            }
+            dist = R + 1;
+            for (let y = sz - 1; y >= 0; y--) {
+                dist = tmp[y * sz + x] ? dist + 1 : 0;
+                mask[y * sz + x] = (Math.min(col[y], dist) > R) ? 1 : 0;
+            }
+        }
     }
 
     /**
