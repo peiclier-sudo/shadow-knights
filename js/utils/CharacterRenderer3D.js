@@ -54,17 +54,18 @@ export class CharacterRenderer3D {
         this.canvas.height = this.size;
         this._outputCtx = this.canvas.getContext('2d');
 
-        // Three.js renderer — no alpha, solid magenta background.
-        // We chroma-key the magenta out in the render() post-process
-        // to create proper transparency without any alpha issues.
+        // Three.js renderer — alpha:true with transparent clear colour.
+        // The GPU alpha channel gives a perfect model/background mask
+        // without needing any chroma-keying.
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
-            alpha: false,
+            alpha: true,
             antialias: true,
-            preserveDrawingBuffer: true
+            preserveDrawingBuffer: true,
+            premultipliedAlpha: false
         });
         this.renderer.setSize(this.size, this.size);
-        this.renderer.setClearColor(0xff00ff, 1);
+        this.renderer.setClearColor(0x000000, 0);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Scene
@@ -131,53 +132,36 @@ export class CharacterRenderer3D {
                         -center.z * scale
                     );
 
-                    // Fix transparency: replace GLTF materials entirely with
-                    // clean MeshLambertMaterials and strip texture alpha so
-                    // the model is always 100% opaque (no see-through patches).
+                    // Aggressively sanitize every material to eliminate all
+                    // transparency.  Matches the proven approach from the
+                    // working soulikeHTML game that uses this same model.
                     this.model.traverse((child) => {
                         if (child.isMesh) {
                             child.frustumCulled = false;
-                            const oldMats = Array.isArray(child.material) ? child.material : [child.material];
-                            const oldMat = oldMats[0];
-
-                            const newMat = new THREE.MeshLambertMaterial({
-                                side: THREE.DoubleSide,
-                                transparent: false,
-                                depthWrite: true,
-                                opacity: 1.0,
+                            const mats = Array.isArray(child.material)
+                                ? child.material : [child.material];
+                            child.material = mats.map((m) => {
+                                const mat = m.clone();
+                                mat.transparent = false;
+                                mat.opacity = 1.0;
+                                mat.alphaTest = 0.0;
+                                mat.alphaMap = null;
+                                mat.transmission = 0;
+                                mat.thickness = 0;
+                                mat.premultipliedAlpha = false;
+                                mat.blending = THREE.NormalBlending;
+                                mat.side = THREE.DoubleSide;
+                                mat.depthWrite = true;
+                                mat.depthTest = true;
+                                mat.envMapIntensity = 0.0;
+                                if (mat.map) mat.map.premultiplyAlpha = false;
+                                mat.needsUpdate = true;
+                                return mat;
                             });
-
-                            // Copy the diffuse texture but force every pixel opaque
-                            if (oldMat.map && oldMat.map.image) {
-                                const img = oldMat.map.image;
-                                const w = img.width || img.naturalWidth || 256;
-                                const h = img.height || img.naturalHeight || 256;
-                                const c = document.createElement('canvas');
-                                c.width = w;
-                                c.height = h;
-                                const ctx = c.getContext('2d');
-                                // Fill black first so alpha=0 areas get a color
-                                ctx.fillStyle = '#000';
-                                ctx.fillRect(0, 0, w, h);
-                                ctx.drawImage(img, 0, 0, w, h);
-                                // Force every pixel fully opaque
-                                const id = ctx.getImageData(0, 0, w, h);
-                                for (let i = 3; i < id.data.length; i += 4) id.data[i] = 255;
-                                ctx.putImageData(id, 0, 0);
-
-                                const newTex = new THREE.CanvasTexture(c);
-                                newTex.flipY = oldMat.map.flipY;
-                                newTex.wrapS = oldMat.map.wrapS;
-                                newTex.wrapT = oldMat.map.wrapT;
-                                newTex.magFilter = oldMat.map.magFilter;
-                                newTex.minFilter = oldMat.map.minFilter;
-                                newTex.colorSpace = oldMat.map.colorSpace;
-                                newTex.needsUpdate = true;
-                                newMat.map = newTex;
+                            // Unwrap single-element arrays
+                            if (Array.isArray(child.material) && child.material.length === 1) {
+                                child.material = child.material[0];
                             }
-
-                            child.material = newMat;
-                            for (const m of oldMats) m.dispose();
                         }
                     });
 
@@ -265,12 +249,37 @@ export class CharacterRenderer3D {
 
         this.renderer.render(this.scene, this.camera);
 
-        // DEBUG: bypass all post-processing — just copy the raw WebGL
-        // canvas directly.  With alpha:false every pixel is fully opaque,
-        // so if transparency STILL appears the bug is in Phaser, not here.
+        // Read raw pixels via readPixels (avoids drawImage browser quirks).
+        // The GPU alpha channel separates model (alpha>0) from background
+        // (alpha==0), so no chroma-keying is needed.
+        const gl = this.renderer.getContext();
+        const sz = this.size;
+        if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
+        const buf = this._readBuf;
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+
         const ctx = this._outputCtx;
-        ctx.clearRect(0, 0, this.size, this.size);
-        ctx.drawImage(this._glCanvas, 0, 0);
+        const imageData = ctx.createImageData(sz, sz);
+        const out = imageData.data;
+
+        for (let y = 0; y < sz; y++) {
+            const srcRow = (sz - 1 - y) * sz * 4;   // flip vertically
+            const dstRow = y * sz * 4;
+            for (let x = 0; x < sz; x++) {
+                const si = srcRow + x * 4;
+                const di = dstRow + x * 4;
+                const a = buf[si + 3];
+                if (a > 0) {
+                    // Model pixel — force fully opaque
+                    out[di]     = buf[si];
+                    out[di + 1] = buf[si + 1];
+                    out[di + 2] = buf[si + 2];
+                    out[di + 3] = 255;
+                }
+                // else: background — leave as (0,0,0,0)
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
 
         return this.canvas;
     }
