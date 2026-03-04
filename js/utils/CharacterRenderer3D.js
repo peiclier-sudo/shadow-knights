@@ -54,18 +54,18 @@ export class CharacterRenderer3D {
         this.canvas.height = this.size;
         this._outputCtx = this.canvas.getContext('2d');
 
-        // Three.js renderer — alpha:true with transparent clear colour.
-        // The GPU alpha channel gives a perfect model/background mask
-        // without needing any chroma-keying.
+        // Three.js renderer — solid magenta background (no alpha channel).
+        // We flood-fill from the canvas edges to turn the magenta into
+        // transparency, which avoids alpha-channel GPU/browser quirks AND
+        // keeps interior mesh gaps opaque.
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
-            alpha: true,
+            alpha: false,
             antialias: true,
-            preserveDrawingBuffer: true,
-            premultipliedAlpha: false
+            preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);
-        this.renderer.setClearColor(0x000000, 0);
+        this.renderer.setClearColor(0xff00ff, 1);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Scene
@@ -260,11 +260,9 @@ export class CharacterRenderer3D {
         this.renderer.render(this.scene, this.camera);
 
         // Read raw pixels via readPixels (avoids drawImage browser quirks).
-        // The GPU alpha channel separates model (alpha>0) from background
-        // (alpha==0).  We then flood-fill from canvas edges so only
-        // edge-connected transparent pixels become background.  Interior
-        // transparent pixels (gaps from skinning deformation) stay opaque,
-        // preventing see-through holes during animation.
+        // Flood-fill from canvas edges: only magenta pixels connected to the
+        // border become transparent.  Interior magenta pixels (gaps from
+        // skinning deformation) stay opaque — no see-through holes.
         const gl = this.renderer.getContext();
         const sz = this.size;
         if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
@@ -275,7 +273,7 @@ export class CharacterRenderer3D {
         const imageData = ctx.createImageData(sz, sz);
         const out = imageData.data;
 
-        // Pass 1: flip vertically into output buffer, preserving GPU alpha
+        // Pass 1: flip vertically into output buffer (fully opaque)
         for (let y = 0; y < sz; y++) {
             const srcRow = (sz - 1 - y) * sz * 4;
             const dstRow = y * sz * 4;
@@ -285,13 +283,12 @@ export class CharacterRenderer3D {
                 out[di]     = buf[si];
                 out[di + 1] = buf[si + 1];
                 out[di + 2] = buf[si + 2];
-                out[di + 3] = buf[si + 3];
+                out[di + 3] = 255;
             }
         }
 
-        // Pass 2: flood fill from canvas edges.
-        // Transparent pixels (alpha==0) connected to the border → background.
-        // Transparent pixels NOT connected to the border → interior gap → keep opaque.
+        // Pass 2: flood fill from canvas edges using magenta colour match.
+        // Only magenta pixels reachable from the border become transparent.
         if (!this._bgMask) this._bgMask = new Uint8Array(sz * sz);
         const bg = this._bgMask;
         bg.fill(0);   // 0 = unvisited
@@ -310,7 +307,10 @@ export class CharacterRenderer3D {
         while (stack.length > 0) {
             const idx = stack.pop();
             if (bg[idx]) continue;                // already visited
-            if (out[idx * 4 + 3] === 0) {
+            const pi = idx * 4;
+            const r = out[pi], g = out[pi + 1], b = out[pi + 2];
+            // Magenta-ish: high red, low green, high blue
+            if (r > 200 && g < 60 && b > 200) {
                 bg[idx] = 1;                      // background
                 const x = idx % sz, y = (idx / sz) | 0;
                 if (x > 0)      stack.push(idx - 1);
@@ -322,15 +322,11 @@ export class CharacterRenderer3D {
             }
         }
 
-        // Pass 3: apply mask
+        // Pass 3: apply mask — background → transparent
         for (let i = 0; i < sz * sz; i++) {
-            const pi = i * 4;
             if (bg[i] === 1) {
-                // Background: fully transparent
+                const pi = i * 4;
                 out[pi] = out[pi + 1] = out[pi + 2] = out[pi + 3] = 0;
-            } else {
-                // Model (or interior gap): force fully opaque
-                out[pi + 3] = 255;
             }
         }
 
