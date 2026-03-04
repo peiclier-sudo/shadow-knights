@@ -178,6 +178,16 @@ export class CharacterRenderer3D {
                         console.log('Available animations:', gltf.animations.map(a => a.name));
 
                         for (const clip of gltf.animations) {
+                            // Strip any tracks that target material properties
+                            // (opacity, alphaTest, etc.) — GLTF animations can
+                            // include these and the mixer would override our
+                            // transparency fixes every frame.
+                            clip.tracks = clip.tracks.filter(t =>
+                                !t.name.includes('material') &&
+                                !t.name.includes('opacity') &&
+                                !t.name.includes('alpha') &&
+                                !t.name.includes('visible')
+                            );
                             const action = this.mixer.clipAction(clip);
                             this.actions[clip.name.toLowerCase()] = action;
                         }
@@ -251,7 +261,10 @@ export class CharacterRenderer3D {
 
         // Read raw pixels via readPixels (avoids drawImage browser quirks).
         // The GPU alpha channel separates model (alpha>0) from background
-        // (alpha==0), so no chroma-keying is needed.
+        // (alpha==0).  We then flood-fill from canvas edges so only
+        // edge-connected transparent pixels become background.  Interior
+        // transparent pixels (gaps from skinning deformation) stay opaque,
+        // preventing see-through holes during animation.
         const gl = this.renderer.getContext();
         const sz = this.size;
         if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
@@ -262,23 +275,65 @@ export class CharacterRenderer3D {
         const imageData = ctx.createImageData(sz, sz);
         const out = imageData.data;
 
+        // Pass 1: flip vertically into output buffer, preserving GPU alpha
         for (let y = 0; y < sz; y++) {
-            const srcRow = (sz - 1 - y) * sz * 4;   // flip vertically
+            const srcRow = (sz - 1 - y) * sz * 4;
             const dstRow = y * sz * 4;
             for (let x = 0; x < sz; x++) {
                 const si = srcRow + x * 4;
                 const di = dstRow + x * 4;
-                const a = buf[si + 3];
-                if (a > 0) {
-                    // Model pixel — force fully opaque
-                    out[di]     = buf[si];
-                    out[di + 1] = buf[si + 1];
-                    out[di + 2] = buf[si + 2];
-                    out[di + 3] = 255;
-                }
-                // else: background — leave as (0,0,0,0)
+                out[di]     = buf[si];
+                out[di + 1] = buf[si + 1];
+                out[di + 2] = buf[si + 2];
+                out[di + 3] = buf[si + 3];
             }
         }
+
+        // Pass 2: flood fill from canvas edges.
+        // Transparent pixels (alpha==0) connected to the border → background.
+        // Transparent pixels NOT connected to the border → interior gap → keep opaque.
+        if (!this._bgMask) this._bgMask = new Uint8Array(sz * sz);
+        const bg = this._bgMask;
+        bg.fill(0);   // 0 = unvisited
+
+        const stack = [];
+        // Seed every edge pixel
+        for (let x = 0; x < sz; x++) {
+            stack.push(x);                       // top row
+            stack.push((sz - 1) * sz + x);       // bottom row
+        }
+        for (let y = 1; y < sz - 1; y++) {
+            stack.push(y * sz);                   // left column
+            stack.push(y * sz + sz - 1);          // right column
+        }
+
+        while (stack.length > 0) {
+            const idx = stack.pop();
+            if (bg[idx]) continue;                // already visited
+            if (out[idx * 4 + 3] === 0) {
+                bg[idx] = 1;                      // background
+                const x = idx % sz, y = (idx / sz) | 0;
+                if (x > 0)      stack.push(idx - 1);
+                if (x < sz - 1) stack.push(idx + 1);
+                if (y > 0)      stack.push(idx - sz);
+                if (y < sz - 1) stack.push(idx + sz);
+            } else {
+                bg[idx] = 2;                      // model — stop expanding
+            }
+        }
+
+        // Pass 3: apply mask
+        for (let i = 0; i < sz * sz; i++) {
+            const pi = i * 4;
+            if (bg[i] === 1) {
+                // Background: fully transparent
+                out[pi] = out[pi + 1] = out[pi + 2] = out[pi + 3] = 0;
+            } else {
+                // Model (or interior gap): force fully opaque
+                out[pi + 3] = 255;
+            }
+        }
+
         ctx.putImageData(imageData, 0, 0);
 
         return this.canvas;
