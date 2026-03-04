@@ -759,10 +759,15 @@ export class Boss extends Phaser.GameObjects.Container {
             // Render and copy to Phaser texture (same as player pipeline)
             this._bossRenderer.render();
             const ctx = this._bossCanvasTex.context;
-            ctx.clearRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
-            // DEBUG: draw solid red square to test Phaser pipeline
+            const w = this._bossCanvasTex.width;
+            const h = this._bossCanvasTex.height;
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(this._bossRenderer.canvas, 0, 0);
+            // DEBUG: fill RED behind all transparent pixels
+            ctx.globalCompositeOperation = 'destination-over';
             ctx.fillStyle = '#ff0000';
-            ctx.fillRect(0, 0, this._bossCanvasTex.width, this._bossCanvasTex.height);
+            ctx.fillRect(0, 0, w, h);
+            ctx.globalCompositeOperation = 'source-over';
             this._bossCanvasTex.refresh();
         }
 
