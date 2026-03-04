@@ -54,10 +54,8 @@ export class CharacterRenderer3D {
         this.canvas.height = this.size;
         this._outputCtx = this.canvas.getContext('2d');
 
-        // Three.js renderer — solid magenta background (no alpha channel).
-        // We flood-fill from the canvas edges to turn the magenta into
-        // transparency, which avoids alpha-channel GPU/browser quirks AND
-        // keeps interior mesh gaps opaque.
+        // Three.js renderer — no alpha channel, background colour set per-frame
+        // by the dual-render background-subtraction in render().
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
             alpha: false,
@@ -65,7 +63,6 @@ export class CharacterRenderer3D {
             preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);
-        this.renderer.setClearColor(0xff00ff, 1);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Scene
@@ -257,76 +254,61 @@ export class CharacterRenderer3D {
             this.camera.lookAt(0, this._modelCenterY, 0);
         }
 
-        this.renderer.render(this.scene, this.camera);
-
-        // Read raw pixels via readPixels (avoids drawImage browser quirks).
-        // Flood-fill from canvas edges: only magenta pixels connected to the
-        // border become transparent.  Interior magenta pixels (gaps from
-        // skinning deformation) stay opaque — no see-through holes.
+        // Dual-render background subtraction: render the same frame with two
+        // different clear colours (red, blue).  Any pixel that changes between
+        // them is background; pixels that stay the same are model.  This is
+        // completely immune to the model having colours that match a chroma-key.
+        // We also recover true alpha for antialiased edges.
         const gl = this.renderer.getContext();
         const sz = this.size;
-        if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
-        const buf = this._readBuf;
-        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        if (!this._readBuf)  this._readBuf  = new Uint8Array(sz * sz * 4);
+        if (!this._readBuf2) this._readBuf2 = new Uint8Array(sz * sz * 4);
+        const buf1 = this._readBuf, buf2 = this._readBuf2;
+
+        // Render 1: red background (R=255, G=0, B=0)
+        this.renderer.setClearColor(0xff0000, 1);
+        this.renderer.render(this.scene, this.camera);
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf1);
+
+        // Render 2: blue background (R=0, G=0, B=255)
+        this.renderer.setClearColor(0x0000ff, 1);
+        this.renderer.render(this.scene, this.camera);
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf2);
 
         const ctx = this._outputCtx;
         const imageData = ctx.createImageData(sz, sz);
         const out = imageData.data;
 
-        // Pass 1: flip vertically into output buffer (fully opaque)
         for (let y = 0; y < sz; y++) {
-            const srcRow = (sz - 1 - y) * sz * 4;
+            const srcRow = (sz - 1 - y) * sz * 4;   // flip Y
             const dstRow = y * sz * 4;
             for (let x = 0; x < sz; x++) {
                 const si = srcRow + x * 4;
                 const di = dstRow + x * 4;
-                out[di]     = buf[si];
-                out[di + 1] = buf[si + 1];
-                out[di + 2] = buf[si + 2];
-                out[di + 3] = 255;
-            }
-        }
 
-        // Pass 2: flood fill from canvas edges using magenta colour match.
-        // Only magenta pixels reachable from the border become transparent.
-        if (!this._bgMask) this._bgMask = new Uint8Array(sz * sz);
-        const bg = this._bgMask;
-        bg.fill(0);   // 0 = unvisited
+                const r1 = buf1[si],     g1 = buf1[si + 1], b1 = buf1[si + 2];
+                const r2 = buf2[si],     g2 = buf2[si + 1], b2 = buf2[si + 2];
 
-        const stack = [];
-        // Seed every edge pixel
-        for (let x = 0; x < sz; x++) {
-            stack.push(x);                       // top row
-            stack.push((sz - 1) * sz + x);       // bottom row
-        }
-        for (let y = 1; y < sz - 1; y++) {
-            stack.push(y * sz);                   // left column
-            stack.push(y * sz + sz - 1);          // right column
-        }
+                // Alpha from red-channel difference:
+                //   r1 = model_r * a + 255 * (1-a)   [red bg]
+                //   r2 = model_r * a                  [blue bg, bg_r = 0]
+                //   r1 - r2 = 255 * (1-a)  →  a = 1 - (r1-r2)/255
+                const a = 1 - (r1 - r2) / 255;
 
-        while (stack.length > 0) {
-            const idx = stack.pop();
-            if (bg[idx]) continue;                // already visited
-            const pi = idx * 4;
-            const r = out[pi], g = out[pi + 1], b = out[pi + 2];
-            // Magenta-ish: high red, low green, high blue
-            if (r > 200 && g < 60 && b > 200) {
-                bg[idx] = 1;                      // background
-                const x = idx % sz, y = (idx / sz) | 0;
-                if (x > 0)      stack.push(idx - 1);
-                if (x < sz - 1) stack.push(idx + 1);
-                if (y > 0)      stack.push(idx - sz);
-                if (y < sz - 1) stack.push(idx + sz);
-            } else {
-                bg[idx] = 2;                      // model — stop expanding
-            }
-        }
-
-        // Pass 3: apply mask — background → transparent
-        for (let i = 0; i < sz * sz; i++) {
-            if (bg[i] === 1) {
-                const pi = i * 4;
-                out[pi] = out[pi + 1] = out[pi + 2] = out[pi + 3] = 0;
+                if (a < 0.02) {
+                    // Transparent
+                    out[di] = out[di + 1] = out[di + 2] = out[di + 3] = 0;
+                } else {
+                    // Recover model colour (un-premultiply):
+                    //   r from render2 (bg_r=0): r2 = model_r * a
+                    //   g from render1 (bg_g=0): g1 = model_g * a (same as g2)
+                    //   b from render1 (bg_b=0): b1 = model_b * a
+                    const ia = 1 / a;
+                    out[di]     = Math.min(255, (r2 * ia + 0.5) | 0);
+                    out[di + 1] = Math.min(255, (g1 * ia + 0.5) | 0);
+                    out[di + 2] = Math.min(255, (b1 * ia + 0.5) | 0);
+                    out[di + 3] = 255;  // force fully opaque for model pixels
+                }
             }
         }
 
