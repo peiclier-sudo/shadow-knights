@@ -265,12 +265,40 @@ export class CharacterRenderer3D {
 
         this.renderer.render(this.scene, this.camera);
 
-        // DEBUG: bypass all post-processing — just copy the raw WebGL
-        // canvas directly.  With alpha:false every pixel is fully opaque,
-        // so if transparency STILL appears the bug is in Phaser, not here.
+        // Read raw pixels from WebGL via readPixels (avoids drawImage
+        // issues where alpha:false canvases can produce alpha=0 pixels).
+        // Flip vertically (WebGL Y=0 is bottom) and chroma-key out the
+        // magenta background, making everything else fully opaque.
+        const gl = this.renderer.getContext();
+        const sz = this.size;
+        if (!this._readBuf) this._readBuf = new Uint8Array(sz * sz * 4);
+        const buf = this._readBuf;
+        gl.readPixels(0, 0, sz, sz, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+
         const ctx = this._outputCtx;
-        ctx.clearRect(0, 0, this.size, this.size);
-        ctx.drawImage(this._glCanvas, 0, 0);
+        const imageData = ctx.createImageData(sz, sz);
+        const out = imageData.data;
+
+        for (let y = 0; y < sz; y++) {
+            const srcRow = (sz - 1 - y) * sz * 4;   // flip vertically
+            const dstRow = y * sz * 4;
+            for (let x = 0; x < sz; x++) {
+                const si = srcRow + x * 4;
+                const di = dstRow + x * 4;
+                const r = buf[si], g = buf[si + 1], b = buf[si + 2];
+                // Magenta background (0xff00ff) → transparent
+                // Tight threshold to avoid false-matching model colours
+                if (r > 240 && g < 15 && b > 240) {
+                    out[di] = out[di + 1] = out[di + 2] = out[di + 3] = 0;
+                } else {
+                    out[di]     = r;
+                    out[di + 1] = g;
+                    out[di + 2] = b;
+                    out[di + 3] = 255;   // force fully opaque
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
 
         return this.canvas;
     }
