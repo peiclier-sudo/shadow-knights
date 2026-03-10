@@ -299,95 +299,172 @@ export class GameScene extends Phaser.Scene {
     }
 
     createBackground(width, height) {
-        // ── 3/4 isometric dungeon arena ──────────────────────────────────
-        // Dark stone floor base with strong vertical gradient (lighter at top = farther away)
+        // ── 3/4 perspective dungeon arena ────────────────────────────────
+        // True perspective: tiles shrink toward the top (vanishing point),
+        // expand toward the bottom (close to camera).
+
+        // Dark stone floor base with strong depth gradient
         const floor = this.add.graphics();
-        floor.fillGradientStyle(0x1e1e38, 0x1e1e38, 0x0a0a14, 0x0a0a14, 1);
+        floor.fillGradientStyle(0x1e1e38, 0x1e1e38, 0x0a0a12, 0x0a0a12, 1);
         floor.fillRect(0, 0, width, height);
 
-        // Isometric diamond tile grid – low camera = more vertical compression
+        // ── Perspective floor grid ──────────────────────────────────────
         const grid = this.add.graphics();
-        const tileW = 96;   // horizontal spacing
-        const tileH = 32;   // vertical spacing (1:3 ratio for low 3/4 perspective)
-        const cols = Math.ceil(width / tileW) + 2;
-        const rows = Math.ceil(height / tileH) + 2;
 
-        for (let row = -1; row < rows; row++) {
-            for (let col = -1; col < cols; col++) {
-                const offsetX = (row % 2 === 0) ? 0 : tileW / 2;
-                const cx = col * tileW + offsetX;
-                const cy = row * tileH;
+        // Vanishing point (above the top edge, centered)
+        const vpX = width * 0.5;
+        const vpY = -height * 0.35;
 
-                // Diamond shape mortar lines
-                grid.lineStyle(1.5, 0x0a0a1a, 0.55);
+        // Arena floor bounds
+        const margin = 30;
+        const wallH = 100;
+        const floorTop = margin + wallH;   // where floor starts (after back wall)
+        const floorBot = height - margin;  // bottom of arena
+        const floorLeft = margin + 12;
+        const floorRight = width - margin - 12;
+
+        // Helper: given a Y position on screen, return the left and right X extent
+        // of the floor plane (lines converge toward vanishing point)
+        const getFloorExtent = (y) => {
+            const t = (y - vpY) / (floorBot - vpY); // 0 at VP, 1 at bottom
+            const halfW = (floorRight - floorLeft) * 0.5 * t;
+            const cx = vpX + (vpX - vpX) * (1 - t); // center stays at vpX
+            return { left: cx - halfW, right: cx + halfW };
+        };
+
+        // --- Horizontal grid lines (rows receding into distance) ---
+        // Spacing increases toward bottom (perspective foreshortening)
+        const numRows = 18;
+        const rowYs = [];
+        for (let i = 0; i <= numRows; i++) {
+            // Use power curve: rows bunch up at top, spread at bottom
+            const t = i / numRows;
+            const perspT = t * t;  // quadratic = strong perspective
+            const y = floorTop + (floorBot - floorTop) * perspT;
+            rowYs.push(y);
+        }
+
+        // Draw horizontal lines
+        for (let i = 0; i < rowYs.length; i++) {
+            const y = rowYs[i];
+            const ext = getFloorExtent(y);
+            const alphaFade = 0.15 + 0.45 * ((y - floorTop) / (floorBot - floorTop));
+            grid.lineStyle(1.2, 0x1a1a3a, alphaFade);
+            grid.beginPath();
+            grid.moveTo(ext.left, y);
+            grid.lineTo(ext.right, y);
+            grid.strokePath();
+        }
+
+        // --- Vertical grid lines (converge toward vanishing point) ---
+        const numCols = 14;
+        for (let i = 0; i <= numCols; i++) {
+            const t = i / numCols;
+            // Position along the bottom edge
+            const botExt = getFloorExtent(floorBot);
+            const bx = botExt.left + (botExt.right - botExt.left) * t;
+            // All vertical lines converge toward vpX at the top
+            const topExt = getFloorExtent(floorTop);
+            const tx = topExt.left + (topExt.right - topExt.left) * t;
+
+            grid.lineStyle(1.2, 0x1a1a3a, 0.35);
+            grid.beginPath();
+            grid.moveTo(tx, floorTop);
+            grid.lineTo(bx, floorBot);
+            grid.strokePath();
+        }
+
+        // --- Tile shading (alternating quads for checkerboard depth) ---
+        for (let r = 0; r < rowYs.length - 1; r++) {
+            const y0 = rowYs[r];
+            const y1 = rowYs[r + 1];
+            const ext0 = getFloorExtent(y0);
+            const ext1 = getFloorExtent(y1);
+
+            for (let c = 0; c < numCols; c++) {
+                if ((r + c) % 3 !== 0) continue; // sparse shading
+                const t0 = c / numCols;
+                const t1 = (c + 1) / numCols;
+
+                const x0t = ext0.left + (ext0.right - ext0.left) * t0;
+                const x1t = ext0.left + (ext0.right - ext0.left) * t1;
+                const x0b = ext1.left + (ext1.right - ext1.left) * t0;
+                const x1b = ext1.left + (ext1.right - ext1.left) * t1;
+
+                grid.fillStyle(0x16162e, 0.12);
                 grid.beginPath();
-                grid.moveTo(cx, cy - tileH / 2);
-                grid.lineTo(cx + tileW / 2, cy);
-                grid.lineTo(cx, cy + tileH / 2);
-                grid.lineTo(cx - tileW / 2, cy);
+                grid.moveTo(x0t, y0);
+                grid.lineTo(x1t, y0);
+                grid.lineTo(x1b, y1);
+                grid.lineTo(x0b, y1);
                 grid.closePath();
-                grid.strokePath();
-
-                // Subtle tile highlight (top-left edges catch the light)
-                grid.lineStyle(1, 0x2a3a5e, 0.12);
-                grid.beginPath();
-                grid.moveTo(cx, cy - tileH / 2);
-                grid.lineTo(cx - tileW / 2, cy);
-                grid.strokePath();
-
-                // Occasional tile shade variation for realism
-                if ((col + row * 7) % 5 === 0) {
-                    grid.fillStyle(0x16162a, 0.18);
-                    grid.beginPath();
-                    grid.moveTo(cx, cy - tileH / 2);
-                    grid.lineTo(cx + tileW / 2, cy);
-                    grid.lineTo(cx, cy + tileH / 2);
-                    grid.lineTo(cx - tileW / 2, cy);
-                    grid.closePath();
-                    grid.fillPath();
-                }
+                grid.fillPath();
             }
         }
 
-        // Scattered floor texture details (cracks, pebbles)
+        // Scattered floor texture details (cracks, pebbles – scale with depth)
         const details = this.add.graphics();
         for (let i = 0; i < 80; i++) {
-            const dx = Phaser.Math.Between(0, width);
-            const dy = Phaser.Math.Between(0, height);
+            const dy = Phaser.Math.Between(floorTop, floorBot);
+            const ext = getFloorExtent(dy);
+            const dx = Phaser.Math.FloatBetween(ext.left + 10, ext.right - 10);
+            const depthT = (dy - floorTop) / (floorBot - floorTop);
             const shade = Phaser.Math.Between(0x10, 0x20);
             const color = (shade << 16) | (shade << 8) | (shade + 0x10);
             details.fillStyle(color, Phaser.Math.FloatBetween(0.04, 0.12));
-            details.fillCircle(dx, dy, Phaser.Math.FloatBetween(1, 3));
+            details.fillCircle(dx, dy, 1 + depthT * 2.5);
         }
 
-        // Arena boundary walls (low 3/4 perspective: tall back wall, narrower side walls)
+        // ── Arena boundary walls ────────────────────────────────────────
         const walls = this.add.graphics();
-        const wallH = 100;  // taller back wall – more visible from low camera
-        const margin = 30;
 
-        // Back wall (top) – tall and prominent
+        // Back wall (top) – tall and prominent, with brick detail
         walls.fillGradientStyle(0x0e0e22, 0x0e0e22, 0x161630, 0x161630, 1);
         walls.fillRect(margin, margin, width - margin * 2, wallH);
         walls.lineStyle(2, 0x2a3a5e, 0.6);
         walls.strokeRect(margin, margin, width - margin * 2, wallH);
+        // Horizontal brick lines on back wall
+        for (let brickRow = 0; brickRow < 4; brickRow++) {
+            const by = margin + 18 + brickRow * 22;
+            walls.lineStyle(1, 0x0a0a1a, 0.3);
+            walls.beginPath();
+            walls.moveTo(margin + 4, by);
+            walls.lineTo(width - margin - 4, by);
+            walls.strokePath();
+        }
         // Wall top edge highlight
         walls.fillStyle(0x2a2a50, 0.6);
         walls.fillRect(margin, margin, width - margin * 2, 4);
         // Wall base shadow line
-        walls.fillStyle(0x000000, 0.35);
-        walls.fillRect(margin, margin + wallH - 2, width - margin * 2, 4);
+        walls.fillStyle(0x000000, 0.4);
+        walls.fillRect(margin, margin + wallH - 3, width - margin * 2, 6);
 
-        // Side walls (perspective strips – narrower since we see them at a steep angle)
+        // Side walls – perspective trapezoids (wider at bottom, narrower at top)
         // Left wall
-        walls.fillStyle(0x0c0c1a, 0.8);
-        walls.fillRect(margin, margin + wallH, 12, height - margin * 2 - wallH);
+        const lwTop = margin + wallH;
+        const lwBot = height - margin;
+        walls.fillStyle(0x0c0c1c, 0.85);
+        walls.beginPath();
+        walls.moveTo(margin, lwTop);
+        walls.lineTo(margin + 12, lwTop);
+        walls.lineTo(margin + 18, lwBot);  // wider at bottom
+        walls.lineTo(margin, lwBot);
+        walls.closePath();
+        walls.fillPath();
         walls.lineStyle(1, 0x2a3a5e, 0.3);
-        walls.strokeRect(margin, margin + wallH, 12, height - margin * 2 - wallH);
+        walls.strokePath();
+
         // Right wall
-        walls.fillStyle(0x0c0c1a, 0.8);
-        walls.fillRect(width - margin - 12, margin + wallH, 12, height - margin * 2 - wallH);
+        walls.fillStyle(0x0c0c1c, 0.85);
+        walls.beginPath();
+        walls.moveTo(width - margin, lwTop);
+        walls.lineTo(width - margin - 12, lwTop);
+        walls.lineTo(width - margin - 18, lwBot);
+        walls.lineTo(width - margin, lwBot);
+        walls.closePath();
+        walls.fillPath();
         walls.lineStyle(1, 0x2a3a5e, 0.3);
-        walls.strokeRect(width - margin - 12, margin + wallH, 12, height - margin * 2 - wallH);
+        walls.strokePath();
 
         // Torch glow spots on walls
         const torchPositions = [
@@ -400,12 +477,10 @@ export class GameScene extends Phaser.Scene {
         ];
         this._torches = [];
         torchPositions.forEach(pos => {
-            // Warm glow circle
             const glow = this.add.circle(pos.x, pos.y, 80, 0x442200, 0.08)
                 .setBlendMode(Phaser.BlendModes.SCREEN);
             const flame = this.add.circle(pos.x, pos.y, 4, 0xff8833, 0.9);
             this._torches.push({ glow, flame });
-            // Flickering animation
             this.tweens.add({
                 targets: glow,
                 alpha: { from: 0.06, to: 0.12 },
@@ -438,26 +513,27 @@ export class GameScene extends Phaser.Scene {
             Math.min(width, height) * 0.55, 0x000000, 0.22
         ).setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        // Decorative stone pillars at arena corners (low 3/4 perspective – taller, flatter shadows)
+        // Decorative stone pillars (scale with perspective depth)
         const pillars = this.add.graphics();
         const pillarPositions = [
-            { x: margin + 50, y: margin + wallH + 20 },
-            { x: width - margin - 50, y: margin + wallH + 20 },
-            { x: margin + 50, y: height - margin - 20 },
-            { x: width - margin - 50, y: height - margin - 20 }
+            { x: margin + 55, y: margin + wallH + 25, scale: 0.7 },
+            { x: width - margin - 55, y: margin + wallH + 25, scale: 0.7 },
+            { x: margin + 65, y: height - margin - 15, scale: 1.0 },
+            { x: width - margin - 65, y: height - margin - 15, scale: 1.0 }
         ];
         pillarPositions.forEach(pos => {
-            // Pillar shadow (very flat ellipse – low camera angle)
+            const s = pos.scale;
+            // Pillar shadow
             pillars.fillStyle(0x000000, 0.3);
-            pillars.fillEllipse(pos.x + 4, pos.y + 32, 32, 8);
-            // Pillar body (taller from low angle)
+            pillars.fillEllipse(pos.x + 4 * s, pos.y + 32 * s, 34 * s, 7 * s);
+            // Pillar body
             pillars.fillStyle(0x222240, 0.9);
-            pillars.fillRect(pos.x - 10, pos.y - 45, 20, 75);
+            pillars.fillRect(pos.x - 10 * s, pos.y - 50 * s, 20 * s, 80 * s);
             pillars.lineStyle(1, 0x3a3a6e, 0.6);
-            pillars.strokeRect(pos.x - 10, pos.y - 45, 20, 75);
+            pillars.strokeRect(pos.x - 10 * s, pos.y - 50 * s, 20 * s, 80 * s);
             // Pillar top cap
             pillars.fillStyle(0x2a2a4e, 0.95);
-            pillars.fillRect(pos.x - 13, pos.y - 49, 26, 6);
+            pillars.fillRect(pos.x - 13 * s, pos.y - 54 * s, 26 * s, 6 * s);
         });
 
         this.backgroundDecor = { floor, grid, details, walls, centerGlow, vignetteCenter, pillars };
