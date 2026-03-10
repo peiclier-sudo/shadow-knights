@@ -5,7 +5,7 @@ import { CharacterRenderer3D } from '../utils/CharacterRenderer3D.js';
 
 export class Boss extends Phaser.GameObjects.Container {
     constructor(scene, bossId) {
-        super(scene, scene.cameras.main.width * 0.5, scene.cameras.main.height * 0.5);
+        super(scene, scene.cameras.main.width * 0.6, scene.cameras.main.height * 0.4);
 
         this.scene = scene;
         this.bossData = BOSSES[bossId];
@@ -39,7 +39,7 @@ export class Boss extends Phaser.GameObjects.Container {
         scene.physics.add.existing(this);
         this.body.setSize(70, 130);
         this.body.setCollideWorldBounds(true);
-        this.body.setImmovable(true);
+        this.body.setImmovable(false); // Allow boss movement for hack-and-slash chase AI
     }
     
     _init3DBoss() {
@@ -766,6 +766,27 @@ export class Boss extends Phaser.GameObjects.Container {
 
         // Don't attack if frozen or stunned
         if (this.frozen || this.stunned) return;
+
+        // ── Boss chases the player (hack-and-slash AI) ───────────────────
+        if (player && !this.isAttacking) {
+            const chaseSpeed = (this.bossData.speed || 80) * (this.slowed ? 0.5 : 1.0);
+            const dx = player.x - this.x;
+            const dy = player.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const attackRange = 130;
+
+            if (dist > attackRange) {
+                // Move towards player
+                this.body.setVelocity(
+                    (dx / dist) * chaseSpeed,
+                    (dy / dist) * chaseSpeed
+                );
+            } else {
+                this.body.setVelocity(0, 0);
+            }
+        } else if (this.isAttacking) {
+            this.body.setVelocity(0, 0);
+        }
 
         // Attack cooldown
         if (time > this.nextAttackTime && !this.isAttacking) {

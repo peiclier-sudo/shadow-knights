@@ -85,6 +85,19 @@ export class GameScene extends Phaser.Scene {
         this.aimCurrentY = 0;
         this.showAttackRangePreview = true;
 
+        // WASD direct movement keys (hack-and-slash style)
+        this.wasdKeys = this.input.keyboard.addKeys({
+            W: Phaser.Input.Keyboard.KeyCodes.W,
+            A: Phaser.Input.Keyboard.KeyCodes.A,
+            S: Phaser.Input.Keyboard.KeyCodes.S,
+            D: Phaser.Input.Keyboard.KeyCodes.D,
+            UP: Phaser.Input.Keyboard.KeyCodes.UP,
+            DOWN: Phaser.Input.Keyboard.KeyCodes.DOWN,
+            LEFT: Phaser.Input.Keyboard.KeyCodes.LEFT,
+            RIGHT: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        });
+        this.useWASD = true;  // WASD is primary movement
+
         // Aim line
         this.aimLine = this.add.graphics();
         this.rangePreviewGraphics = this.add.graphics();
@@ -117,9 +130,9 @@ export class GameScene extends Phaser.Scene {
         // Input
         this.setupInput();
         
-        // Camera
-        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-        this.cameras.main.setDeadzone(90, 60);
+        // Camera (3/4 view: slightly higher lerp, larger deadzone for smoother tracking)
+        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+        this.cameras.main.setDeadzone(120, 80);
         this.cameras.main.setBounds(0, 0, width, height);
     }
     
@@ -286,64 +299,165 @@ export class GameScene extends Phaser.Scene {
     }
 
     createBackground(width, height) {
-        // Dark stone floor base
+        // ── 3/4 isometric dungeon arena ──────────────────────────────────
+        // Dark stone floor base with vertical gradient (lighter near top = depth)
         const floor = this.add.graphics();
-        floor.fillGradientStyle(0x1a1a2e, 0x16213e, 0x1a1a2e, 0x0f3460, 1);
+        floor.fillGradientStyle(0x12121e, 0x12121e, 0x1a1a30, 0x1a1a30, 1);
         floor.fillRect(0, 0, width, height);
 
-        // Stone tile grid (top-down floor perspective)
+        // Isometric diamond tile grid
         const grid = this.add.graphics();
-        const spacing = 64;
+        const tileW = 96;   // horizontal spacing
+        const tileH = 48;   // vertical spacing (half of tileW for isometric)
+        const cols = Math.ceil(width / tileW) + 2;
+        const rows = Math.ceil(height / tileH) + 2;
 
-        // Main tile lines - dark mortar between stones
-        grid.lineStyle(2, 0x0a0a18, 0.6);
-        for (let x = 0; x <= width; x += spacing) {
-            grid.lineBetween(x, 0, x, height);
-        }
-        for (let y = 0; y <= height; y += spacing) {
-            grid.lineBetween(0, y, width, y);
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const offsetX = (row % 2 === 0) ? 0 : tileW / 2;
+                const cx = col * tileW + offsetX;
+                const cy = row * tileH;
+
+                // Diamond shape mortar lines
+                grid.lineStyle(1.5, 0x0a0a1a, 0.55);
+                grid.beginPath();
+                grid.moveTo(cx, cy - tileH / 2);
+                grid.lineTo(cx + tileW / 2, cy);
+                grid.lineTo(cx, cy + tileH / 2);
+                grid.lineTo(cx - tileW / 2, cy);
+                grid.closePath();
+                grid.strokePath();
+
+                // Subtle tile highlight (top-left edges catch the light)
+                grid.lineStyle(1, 0x2a3a5e, 0.12);
+                grid.beginPath();
+                grid.moveTo(cx, cy - tileH / 2);
+                grid.lineTo(cx - tileW / 2, cy);
+                grid.strokePath();
+
+                // Occasional tile shade variation for realism
+                if ((col + row * 7) % 5 === 0) {
+                    grid.fillStyle(0x16162a, 0.18);
+                    grid.beginPath();
+                    grid.moveTo(cx, cy - tileH / 2);
+                    grid.lineTo(cx + tileW / 2, cy);
+                    grid.lineTo(cx, cy + tileH / 2);
+                    grid.lineTo(cx - tileW / 2, cy);
+                    grid.closePath();
+                    grid.fillPath();
+                }
+            }
         }
 
-        // Subtle highlight on tile edges (top-left light source)
-        grid.lineStyle(1, 0x2a3a5e, 0.15);
-        for (let x = 1; x <= width; x += spacing) {
-            grid.lineBetween(x, 0, x, height);
-        }
-        for (let y = 1; y <= height; y += spacing) {
-            grid.lineBetween(0, y, width, y);
-        }
-
-        // Scattered floor texture details (small stone cracks / variation)
+        // Scattered floor texture details (cracks, pebbles)
         const details = this.add.graphics();
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 80; i++) {
             const dx = Phaser.Math.Between(0, width);
             const dy = Phaser.Math.Between(0, height);
-            const shade = Phaser.Math.Between(0x12, 0x22);
+            const shade = Phaser.Math.Between(0x10, 0x20);
             const color = (shade << 16) | (shade << 8) | (shade + 0x10);
-            details.fillStyle(color, Phaser.Math.FloatBetween(0.05, 0.15));
-            details.fillCircle(dx, dy, Phaser.Math.FloatBetween(1, 4));
+            details.fillStyle(color, Phaser.Math.FloatBetween(0.04, 0.12));
+            details.fillCircle(dx, dy, Phaser.Math.FloatBetween(1, 3));
         }
 
-        // Subtle warm center glow (torch / ambient light on arena floor)
+        // Arena boundary walls (3/4 perspective: back wall visible, side walls converge)
+        const walls = this.add.graphics();
+        const wallH = 60;   // wall height in pixels
+        const margin = 30;
+
+        // Back wall (top)
+        walls.fillStyle(0x0e0e1e, 0.9);
+        walls.fillRect(margin, margin, width - margin * 2, wallH);
+        walls.lineStyle(2, 0x2a3a5e, 0.6);
+        walls.strokeRect(margin, margin, width - margin * 2, wallH);
+        // Wall face highlight
+        walls.fillStyle(0x1a1a36, 0.5);
+        walls.fillRect(margin, margin, width - margin * 2, 4);
+
+        // Side walls (perspective strips)
+        // Left wall
+        walls.fillStyle(0x0c0c1a, 0.85);
+        walls.fillRect(margin, margin + wallH, 18, height - margin * 2 - wallH);
+        walls.lineStyle(1, 0x2a3a5e, 0.4);
+        walls.strokeRect(margin, margin + wallH, 18, height - margin * 2 - wallH);
+        // Right wall
+        walls.fillStyle(0x0c0c1a, 0.85);
+        walls.fillRect(width - margin - 18, margin + wallH, 18, height - margin * 2 - wallH);
+        walls.lineStyle(1, 0x2a3a5e, 0.4);
+        walls.strokeRect(width - margin - 18, margin + wallH, 18, height - margin * 2 - wallH);
+
+        // Torch glow spots on walls
+        const torchPositions = [
+            { x: width * 0.25, y: margin + wallH * 0.5 },
+            { x: width * 0.75, y: margin + wallH * 0.5 },
+            { x: margin + 9, y: height * 0.35 },
+            { x: width - margin - 9, y: height * 0.35 },
+            { x: margin + 9, y: height * 0.65 },
+            { x: width - margin - 9, y: height * 0.65 }
+        ];
+        this._torches = [];
+        torchPositions.forEach(pos => {
+            // Warm glow circle
+            const glow = this.add.circle(pos.x, pos.y, 80, 0x442200, 0.08)
+                .setBlendMode(Phaser.BlendModes.SCREEN);
+            const flame = this.add.circle(pos.x, pos.y, 4, 0xff8833, 0.9);
+            this._torches.push({ glow, flame });
+            // Flickering animation
+            this.tweens.add({
+                targets: glow,
+                alpha: { from: 0.06, to: 0.12 },
+                scale: { from: 0.95, to: 1.1 },
+                duration: 400 + Math.random() * 300,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+            this.tweens.add({
+                targets: flame,
+                alpha: { from: 0.7, to: 1.0 },
+                scale: { from: 0.8, to: 1.2 },
+                duration: 200 + Math.random() * 200,
+                yoyo: true,
+                repeat: -1
+            });
+        });
+
+        // Warm center glow (ambient arena light)
         const centerGlow = this.add.circle(
             width * 0.5, height * 0.5,
-            Math.max(width, height) * 0.4,
-            0x2a1a0a, 0.08
+            Math.max(width, height) * 0.38,
+            0x2a1a0a, 0.10
         ).setBlendMode(Phaser.BlendModes.SCREEN);
 
         // Dark edge vignette
-        const vignette = this.add.graphics();
-        vignette.fillStyle(0x000000, 0.3);
-        vignette.fillRect(0, 0, width, height);
-        const clearRadius = Math.min(width, height) * 0.55;
-        vignette.fillStyle(0x000000, 0);
-        // We use a second circle with ERASE blend to cut out the center
         const vignetteCenter = this.add.circle(
             width * 0.5, height * 0.5,
-            clearRadius, 0x000000, 0.25
+            Math.min(width, height) * 0.55, 0x000000, 0.22
         ).setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        this.backgroundDecor = { floor, grid, details, centerGlow, vignetteCenter };
+        // Decorative stone pillars at arena corners (3/4 perspective)
+        const pillars = this.add.graphics();
+        const pillarPositions = [
+            { x: margin + 50, y: margin + wallH + 30 },
+            { x: width - margin - 50, y: margin + wallH + 30 },
+            { x: margin + 50, y: height - margin - 30 },
+            { x: width - margin - 50, y: height - margin - 30 }
+        ];
+        pillarPositions.forEach(pos => {
+            // Pillar shadow
+            pillars.fillStyle(0x000000, 0.25);
+            pillars.fillEllipse(pos.x + 3, pos.y + 22, 28, 12);
+            // Pillar base
+            pillars.fillStyle(0x222240, 0.9);
+            pillars.fillRect(pos.x - 10, pos.y - 30, 20, 50);
+            pillars.lineStyle(1, 0x3a3a6e, 0.6);
+            pillars.strokeRect(pos.x - 10, pos.y - 30, 20, 50);
+            // Pillar top cap
+            pillars.fillStyle(0x2a2a4e, 0.95);
+            pillars.fillRect(pos.x - 13, pos.y - 34, 26, 6);
+        });
+
+        this.backgroundDecor = { floor, grid, details, walls, centerGlow, vignetteCenter, pillars };
     }
 
     createWeapon() {
@@ -502,7 +616,7 @@ export class GameScene extends Phaser.Scene {
         
         // Instructions
         this.add.text(width/2, height - 46, 
-            'LEFT CLICK: MOVE | RIGHT CLICK: FIRE/CHARGE | T: RANGE PREVIEW | SPACE: DASH | Q/E/R: SKILLS | 1: POTION', {
+            'WASD: MOVE | RIGHT CLICK: FIRE/CHARGE | LEFT CLICK: MOVE | T: RANGE | SPACE: DASH | Q/E/R: SKILLS | 1: POTION', {
             fontSize: '14px',
             fill: '#aaa',
             backgroundColor: '#00000099',
@@ -1077,12 +1191,30 @@ export class GameScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        // Mouvement
-        if (this.moveTarget) {
+        // ── Hack-and-slash movement: WASD / arrow keys as primary ────────
+        let moveX = 0, moveY = 0;
+        if (this.wasdKeys) {
+            if (this.wasdKeys.W.isDown || this.wasdKeys.UP.isDown) moveY -= 1;
+            if (this.wasdKeys.S.isDown || this.wasdKeys.DOWN.isDown) moveY += 1;
+            if (this.wasdKeys.A.isDown || this.wasdKeys.LEFT.isDown) moveX -= 1;
+            if (this.wasdKeys.D.isDown || this.wasdKeys.RIGHT.isDown) moveX += 1;
+        }
+
+        const hasWASDInput = moveX !== 0 || moveY !== 0;
+
+        if (hasWASDInput) {
+            // Normalize diagonal movement
+            const len = Math.sqrt(moveX * moveX + moveY * moveY);
+            moveX = (moveX / len) * this.player.speed;
+            moveY = (moveY / len) * this.player.speed;
+            this.player.move(moveX, moveY);
+            this.moveTarget = null; // cancel click-to-move when using WASD
+        } else if (this.moveTarget) {
+            // Fallback: click-to-move
             const dx = this.moveTarget.x - this.player.x;
             const dy = this.moveTarget.y - this.player.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (dist > 5) {
                 this.player.move(
                     (dx / dist) * this.player.speed,
@@ -1099,11 +1231,22 @@ export class GameScene extends Phaser.Scene {
         // Update player
         this.player.update();
         this.player.regenerateStamina();
-        
+
         // Update boss
         if (this.boss) {
             this.boss.update(time, this.player);
             this._updateAffixes(time, delta);
+        }
+
+        // ── Y-depth sorting (3/4 view: lower on screen = closer = in front) ──
+        if (this.player) {
+            this.player.setDepth(100 + Math.floor(this.player.y));
+        }
+        if (this.boss) {
+            this.boss.setDepth(100 + Math.floor(this.boss.y));
+            // Keep boss glows behind their owner
+            if (this.boss.glow1) this.boss.glow1.setDepth(99 + Math.floor(this.boss.y));
+            if (this.boss.glow2) this.boss.glow2.setDepth(98 + Math.floor(this.boss.y));
         }
 
         // Gestion de la charge

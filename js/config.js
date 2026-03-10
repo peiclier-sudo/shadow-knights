@@ -2,7 +2,7 @@
 export const GameConfig = {
     type: Phaser.WEBGL,
     parent: 'game-container',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#12121e',
     physics: {
         default: 'arcade',
         arcade: {

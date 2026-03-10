@@ -33,8 +33,8 @@ const KEY_DISPLAY = {
     V: 'V', W: 'W', X: 'X', Y: 'Y', Z: 'Z',
 };
 
-// Keys that cannot be rebound (reserved for system use)
-const BLOCKED_KEYS = new Set(['ESC', 'ESCAPE']);
+// Keys that cannot be rebound (reserved for system use / WASD movement)
+const BLOCKED_KEYS = new Set(['ESC', 'ESCAPE', 'W', 'A', 'S', 'D']);
 
 // Map from browser keyCode integers to Phaser key strings
 const KEYCODE_MAP = {

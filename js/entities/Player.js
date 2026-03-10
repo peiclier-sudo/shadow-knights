@@ -6,7 +6,7 @@ import { CharacterRenderer3D } from '../utils/CharacterRenderer3D.js';
 
 export class Player extends Phaser.GameObjects.Container {
     constructor(scene, config) {
-        super(scene, scene.cameras.main.width * 0.15, scene.cameras.main.height * 0.5);
+        super(scene, scene.cameras.main.width * 0.3, scene.cameras.main.height * 0.65);
 
         this.scene = scene;
         this.config = config;
@@ -77,8 +77,8 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     createVisuals() {
-        // Small shadow circle on the ground beneath the character
-        const shadow = this.scene.add.ellipse(0, 4, 40, 16, 0x000000, 0.35);
+        // Isometric ground shadow beneath the character (wider for 3/4 view)
+        const shadow = this.scene.add.ellipse(0, 18, 48, 14, 0x000000, 0.4);
         this.add([shadow]);
         this.shadow = shadow;
 
@@ -124,7 +124,7 @@ export class Player extends Phaser.GameObjects.Container {
             this._canvasTex.context.drawImage(this.charRenderer.canvas, 0, 0);
             this._canvasTex.refresh();
 
-            this._charSprite = this.scene.add.image(0, 0, texKey);
+            this._charSprite = this.scene.add.image(0, -10, texKey); // offset up for 3/4 view (feet at shadow)
             this._charSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
             this.add(this._charSprite);
             this.bringToTop(this._charSprite);
