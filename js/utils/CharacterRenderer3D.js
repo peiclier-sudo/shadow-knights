@@ -15,7 +15,7 @@ export class CharacterRenderer3D {
         this.size = options.size || 128;
         this.modelPath = options.modelPath || '/RogueV3.glb';
         this.animationName = options.animationName || 'Runfast';
-        this._frustum = options.frustum || 3.0;
+        this._frustum = options.frustum || 2.0;
         this._modelScale = options.modelScale || 2.6;
         // Camera tilt from vertical in radians (0 = pure top-down, ~1.0 = low 3/4 view)
         this._cameraTilt = options.cameraTilt != null ? options.cameraTilt : 0.95;
