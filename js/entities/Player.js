@@ -77,10 +77,8 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     createVisuals() {
-        // Ground shadow directly at character's feet
-        const shadow = this.scene.add.ellipse(0, 55, 70, 16, 0x000000, 0.5);
-        this.add([shadow]);
-        this.shadow = shadow;
+        // No ground shadow
+        this.shadow = null;
 
         // The 3D sprite will be added once the model loads (see _init3DCharacter)
         this.core = null;
@@ -118,14 +116,17 @@ export class Player extends Phaser.GameObjects.Container {
 
             // Create a Phaser CanvasTexture we can update every frame
             this._canvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
+            this._canvasTex.context.imageSmoothingEnabled = true;
+            this._canvasTex.context.imageSmoothingQuality = 'high';
 
             // Initial render
             this.charRenderer.render();
             this._canvasTex.context.drawImage(this.charRenderer.canvas, 0, 0);
             this._canvasTex.refresh();
 
-            this._charSprite = this.scene.add.image(0, -8, texKey); // pull up so feet align with shadow
+            this._charSprite = this.scene.add.image(0, 0, texKey);
             this._charSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
+            this._charSprite.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
             this.add(this._charSprite);
             this.bringToTop(this._charSprite);
             this._char3DReady = true;

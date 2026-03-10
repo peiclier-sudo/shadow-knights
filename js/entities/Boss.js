@@ -55,7 +55,7 @@ export class Boss extends Phaser.GameObjects.Container {
         this._bossIdleAnim = cfg.idleAnim;
 
         const SPRITE_SIZE = 1024;
-        const DISPLAY_SIZE = 260;
+        const DISPLAY_SIZE = 520;
 
         this._bossRenderer = new CharacterRenderer3D({
             size: SPRITE_SIZE,
@@ -71,13 +71,16 @@ export class Boss extends Phaser.GameObjects.Container {
             if (!this.scene || !this.scene.textures) return;
 
             this._bossCanvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
+            this._bossCanvasTex.context.imageSmoothingEnabled = true;
+            this._bossCanvasTex.context.imageSmoothingQuality = 'high';
 
             this._bossRenderer.render();
             this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);
             this._bossCanvasTex.refresh();
 
-            this._bossSprite = this.scene.add.image(0, -20, texKey); // pull up so feet align with shadow
+            this._bossSprite = this.scene.add.image(0, -40, texKey);
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
+            this._bossSprite.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
             this.add(this._bossSprite);
             this.bringToTop(this._bossSprite);
 
@@ -89,11 +92,6 @@ export class Boss extends Phaser.GameObjects.Container {
             // Also hide external glow effects
             if (this.glow1) this.glow1.setVisible(false);
             if (this.glow2) this.glow2.setVisible(false);
-
-            // Ground shadow at boss feet
-            this._bossShadow = this.scene.add.ellipse(0, 110, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.08, 0x000000, 0.45);
-            this.add(this._bossShadow);
-            this.sendToBack(this._bossShadow);
 
             this._boss3DReady = true;
         }).catch(err => {
