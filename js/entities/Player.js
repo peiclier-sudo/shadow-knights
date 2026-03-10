@@ -77,8 +77,8 @@ export class Player extends Phaser.GameObjects.Container {
     }
     
     createVisuals() {
-        // Isometric ground shadow beneath the character (wider for 3/4 view)
-        const shadow = this.scene.add.ellipse(0, 18, 48, 14, 0x000000, 0.4);
+        // Ground shadow beneath the character (very flat for low 3/4 perspective)
+        const shadow = this.scene.add.ellipse(0, 22, 56, 10, 0x000000, 0.45);
         this.add([shadow]);
         this.shadow = shadow;
 

@@ -300,15 +300,15 @@ export class GameScene extends Phaser.Scene {
 
     createBackground(width, height) {
         // ── 3/4 isometric dungeon arena ──────────────────────────────────
-        // Dark stone floor base with vertical gradient (lighter near top = depth)
+        // Dark stone floor base with strong vertical gradient (lighter at top = farther away)
         const floor = this.add.graphics();
-        floor.fillGradientStyle(0x12121e, 0x12121e, 0x1a1a30, 0x1a1a30, 1);
+        floor.fillGradientStyle(0x1e1e38, 0x1e1e38, 0x0a0a14, 0x0a0a14, 1);
         floor.fillRect(0, 0, width, height);
 
-        // Isometric diamond tile grid
+        // Isometric diamond tile grid – low camera = more vertical compression
         const grid = this.add.graphics();
         const tileW = 96;   // horizontal spacing
-        const tileH = 48;   // vertical spacing (half of tileW for isometric)
+        const tileH = 32;   // vertical spacing (1:3 ratio for low 3/4 perspective)
         const cols = Math.ceil(width / tileW) + 2;
         const rows = Math.ceil(height / tileH) + 2;
 
@@ -360,31 +360,34 @@ export class GameScene extends Phaser.Scene {
             details.fillCircle(dx, dy, Phaser.Math.FloatBetween(1, 3));
         }
 
-        // Arena boundary walls (3/4 perspective: back wall visible, side walls converge)
+        // Arena boundary walls (low 3/4 perspective: tall back wall, narrower side walls)
         const walls = this.add.graphics();
-        const wallH = 60;   // wall height in pixels
+        const wallH = 100;  // taller back wall – more visible from low camera
         const margin = 30;
 
-        // Back wall (top)
-        walls.fillStyle(0x0e0e1e, 0.9);
+        // Back wall (top) – tall and prominent
+        walls.fillGradientStyle(0x0e0e22, 0x0e0e22, 0x161630, 0x161630, 1);
         walls.fillRect(margin, margin, width - margin * 2, wallH);
         walls.lineStyle(2, 0x2a3a5e, 0.6);
         walls.strokeRect(margin, margin, width - margin * 2, wallH);
-        // Wall face highlight
-        walls.fillStyle(0x1a1a36, 0.5);
+        // Wall top edge highlight
+        walls.fillStyle(0x2a2a50, 0.6);
         walls.fillRect(margin, margin, width - margin * 2, 4);
+        // Wall base shadow line
+        walls.fillStyle(0x000000, 0.35);
+        walls.fillRect(margin, margin + wallH - 2, width - margin * 2, 4);
 
-        // Side walls (perspective strips)
+        // Side walls (perspective strips – narrower since we see them at a steep angle)
         // Left wall
-        walls.fillStyle(0x0c0c1a, 0.85);
-        walls.fillRect(margin, margin + wallH, 18, height - margin * 2 - wallH);
-        walls.lineStyle(1, 0x2a3a5e, 0.4);
-        walls.strokeRect(margin, margin + wallH, 18, height - margin * 2 - wallH);
+        walls.fillStyle(0x0c0c1a, 0.8);
+        walls.fillRect(margin, margin + wallH, 12, height - margin * 2 - wallH);
+        walls.lineStyle(1, 0x2a3a5e, 0.3);
+        walls.strokeRect(margin, margin + wallH, 12, height - margin * 2 - wallH);
         // Right wall
-        walls.fillStyle(0x0c0c1a, 0.85);
-        walls.fillRect(width - margin - 18, margin + wallH, 18, height - margin * 2 - wallH);
-        walls.lineStyle(1, 0x2a3a5e, 0.4);
-        walls.strokeRect(width - margin - 18, margin + wallH, 18, height - margin * 2 - wallH);
+        walls.fillStyle(0x0c0c1a, 0.8);
+        walls.fillRect(width - margin - 12, margin + wallH, 12, height - margin * 2 - wallH);
+        walls.lineStyle(1, 0x2a3a5e, 0.3);
+        walls.strokeRect(width - margin - 12, margin + wallH, 12, height - margin * 2 - wallH);
 
         // Torch glow spots on walls
         const torchPositions = [
@@ -435,26 +438,26 @@ export class GameScene extends Phaser.Scene {
             Math.min(width, height) * 0.55, 0x000000, 0.22
         ).setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        // Decorative stone pillars at arena corners (3/4 perspective)
+        // Decorative stone pillars at arena corners (low 3/4 perspective – taller, flatter shadows)
         const pillars = this.add.graphics();
         const pillarPositions = [
-            { x: margin + 50, y: margin + wallH + 30 },
-            { x: width - margin - 50, y: margin + wallH + 30 },
-            { x: margin + 50, y: height - margin - 30 },
-            { x: width - margin - 50, y: height - margin - 30 }
+            { x: margin + 50, y: margin + wallH + 20 },
+            { x: width - margin - 50, y: margin + wallH + 20 },
+            { x: margin + 50, y: height - margin - 20 },
+            { x: width - margin - 50, y: height - margin - 20 }
         ];
         pillarPositions.forEach(pos => {
-            // Pillar shadow
-            pillars.fillStyle(0x000000, 0.25);
-            pillars.fillEllipse(pos.x + 3, pos.y + 22, 28, 12);
-            // Pillar base
+            // Pillar shadow (very flat ellipse – low camera angle)
+            pillars.fillStyle(0x000000, 0.3);
+            pillars.fillEllipse(pos.x + 4, pos.y + 32, 32, 8);
+            // Pillar body (taller from low angle)
             pillars.fillStyle(0x222240, 0.9);
-            pillars.fillRect(pos.x - 10, pos.y - 30, 20, 50);
+            pillars.fillRect(pos.x - 10, pos.y - 45, 20, 75);
             pillars.lineStyle(1, 0x3a3a6e, 0.6);
-            pillars.strokeRect(pos.x - 10, pos.y - 30, 20, 50);
+            pillars.strokeRect(pos.x - 10, pos.y - 45, 20, 75);
             // Pillar top cap
             pillars.fillStyle(0x2a2a4e, 0.95);
-            pillars.fillRect(pos.x - 13, pos.y - 34, 26, 6);
+            pillars.fillRect(pos.x - 13, pos.y - 49, 26, 6);
         });
 
         this.backgroundDecor = { floor, grid, details, walls, centerGlow, vignetteCenter, pillars };
@@ -1020,7 +1023,10 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
-    drawDashedCircle(graphics, centerX, centerY, radius, options = {}) {
+    // Perspective foreshortening ratio for ground-plane shapes (lower camera = flatter ellipses)
+    static PERSP_Y = 0.55;
+
+    drawDashedEllipse(graphics, centerX, centerY, radiusX, radiusY, options = {}) {
         const {
             segments = 72,
             dashRatio = 0.55,
@@ -1033,12 +1039,23 @@ export class GameScene extends Phaser.Scene {
         graphics.lineStyle(lineWidth, color, alpha);
 
         for (let i = 0; i < segments; i++) {
-            const start = (i / segments) * Math.PI * 2 + offset;
-            const end = ((i + dashRatio) / segments) * Math.PI * 2 + offset;
+            const startA = (i / segments) * Math.PI * 2 + offset;
+            const endA = ((i + dashRatio) / segments) * Math.PI * 2 + offset;
+            const steps = 6;
             graphics.beginPath();
-            graphics.arc(centerX, centerY, radius, start, end, false);
+            for (let s = 0; s <= steps; s++) {
+                const a = startA + (endA - startA) * (s / steps);
+                const px = centerX + Math.cos(a) * radiusX;
+                const py = centerY + Math.sin(a) * radiusY;
+                if (s === 0) graphics.moveTo(px, py);
+                else graphics.lineTo(px, py);
+            }
             graphics.strokePath();
         }
+    }
+
+    drawDashedCircle(graphics, centerX, centerY, radius, options = {}) {
+        this.drawDashedEllipse(graphics, centerX, centerY, radius, radius * GameScene.PERSP_Y, options);
     }
 
     drawUltimateRangePreview() {
@@ -1051,10 +1068,12 @@ export class GameScene extends Phaser.Scene {
         const pulse = 0.78 + Math.sin(this.time.now * 0.012) * 0.22;
         const spin = this.time.now * 0.0018;
 
+        const PY = GameScene.PERSP_Y;
+
         if (ultimate.targeting === 'self') {
             if ((ultimate.aoeRadius || 0) > 0) {
                 graphics.fillStyle(0xb883ff, 0.06 * pulse);
-                graphics.fillCircle(this.player.x, this.player.y, ultimate.aoeRadius);
+                graphics.fillEllipse(this.player.x, this.player.y, ultimate.aoeRadius * 2, ultimate.aoeRadius * 2 * PY);
                 this.drawDashedCircle(graphics, this.player.x, this.player.y, ultimate.aoeRadius, {
                     segments: 66,
                     dashRatio: 0.5,
@@ -1089,7 +1108,7 @@ export class GameScene extends Phaser.Scene {
 
         const marker = 11 + pulse * 3;
         graphics.lineStyle(2, 0xe9d1ff, 0.88);
-        graphics.strokeCircle(targetPoint.x, targetPoint.y, marker);
+        graphics.strokeEllipse(targetPoint.x, targetPoint.y, marker * 2, marker * 2 * PY);
 
         const width = ultimate.width || ultimate.aoeRadius || 0;
         if (width > 0) {
@@ -1117,11 +1136,12 @@ export class GameScene extends Phaser.Scene {
         const pulse = 0.75 + Math.sin(this.time.now * 0.01) * 0.25;
         const spin = this.time.now * 0.002;
 
+        const PY = GameScene.PERSP_Y;
         const normalRange = this.weapon.getNormalRange();
         if (normalRange > 0) {
             graphics.lineStyle(2, 0x55d8ff, 0.08 * pulse);
             graphics.fillStyle(0x55d8ff, 0.03 * pulse);
-            graphics.fillCircle(this.player.x, this.player.y, normalRange);
+            graphics.fillEllipse(this.player.x, this.player.y, normalRange * 2, normalRange * 2 * PY);
 
             this.drawDashedCircle(graphics, this.player.x, this.player.y, normalRange, {
                 segments: 84,
@@ -1139,7 +1159,7 @@ export class GameScene extends Phaser.Scene {
         if (charged.targeting === 'self') {
             if (charged.aoeRadius > 0) {
                 graphics.fillStyle(0xffaa00, 0.06 * pulse);
-                graphics.fillCircle(this.player.x, this.player.y, charged.aoeRadius);
+                graphics.fillEllipse(this.player.x, this.player.y, charged.aoeRadius * 2, charged.aoeRadius * 2 * PY);
                 this.drawDashedCircle(graphics, this.player.x, this.player.y, charged.aoeRadius, {
                     segments: 64,
                     dashRatio: 0.52,
@@ -1171,7 +1191,7 @@ export class GameScene extends Phaser.Scene {
 
         if (charged.targeting === 'ground' && charged.aoeRadius > 0) {
             graphics.fillStyle(0xff8844, 0.09 * pulse);
-            graphics.fillCircle(targetPoint.x, targetPoint.y, charged.aoeRadius);
+            graphics.fillEllipse(targetPoint.x, targetPoint.y, charged.aoeRadius * 2, charged.aoeRadius * 2 * PY);
 
             this.drawDashedCircle(graphics, targetPoint.x, targetPoint.y, charged.aoeRadius, {
                 segments: 48,
@@ -1184,9 +1204,9 @@ export class GameScene extends Phaser.Scene {
         } else {
             const markerRadius = 8 + pulse * 3;
             graphics.lineStyle(2, 0xff9f5a, 0.85);
-            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius);
+            graphics.strokeEllipse(targetPoint.x, targetPoint.y, markerRadius * 2, markerRadius * 2 * PY);
             graphics.lineStyle(1, 0xffd1a4, 0.85);
-            graphics.strokeCircle(targetPoint.x, targetPoint.y, markerRadius + 6);
+            graphics.strokeEllipse(targetPoint.x, targetPoint.y, (markerRadius + 6) * 2, (markerRadius + 6) * 2 * PY);
         }
     }
 
@@ -1269,7 +1289,7 @@ export class GameScene extends Phaser.Scene {
                 const color = isFullyCharged ? 0x00ff88 : 0xffaa00;
                 
                 this.chargeGraphics.lineStyle(2, color, alpha * 0.5);
-                this.chargeGraphics.strokeCircle(this.player.x, this.player.y, radius);
+                this.chargeGraphics.strokeEllipse(this.player.x, this.player.y, radius * 2, radius * 2 * GameScene.PERSP_Y);
                 
                 this.chargeGraphics.fillStyle(color, alpha * 0.2);
                 this.chargeGraphics.slice(
@@ -1329,7 +1349,7 @@ export class GameScene extends Phaser.Scene {
             }
             
             this.aimLine.lineStyle(1, 0xff3333, 0.3);
-            this.aimLine.strokeCircle(aimX, aimY, 8);
+            this.aimLine.strokeEllipse(aimX, aimY, 16, 16 * GameScene.PERSP_Y);
         }
 
         const isUltimateInput = !!this.ultimateKey?.isDown;
