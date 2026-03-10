@@ -78,7 +78,7 @@ export class Player extends Phaser.GameObjects.Container {
     
     createVisuals() {
         // Ground shadow directly at character's feet
-        const shadow = this.scene.add.ellipse(0, 28, 50, 12, 0x000000, 0.5);
+        const shadow = this.scene.add.ellipse(0, 30, 50, 12, 0x000000, 0.5);
         this.add([shadow]);
         this.shadow = shadow;
 
@@ -124,7 +124,7 @@ export class Player extends Phaser.GameObjects.Container {
             this._canvasTex.context.drawImage(this.charRenderer.canvas, 0, 0);
             this._canvasTex.refresh();
 
-            this._charSprite = this.scene.add.image(0, -4, texKey); // slight offset so feet align with shadow
+            this._charSprite = this.scene.add.image(0, -20, texKey); // pull up so feet align with shadow
             this._charSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
             this.add(this._charSprite);
             this.bringToTop(this._charSprite);

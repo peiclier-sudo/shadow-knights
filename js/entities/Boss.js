@@ -61,7 +61,7 @@ export class Boss extends Phaser.GameObjects.Container {
             size: SPRITE_SIZE,
             modelPath: cfg.model,
             animationName: cfg.idleAnim,
-            frustum: 4.0
+            frustum: 5.5
         });
 
         const texKey = '__boss3d_' + this.bossId + '_' + Date.now();
@@ -76,7 +76,7 @@ export class Boss extends Phaser.GameObjects.Container {
             this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);
             this._bossCanvasTex.refresh();
 
-            this._bossSprite = this.scene.add.image(0, -8, texKey); // feet near ground
+            this._bossSprite = this.scene.add.image(0, -30, texKey); // pull up so feet align with shadow
             this._bossSprite.setDisplaySize(DISPLAY_SIZE, DISPLAY_SIZE);
             this.add(this._bossSprite);
             this.bringToTop(this._bossSprite);
@@ -91,7 +91,7 @@ export class Boss extends Phaser.GameObjects.Container {
             if (this.glow2) this.glow2.setVisible(false);
 
             // Ground shadow at boss feet
-            this._bossShadow = this.scene.add.ellipse(0, 52, DISPLAY_SIZE * 0.65, DISPLAY_SIZE * 0.14, 0x000000, 0.45);
+            this._bossShadow = this.scene.add.ellipse(0, 56, DISPLAY_SIZE * 0.65, DISPLAY_SIZE * 0.14, 0x000000, 0.45);
             this.add(this._bossShadow);
             this.sendToBack(this._bossShadow);
 
