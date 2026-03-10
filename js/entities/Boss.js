@@ -71,8 +71,6 @@ export class Boss extends Phaser.GameObjects.Container {
             if (!this.scene || !this.scene.textures) return;
 
             this._bossCanvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
-            this._bossCanvasTex.context.imageSmoothingEnabled = true;
-            this._bossCanvasTex.context.imageSmoothingQuality = 'high';
 
             this._bossRenderer.render();
             this._bossCanvasTex.context.drawImage(this._bossRenderer.canvas, 0, 0);

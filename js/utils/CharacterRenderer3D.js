@@ -59,7 +59,7 @@ export class CharacterRenderer3D {
         this.renderer = new THREE.WebGLRenderer({
             canvas: this._glCanvas,
             alpha: false,
-            antialias: true,
+            antialias: false,
             preserveDrawingBuffer: true
         });
         this.renderer.setSize(this.size, this.size);

@@ -116,8 +116,6 @@ export class Player extends Phaser.GameObjects.Container {
 
             // Create a Phaser CanvasTexture we can update every frame
             this._canvasTex = this.scene.textures.createCanvas(texKey, SPRITE_SIZE, SPRITE_SIZE);
-            this._canvasTex.context.imageSmoothingEnabled = true;
-            this._canvasTex.context.imageSmoothingQuality = 'high';
 
             // Initial render
             this.charRenderer.render();
