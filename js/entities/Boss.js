@@ -90,8 +90,8 @@ export class Boss extends Phaser.GameObjects.Container {
             if (this.glow1) this.glow1.setVisible(false);
             if (this.glow2) this.glow2.setVisible(false);
 
-            // Ground shadow beneath the boss feet
-            this._bossShadow = this.scene.add.ellipse(0, 20, DISPLAY_SIZE * 0.55, DISPLAY_SIZE * 0.18, 0x000000, 0.35);
+            // Ground shadow beneath the boss feet (flat for low 3/4 perspective)
+            this._bossShadow = this.scene.add.ellipse(0, 28, DISPLAY_SIZE * 0.6, DISPLAY_SIZE * 0.12, 0x000000, 0.4);
             this.add(this._bossShadow);
             this.sendToBack(this._bossShadow);
 
