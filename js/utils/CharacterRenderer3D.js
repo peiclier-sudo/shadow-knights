@@ -1,4 +1,4 @@
-// CharacterRenderer3D.js - Renders a 3D GLB character from a top-down view
+// CharacterRenderer3D.js - Renders a 3D GLB character from a 3/4 isometric view
 // Uses Three.js to render to an offscreen canvas, then feeds that into Phaser as a dynamic texture.
 
 import * as THREE from 'three';
@@ -17,8 +17,8 @@ export class CharacterRenderer3D {
         this.animationName = options.animationName || 'Runfast';
         this._frustum = options.frustum || 2.0;
         this._modelScale = options.modelScale || 2.6;
-        // Camera tilt from vertical in radians (0 = pure top-down, ~0.35 = subtle 3/4 view)
-        this._cameraTilt = options.cameraTilt != null ? options.cameraTilt : 0.35;
+        // Camera tilt from vertical in radians (0 = pure top-down, ~0.65 = pronounced 3/4 view)
+        this._cameraTilt = options.cameraTilt != null ? options.cameraTilt : 0.65;
         this._camDist = 6;
 
         // Optional correction rotation for models with non-standard orientation
@@ -69,7 +69,7 @@ export class CharacterRenderer3D {
         // Scene
         this.scene = new THREE.Scene();
 
-        // Orthographic camera with slight 3/4 tilt that orbits behind the character
+        // Orthographic camera with pronounced 3/4 tilt for hack-and-slash perspective
         const frustum = this._frustum;
         this.camera = new THREE.OrthographicCamera(
             -frustum, frustum,

@@ -3,6 +3,7 @@ export const BOSSES = {
     1: {
         name: 'SENTINEL',
         hp: 400,
+        speed: 70,
         color: 0xff0051,
         glowColor: 0xff3366,
         secondaryColor: 0x990033,
@@ -11,6 +12,7 @@ export const BOSSES = {
     2: {
         name: 'GUNNER',
         hp: 500,
+        speed: 55,
         color: 0xff6600,
         glowColor: 0xff8833,
         secondaryColor: 0xcc4400,
@@ -19,6 +21,7 @@ export const BOSSES = {
     3: {
         name: 'DASHER',
         hp: 600,
+        speed: 110,
         color: 0xcc00ff,
         glowColor: 0xdd33ff,
         secondaryColor: 0x9900cc,
@@ -27,6 +30,7 @@ export const BOSSES = {
     4: {
         name: 'PHANTOM',
         hp: 700,
+        speed: 85,
         color: 0x00ffcc,
         glowColor: 0x33ffee,
         secondaryColor: 0x009977,
@@ -35,6 +39,7 @@ export const BOSSES = {
     5: {
         name: 'NEBULA',
         hp: 820,
+        speed: 60,
         color: 0x7b61ff,
         glowColor: 0xb5a6ff,
         secondaryColor: 0x2d1a63,
@@ -43,6 +48,7 @@ export const BOSSES = {
     6: {
         name: 'OVERCLOCK',
         hp: 980,
+        speed: 95,
         color: 0xffd54a,
         glowColor: 0xffef99,
         secondaryColor: 0x8a5d00,
@@ -51,6 +57,7 @@ export const BOSSES = {
     7: {
         name: 'VORTEX',
         hp: 1120,
+        speed: 65,
         color: 0x3aa7ff,
         glowColor: 0x8fd3ff,
         secondaryColor: 0x114c78,
@@ -59,6 +66,7 @@ export const BOSSES = {
     8: {
         name: 'EMBER CROWN',
         hp: 1260,
+        speed: 75,
         color: 0xff3d1f,
         glowColor: 0xffa07a,
         secondaryColor: 0x7c1f10,
@@ -67,6 +75,7 @@ export const BOSSES = {
     9: {
         name: 'AURORA JUDGE',
         hp: 1400,
+        speed: 80,
         color: 0x84ff6b,
         glowColor: 0xc7ffbf,
         secondaryColor: 0x2f6a2c,
@@ -75,6 +84,7 @@ export const BOSSES = {
     10: {
         name: 'CHRONARCH',
         hp: 1600,
+        speed: 90,
         color: 0xe0b0ff,
         glowColor: 0xf5e6ff,
         secondaryColor: 0x2a0845,
